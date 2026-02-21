@@ -7,7 +7,7 @@ import { LandingPage } from "./pages/LandingPage"
 import { LoginPage } from "./pages/LoginPage"
 import { RegisterPage } from "./pages/RegisterPage"
 import { AppPage } from "./pages/AppPage"
-import { RequireAuth } from "./auth/RequireAuth"
+
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
