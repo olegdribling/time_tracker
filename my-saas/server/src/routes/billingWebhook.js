@@ -1,6 +1,13 @@
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY)
 const pool = require('../db')
 
+// Stripe 2026-01-28.clover API returns timestamps as ISO strings; older versions use Unix ints
+function toDate(value) {
+  if (!value) return null
+  if (typeof value === 'number') return new Date(value * 1000)
+  return new Date(value)
+}
+
 module.exports = async (req, res) => {
   const sig = req.headers['stripe-signature']
 
@@ -48,7 +55,8 @@ module.exports = async (req, res) => {
         const stripeSub = await stripe.subscriptions.retrieve(
           typeof subscriptionId === 'string' ? subscriptionId : subscriptionId.id
         )
-        const periodEnd = new Date(stripeSub.current_period_end * 1000)
+        console.log('[Webhook] current_period_end raw:', stripeSub.current_period_end, '| type:', typeof stripeSub.current_period_end)
+        const periodEnd = toDate(stripeSub.current_period_end)
 
         await pool.query(
           `INSERT INTO subscriptions (user_id, stripe_customer_id, stripe_subscription_id, plan, current_period_end, updated_at)
@@ -69,7 +77,7 @@ module.exports = async (req, res) => {
 
     if (event.type === 'customer.subscription.updated') {
       const stripeSub = event.data.object
-      const periodEnd = new Date(stripeSub.current_period_end * 1000)
+      const periodEnd = toDate(stripeSub.current_period_end)
       const priceId = stripeSub.items.data[0]?.price?.id
 
       let plan = 'unknown'
