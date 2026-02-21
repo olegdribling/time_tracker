@@ -19,10 +19,8 @@ createRoot(document.getElementById("root")!).render(
 
         <Route
           path="/app/*"
-          element={
-            //<RequireAuth>
-              <AppPage />
-            //</RequireAuth>
+          element={      
+              <AppPage />     
           }
         />
 
