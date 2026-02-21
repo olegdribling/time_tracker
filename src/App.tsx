@@ -276,6 +276,7 @@ function App() {
   const [invoiceTotalInput, setInvoiceTotalInput] = useState('0')
   const [nextInvoiceNumberInput, setNextInvoiceNumberInput] = useState('1')
   const importInputRef = useRef<HTMLInputElement | null>(null)
+  const [userEmail, setUserEmail] = useState<string>('')
   const [editingId, setEditingId] = useState<string | null>(null)
   const [activeView, setActiveView] = useState<'home' | 'reports' | 'calendar'>('home')
   const [periodOffset, setPeriodOffset] = useState(0)
@@ -313,11 +314,13 @@ function App() {
     let cancelled = false
     ;(async () => {
       try {
-        const [shiftRows, settingsRow, invoiceRow] = await Promise.all([
+        const [shiftRows, settingsRow, invoiceRow, meRow] = await Promise.all([
           api.getShifts(),
           api.getSettings(),
           api.getInvoiceProfile(),
+          api.me(),
         ])
+        if (meRow?.email) setUserEmail(meRow.email)
 
         if (cancelled) return
 
@@ -945,8 +948,8 @@ function App() {
         {isMenuOpen && (
           <div className="menu-sheet">
             <div className="menu-item">
-              <div className="menu-title">User</div>
-              <div className="menu-sub">Outdoorblinds Australia</div>
+              <div className="menu-title">Account</div>
+              <div className="menu-sub">{userEmail}</div>
             </div>
             <button className="menu-item action" onClick={goHome}>
               Dashboard
