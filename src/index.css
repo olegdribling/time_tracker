@@ -1145,8 +1145,12 @@ textarea {
     grid-template-columns: 1fr;
   }
 
-  .ld-nav-links .ld-nav-link {
-    display: none;
+  .ld-nav-links {
+    gap: 12px;
+  }
+
+  .ld-nav-link {
+    font-size: 13px;
   }
 }
 
