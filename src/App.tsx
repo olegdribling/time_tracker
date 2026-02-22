@@ -1055,7 +1055,6 @@ function App() {
               <div className="field">
                 <span className="label">Client</span>
                 <select
-                  className="input"
                   value={selectedClientId ?? ''}
                   onChange={e => setSelectedClientId(e.target.value ? Number(e.target.value) : null)}
                 >
