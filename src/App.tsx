@@ -511,10 +511,11 @@ function App() {
 
   const reportPeriodLabel = useMemo(() => {
     if (!reportRange) return 'All time'
+    if (reportRange.start === reportRange.end) return formatDate(reportRange.start)
     return `${formatDate(reportRange.start)} — ${formatDate(reportRange.end)}`
   }, [reportRange])
 
-  const canNavigateReports = settings.period !== 'custom'
+  const canNavigateReports = true
 
   const calendarWeekLabels = useMemo(() => {
     return Array.from({ length: 7 }, (_, idx) => WEEKDAY_LABELS[WEEKDAYS[(CALENDAR_WEEK_START_INDEX + idx) % 7]])

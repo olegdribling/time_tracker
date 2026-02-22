@@ -49,7 +49,10 @@ export function getPeriodRange(settings: Settings, todayInput: Date = new Date()
     return { start: iso(start), end: iso(end) }
   }
 
-  // Custom dates: not yet implemented, so we use full range (no filtering).
+  if (settings.period === 'custom') {
+    return { start: iso(today), end: iso(today) }
+  }
+
   return null
 }
 
@@ -92,6 +95,12 @@ export function getPeriodByOffset(
     start.setMonth(start.getMonth() + offset)
     const end = new Date(start.getFullYear(), start.getMonth() + 1, 0)
     return { start: iso(start), end: iso(end) }
+  }
+
+  if (settings.period === 'custom') {
+    const day = new Date(base.start)
+    day.setDate(day.getDate() + offset)
+    return { start: iso(day), end: iso(day) }
   }
 
   return base
