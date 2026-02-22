@@ -7,8 +7,7 @@ router.use(authMiddleware)
 
 const rowToClient = (row) => ({
   id: row.id,
-  fullName: row.full_name,
-  companyName: row.company_name,
+  name: row.full_name,
   address: row.address,
   abn: row.abn,
   email: row.email,
@@ -28,12 +27,12 @@ router.get('/', async (req, res) => {
 })
 
 router.post('/', async (req, res) => {
-  const { fullName, companyName, address, abn, email } = req.body
+  const { name, address, abn, email } = req.body
   try {
     const result = await pool.query(
-      `INSERT INTO clients (user_id, full_name, company_name, address, abn, email)
-       VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
-      [req.userId, fullName || '', companyName || '', address || '', abn || '', email || '']
+      `INSERT INTO clients (user_id, full_name, address, abn, email)
+       VALUES ($1, $2, $3, $4, $5) RETURNING id`,
+      [req.userId, name || '', address || '', abn || '', email || '']
     )
     res.json({ id: result.rows[0].id })
   } catch (err) {
@@ -43,12 +42,12 @@ router.post('/', async (req, res) => {
 })
 
 router.put('/:id', async (req, res) => {
-  const { fullName, companyName, address, abn, email } = req.body
+  const { name, address, abn, email } = req.body
   try {
     await pool.query(
-      `UPDATE clients SET full_name=$1, company_name=$2, address=$3, abn=$4, email=$5, updated_at=NOW()
-       WHERE id=$6 AND user_id=$7`,
-      [fullName || '', companyName || '', address || '', abn || '', email || '', req.params.id, req.userId]
+      `UPDATE clients SET full_name=$1, address=$2, abn=$3, email=$4, updated_at=NOW()
+       WHERE id=$5 AND user_id=$6`,
+      [name || '', address || '', abn || '', email || '', req.params.id, req.userId]
     )
     res.json({ ok: true })
   } catch (err) {

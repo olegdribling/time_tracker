@@ -26,8 +26,7 @@ export type Settings = {
 
 export type Client = {
   id: number
-  fullName: string
-  companyName: string
+  name: string
   address: string
   abn: string
   email: string

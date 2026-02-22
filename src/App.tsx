@@ -283,7 +283,7 @@ function App() {
   const [clients, setClients] = useState<Client[]>([])
   const [isClientModalOpen, setIsClientModalOpen] = useState(false)
   const [editingClientId, setEditingClientId] = useState<number | null>(null)
-  const [clientDraft, setClientDraft] = useState<ClientDraft>({ fullName: '', companyName: '', address: '', abn: '', email: '' })
+  const [clientDraft, setClientDraft] = useState<ClientDraft>({ name: '', address: '', abn: '', email: '' })
   const [periodOffset, setPeriodOffset] = useState(0)
   const [calendarMonth, setCalendarMonth] = useState(() => toMonthKey(new Date()))
   const [calendarSelectedDate, setCalendarSelectedDate] = useState(() => toLocalDateKey(new Date()))
@@ -716,13 +716,13 @@ function App() {
 
   const openAddClient = () => {
     setEditingClientId(null)
-    setClientDraft({ fullName: '', companyName: '', address: '', abn: '', email: '' })
+    setClientDraft({ name: '', address: '', abn: '', email: '' })
     setIsClientModalOpen(true)
   }
 
   const openEditClient = (client: Client) => {
     setEditingClientId(client.id)
-    setClientDraft({ fullName: client.fullName, companyName: client.companyName, address: client.address, abn: client.abn, email: client.email })
+    setClientDraft({ name: client.name, address: client.address, abn: client.abn, email: client.email })
     setIsClientModalOpen(true)
   }
 
@@ -1285,10 +1285,7 @@ function App() {
                 <div key={client.id} className="shift-card" style={{ cursor: 'pointer' }} onClick={() => openEditClient(client)}>
                   <div className="shift-card__header">
                     <div>
-                      <div className="shift-date">{client.companyName || client.fullName}</div>
-                      {client.companyName && client.fullName && (
-                        <div className="report-meta" style={{ marginTop: 2 }}><span className="label">{client.fullName}</span></div>
-                      )}
+                      <div className="shift-date">{client.name}</div>
                       {client.email && <div className="label" style={{ marginTop: 2 }}>{client.email}</div>}
                     </div>
                     <button
@@ -1504,23 +1501,14 @@ function App() {
             </div>
             <div className="form-grid" style={{ marginTop: '12px' }}>
               <label className="field">
-                <span className="label">Full Name</span>
+                <span className="label">Full Name / Company Name</span>
                 <input
                   className="input"
                   type="text"
-                  value={clientDraft.fullName}
-                  onChange={e => setClientDraft(prev => ({ ...prev, fullName: e.target.value }))}
-                  placeholder="Jane Smith"
-                />
-              </label>
-              <label className="field">
-                <span className="label">Company Name</span>
-                <input
-                  className="input"
-                  type="text"
-                  value={clientDraft.companyName}
-                  onChange={e => setClientDraft(prev => ({ ...prev, companyName: e.target.value }))}
-                  placeholder="Acme Pty Ltd"
+                  value={clientDraft.name}
+                  onChange={e => setClientDraft(prev => ({ ...prev, name: e.target.value }))}
+                  placeholder="Jane Smith / Acme Pty Ltd"
+                  autoFocus
                 />
               </label>
               <label className="field">
