@@ -767,9 +767,8 @@ function App() {
     setIsSettingsOpen(false)
   }
 
-  const handleLogout = () => {
-    localStorage.removeItem('tt_token')
-    localStorage.removeItem('tt_auth')
+  const handleLogout = async () => {
+    await api.logout()
     navigate('/login')
   }
 

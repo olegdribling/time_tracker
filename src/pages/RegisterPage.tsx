@@ -13,6 +13,7 @@ export function RegisterPage() {
     const data = await api.register(email, password)
     if (data.error) return setError(data.error)
     localStorage.setItem('tt_token', data.token)
+    localStorage.setItem('tt_refresh_token', data.refreshToken)
     localStorage.setItem('tt_auth', '1')
     navigate('/app')
   }
