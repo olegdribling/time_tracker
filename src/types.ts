@@ -42,5 +42,4 @@ export type InvoiceProfile = {
   accountNumber: string
   nextInvoiceNumber: number
   chargeGst: boolean
-  myEmail: string
 }

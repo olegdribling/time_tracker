@@ -40,7 +40,6 @@ const DEFAULT_INVOICE_PROFILE: InvoiceProfile = {
   accountNumber: '',
   nextInvoiceNumber: 1,
   chargeGst: false,
-  myEmail: '',
 }
 
 function formatDate(value: string) {
@@ -1807,15 +1806,6 @@ function App() {
                 />
               </label>
 
-              <label className="field">
-                <span className="label">My email</span>
-                <input
-                  type="email"
-                  placeholder="you@example.com"
-                  value={invoiceDraft.myEmail}
-                  onChange={(e) => setInvoiceDraft((prev) => ({ ...prev, myEmail: e.target.value }))}
-                />
-              </label>
             </div>
 
             <button className="primary-btn" onClick={saveInvoiceProfile}>
