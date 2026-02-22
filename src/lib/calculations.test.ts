@@ -6,8 +6,6 @@ const baseSettings: Settings = {
   period: 'weekly',
   weekStart: 'monday',
   hourlyRate: 25,
-  userEmail: '',
-  accountantEmail: '',
 }
 
 
