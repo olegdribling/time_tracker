@@ -755,7 +755,7 @@ function App() {
   }
 
   const handleDeleteClient = async (id: number) => {
-    const ok = window.confirm('Delete this client?')
+    const ok = window.confirm('Remove this client? This cannot be undone.')
     if (!ok) return
     await api.deleteClient(id)
     setClients(prev => prev.filter(c => c.id !== id))
