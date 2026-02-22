@@ -213,6 +213,7 @@ const WheelPicker = ({ options, value, onChange, itemHeight = 44 }: WheelPickerP
             key={`${option.value}-${idx}`}
             className={`wheel__item ${option.value === value ? 'is-active' : ''}`}
             style={{ height: itemHeight }}
+            translate="no"
           >
             {option.label}
           </div>
