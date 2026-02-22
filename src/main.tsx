@@ -8,6 +8,9 @@ import { LoginPage } from "./pages/LoginPage"
 import { RegisterPage } from "./pages/RegisterPage"
 import { AppPage } from "./pages/AppPage"
 import { BillingPage } from "./pages/BillingPage"
+import { TermsPage } from "./pages/TermsPage"
+import { PrivacyPage } from "./pages/PrivacyPage"
+import { RefundPage } from "./pages/RefundPage"
 import { ProtectedRoute } from "./auth/ProtectedRoute"
 
 
@@ -18,6 +21,9 @@ createRoot(document.getElementById("root")!).render(
         <Route path="/" element={<LandingPage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
+        <Route path="/terms" element={<TermsPage />} />
+        <Route path="/privacy" element={<PrivacyPage />} />
+        <Route path="/refund" element={<RefundPage />} />
 
         <Route
           path="/app/billing"

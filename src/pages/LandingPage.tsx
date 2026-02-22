@@ -161,7 +161,7 @@ export function LandingPage() {
             <div className="ld-price-card ld-price-card--featured">
               <div className="ld-price-badge">Most popular</div>
               <div className="ld-price-plan">Solo</div>
-              <div className="ld-price-amount"><span className="ld-price-num">$5</span><span className="ld-price-per"> AUD / month</span></div>
+              <div className="ld-price-amount"><span className="ld-price-num">$5</span><span className="ld-price-per"> AUD / month (incl. GST)</span></div>
               <ul className="ld-price-features">
                 <li>✓ 1 client / contractor</li>
                 <li>✓ Unlimited shifts</li>
@@ -169,11 +169,12 @@ export function LandingPage() {
                 <li>✓ PDF export</li>
               </ul>
               <a href="/register" className="ld-btn-primary ld-btn-full">Get Solo →</a>
+              <p className="ld-price-renewal">Renews automatically. Cancel anytime.</p>
             </div>
 
             <div className="ld-price-card">
               <div className="ld-price-plan">Pro</div>
-              <div className="ld-price-amount"><span className="ld-price-num">$10</span><span className="ld-price-per"> AUD / month</span></div>
+              <div className="ld-price-amount"><span className="ld-price-num">$10</span><span className="ld-price-per"> AUD / month (incl. GST)</span></div>
               <ul className="ld-price-features">
                 <li>✓ Unlimited clients</li>
                 <li>✓ Unlimited shifts</li>
@@ -182,6 +183,7 @@ export function LandingPage() {
                 <li>✓ Priority support</li>
               </ul>
               <a href="/register" className="ld-btn-ghost ld-btn-full">Get Pro</a>
+              <p className="ld-price-renewal">Renews automatically. Cancel anytime.</p>
             </div>
 
           </div>
@@ -209,6 +211,9 @@ export function LandingPage() {
           <div className="ld-footer-links">
             <a href="/login">Log in</a>
             <a href="/register">Sign up</a>
+            <a href="/terms">Terms</a>
+            <a href="/privacy">Privacy</a>
+            <a href="/refund">Refund Policy</a>
           </div>
           <p className="ld-footer-copy">© {new Date().getFullYear()} TimeTracker. All rights reserved.</p>
         </div>

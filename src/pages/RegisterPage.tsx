@@ -60,6 +60,11 @@ export function RegisterPage() {
 
         <button className="auth-btn" onClick={handleRegister}>Create account</button>
 
+        <p className="auth-consent">
+          By creating an account you agree to our{' '}
+          <a href="/terms">Terms of Service</a> and <a href="/privacy">Privacy Policy</a>.
+        </p>
+
         <p className="auth-footer">
           Already have an account? <Link to="/login">Sign in</Link>
         </p>

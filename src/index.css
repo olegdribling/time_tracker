@@ -1308,3 +1308,105 @@ textarea {
     color: #94a3b8;
   }
 }
+
+/* ── PRICING — auto-renewal note ── */
+.ld-price-renewal {
+  margin-top: 0.75rem;
+  font-size: 0.72rem;
+  color: var(--ld-muted, #94a3b8);
+  text-align: center;
+  line-height: 1.4;
+}
+
+/* ── LEGAL PAGES ── */
+.legal-page {
+  min-height: 100vh;
+  background: var(--app-bg);
+  padding: 3rem 1.5rem 5rem;
+}
+
+.legal-container {
+  max-width: 760px;
+  margin: 0 auto;
+}
+
+.legal-back {
+  display: inline-block;
+  margin-bottom: 2rem;
+  font-size: 0.875rem;
+  color: var(--accent);
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.legal-back:hover {
+  text-decoration: underline;
+}
+
+.legal-title {
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 0.25rem;
+}
+
+.legal-meta {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  margin-bottom: 2.5rem;
+}
+
+.legal-body {
+  color: var(--text-primary);
+  line-height: 1.75;
+  font-size: 0.95rem;
+}
+
+.legal-body p {
+  margin-bottom: 1rem;
+}
+
+.legal-body h2 {
+  font-size: 1.15rem;
+  font-weight: 700;
+  margin-top: 2rem;
+  margin-bottom: 0.5rem;
+  color: var(--text-primary);
+}
+
+.legal-body ul {
+  padding-left: 1.5rem;
+  margin-bottom: 1rem;
+}
+
+.legal-body li {
+  margin-bottom: 0.4rem;
+}
+
+.legal-body a {
+  color: var(--accent);
+  text-decoration: underline;
+}
+
+.legal-body code {
+  background: var(--input-bg, #f7f8fc);
+  border: 1px solid var(--border, #e5e7ef);
+  border-radius: 4px;
+  padding: 0.1em 0.4em;
+  font-size: 0.88em;
+  font-family: monospace;
+}
+
+/* ── REGISTER — consent note ── */
+.auth-consent {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  text-align: center;
+  line-height: 1.5;
+  margin-top: 0.5rem;
+}
+
+.auth-consent a {
+  color: var(--accent);
+  text-decoration: underline;
+}
