@@ -57,6 +57,7 @@ export async function generateInvoicePdf(params: {
   subtotal: number
   gst?: number
   balanceDue?: number
+  billTo?: { name: string; address: string; abn: string }
 }) {
   const {
     profile,
@@ -68,6 +69,7 @@ export async function generateInvoicePdf(params: {
     subtotal,
     gst = 0,
     balanceDue = subtotal + gst,
+    billTo,
   } = params
 
   const pdfDoc = await PDFDocument.create()
@@ -116,15 +118,24 @@ export async function generateInvoicePdf(params: {
   drawText(`Date  ${formatShortDate(period.end)}`, rightX, rightStartY - line * 2.4, { bold: true })
   drawText(`Period  ${formatDate(period.start)} — ${formatDate(period.end)}`, rightX, rightStartY - line * 3.6, { size: 10 })
 
-  // Bill to placeholder
+  // Bill to
   y -= line * 4
   drawText('Bill to:', margin, y, { bold: true })
   y -= line * 1.2
-  drawText('Outdoor Blinds Group Pty Ltd', margin, y, { bold: true })
-  y -= line
-  drawText('Unit 37, 17-21 Henderson St. Turrella', margin, y)
-  y -= line
-  drawText('NSW 2205 Australia (AU)', margin, y)
+  if (billTo?.name) {
+    drawText(billTo.name, margin, y, { bold: true })
+    y -= line
+    if (billTo.address) {
+      const billToAddressLines = wrapText(billTo.address)
+      billToAddressLines.forEach((l) => {
+        drawText(l, margin, y)
+        y -= line
+      })
+    }
+    if (billTo.abn) {
+      drawText(`ABN: ${billTo.abn}`, margin, y)
+    }
+  }
 
   // Table
   y -= line * 2

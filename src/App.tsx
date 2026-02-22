@@ -258,6 +258,7 @@ function App() {
   const [isInvoiceModalOpen, setIsInvoiceModalOpen] = useState(false)
   const [isInvoiceScreenOpen, setIsInvoiceScreenOpen] = useState(false)
   const [isInvoiceEditing, setIsInvoiceEditing] = useState(false)
+  const [selectedClientId, setSelectedClientId] = useState<number | null>(null)
   const [showEmailPrompt, setShowEmailPrompt] = useState(false)
   const [lastInvoiceNumber, setLastInvoiceNumber] = useState<number | null>(null)
   const [form, setForm] = useState<ShiftForm>(emptyForm)
@@ -889,6 +890,7 @@ function App() {
     setInvoiceTotalInput(String(reportTotals.pay))
     setIsInvoiceEditing(false)
     setShowEmailPrompt(false)
+    setSelectedClientId(clients.length === 1 ? clients[0].id : null)
     setIsInvoiceScreenOpen(true)
   }
 
@@ -907,6 +909,7 @@ function App() {
     const netSubtotal = invoiceForm.total - gst
     const balanceDue = invoiceForm.total
     try {
+      const selectedClient = clients.find(c => c.id === selectedClientId)
       await generateInvoicePdf({
         profile: invoiceProfile,
         period: reportRange,
@@ -917,6 +920,7 @@ function App() {
         subtotal: netSubtotal,
         gst,
         balanceDue,
+        billTo: selectedClient ? { name: selectedClient.name, address: selectedClient.address, abn: selectedClient.abn } : undefined,
       })
       const nextNumber =
         invoiceNumber > invoiceProfile.nextInvoiceNumber
@@ -1048,6 +1052,20 @@ function App() {
             </div>
 
             <div className="form-grid">
+              <div className="field">
+                <span className="label">Client</span>
+                <select
+                  className="input"
+                  value={selectedClientId ?? ''}
+                  onChange={e => setSelectedClientId(e.target.value ? Number(e.target.value) : null)}
+                >
+                  <option value="">— No client —</option>
+                  {clients.map(c => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
+                </select>
+              </div>
+
               <div className="field">
                 <span className="label">Invoice number</span>
                 <input
