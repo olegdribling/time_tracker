@@ -288,6 +288,8 @@ function App() {
   const [isClientModalOpen, setIsClientModalOpen] = useState(false)
   const [editingClientId, setEditingClientId] = useState<number | null>(null)
   const [clientDraft, setClientDraft] = useState<ClientDraft>({ name: '', address: '', abn: '', email: '' })
+  const [billingPlan, setBillingPlan] = useState<string>('trial')
+  const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false)
   const [periodOffset, setPeriodOffset] = useState(0)
   const [calendarMonth, setCalendarMonth] = useState(() => toMonthKey(new Date()))
   const [calendarSelectedDate, setCalendarSelectedDate] = useState(() => toLocalDateKey(new Date()))
@@ -323,12 +325,13 @@ function App() {
     let cancelled = false
     ;(async () => {
       try {
-        const [shiftRows, settingsRow, invoiceRow, meRow, clientRows] = await Promise.all([
+        const [shiftRows, settingsRow, invoiceRow, meRow, clientRows, billingRow] = await Promise.all([
           api.getShifts(),
           api.getSettings(),
           api.getInvoiceProfile(),
           api.me(),
           api.getClients(),
+          api.getBillingStatus(),
         ])
         if (meRow?.email) setUserEmail(meRow.email)
 
@@ -354,6 +357,7 @@ function App() {
 
         setShifts(shiftRows)
         setClients(clientRows)
+        if (billingRow?.plan) setBillingPlan(billingRow.plan)
       } catch (error) {
         console.error('Failed to load data', error)
       }
@@ -719,6 +723,10 @@ function App() {
   }
 
   const openAddClient = () => {
+    if ((billingPlan === 'trial' || billingPlan === 'solo') && clients.length >= 1) {
+      setIsUpgradeModalOpen(true)
+      return
+    }
     setEditingClientId(null)
     setClientDraft({ name: '', address: '', abn: '', email: '' })
     setIsClientModalOpen(true)
@@ -1564,6 +1572,29 @@ function App() {
             <button className="primary-btn" style={{ marginTop: '16px' }} onClick={saveClient}>
               Save
             </button>
+          </div>
+        </div>
+      )}
+
+      {isUpgradeModalOpen && (
+        <div className="modal-backdrop" onClick={() => setIsUpgradeModalOpen(false)}>
+          <div className="modal" onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <button className="ghost-button" onClick={() => setIsUpgradeModalOpen(false)}>Close</button>
+              <div className="modal-title">Upgrade to Pro</div>
+            </div>
+            <div style={{ padding: '8px 0 4px', textAlign: 'center' }}>
+              <p style={{ marginBottom: '6px' }}>Your current plan allows only <strong>1 client</strong>.</p>
+              <p style={{ marginBottom: '24px', color: 'var(--text-secondary)', fontSize: '14px' }}>
+                Upgrade to Pro to add unlimited clients.
+              </p>
+              <button
+                className="primary-btn"
+                onClick={() => { setIsUpgradeModalOpen(false); navigate('/app/billing') }}
+              >
+                Upgrade to Pro →
+              </button>
+            </div>
           </div>
         </div>
       )}
