@@ -184,7 +184,10 @@ const WheelPicker = ({ options, value, onChange, itemHeight = 44 }: WheelPickerP
     const normalized = ((index % baseCount) + baseCount) % baseCount
     const targetIndex = middleOffset + normalized
     const target = Math.max(0, viewportPadding - itemHeight + targetIndex * itemHeight)
-    ref.current.scrollTo({ top: target, behavior: 'smooth' })
+    // Only scroll if normalization is needed (infinite-loop reset); CSS snap handles visual snapping
+    if (Math.abs(scrollTop - target) > 2) {
+      ref.current.scrollTo({ top: target, behavior: 'instant' })
+    }
     const selected = options[normalized]
     if (selected && selected.value !== value) {
       onChange(selected.value)
@@ -193,7 +196,7 @@ const WheelPicker = ({ options, value, onChange, itemHeight = 44 }: WheelPickerP
 
   const handleScroll = () => {
     if (scrollTimeout.current) clearTimeout(scrollTimeout.current)
-    scrollTimeout.current = setTimeout(snapToNearest, 120)
+    scrollTimeout.current = setTimeout(snapToNearest, 80)
   }
 
   return (
