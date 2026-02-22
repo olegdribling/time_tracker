@@ -1,4 +1,4 @@
-import type { InvoiceProfile, Settings, Shift } from './types'
+import type { Client, ClientDraft, InvoiceProfile, Settings, Shift } from './types'
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 
@@ -88,6 +88,36 @@ export const api = {
       method: 'PUT',
       headers: authHeaders(),
       body: JSON.stringify(profile),
+    })
+  },
+
+  // Clients
+  async getClients(): Promise<Client[]> {
+    const res = await fetch(`${API_URL}/api/clients`, { headers: authHeaders() })
+    return res.json()
+  },
+
+  async createClient(draft: ClientDraft): Promise<{ id: number }> {
+    const res = await fetch(`${API_URL}/api/clients`, {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify(draft),
+    })
+    return res.json()
+  },
+
+  async updateClient(id: number, draft: ClientDraft): Promise<void> {
+    await fetch(`${API_URL}/api/clients/${id}`, {
+      method: 'PUT',
+      headers: authHeaders(),
+      body: JSON.stringify(draft),
+    })
+  },
+
+  async deleteClient(id: number): Promise<void> {
+    await fetch(`${API_URL}/api/clients/${id}`, {
+      method: 'DELETE',
+      headers: authHeaders(),
     })
   },
 

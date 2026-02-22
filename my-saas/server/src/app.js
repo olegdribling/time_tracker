@@ -16,6 +16,7 @@ app.use('/api/shifts', require('./routes/shifts'))
 app.use('/api/settings', require('./routes/settings'))
 app.use('/api/invoice-profile', require('./routes/invoiceProfile'))
 app.use('/api/billing', require('./routes/billing'))
+app.use('/api/clients', require('./routes/clients'))
 
 app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok' })

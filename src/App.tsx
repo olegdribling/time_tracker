@@ -4,7 +4,7 @@ import './App.css'
 import { api } from './api'
 import { calculateTotals, getPeriodByOffset, getPeriodRange, groupShiftsByDay, minutesBetween } from './lib/calculations'
 import { generateInvoicePdf } from './lib/invoice'
-import type { InvoiceProfile, Settings, Shift, ShiftForm } from './types'
+import type { Client, ClientDraft, InvoiceProfile, Settings, Shift, ShiftForm } from './types'
 import { saveAs } from 'file-saver'
 
 const INITIAL_HOURLY_RATE = 25
@@ -279,7 +279,11 @@ function App() {
   const importInputRef = useRef<HTMLInputElement | null>(null)
   const [userEmail, setUserEmail] = useState<string>('')
   const [editingId, setEditingId] = useState<string | null>(null)
-  const [activeView, setActiveView] = useState<'home' | 'reports' | 'calendar'>('home')
+  const [activeView, setActiveView] = useState<'home' | 'reports' | 'calendar' | 'clients'>('home')
+  const [clients, setClients] = useState<Client[]>([])
+  const [isClientModalOpen, setIsClientModalOpen] = useState(false)
+  const [editingClientId, setEditingClientId] = useState<number | null>(null)
+  const [clientDraft, setClientDraft] = useState<ClientDraft>({ fullName: '', companyName: '', address: '', abn: '', email: '' })
   const [periodOffset, setPeriodOffset] = useState(0)
   const [calendarMonth, setCalendarMonth] = useState(() => toMonthKey(new Date()))
   const [calendarSelectedDate, setCalendarSelectedDate] = useState(() => toLocalDateKey(new Date()))
@@ -315,11 +319,12 @@ function App() {
     let cancelled = false
     ;(async () => {
       try {
-        const [shiftRows, settingsRow, invoiceRow, meRow] = await Promise.all([
+        const [shiftRows, settingsRow, invoiceRow, meRow, clientRows] = await Promise.all([
           api.getShifts(),
           api.getSettings(),
           api.getInvoiceProfile(),
           api.me(),
+          api.getClients(),
         ])
         if (meRow?.email) setUserEmail(meRow.email)
 
@@ -344,6 +349,7 @@ function App() {
         }
 
         setShifts(shiftRows)
+        setClients(clientRows)
       } catch (error) {
         console.error('Failed to load data', error)
       }
@@ -605,6 +611,11 @@ function App() {
     setPeriodOffset(0)
   }
 
+  const openClients = () => {
+    closeOverlays()
+    setActiveView('clients')
+  }
+
   const openCalendar = (targetDate?: string) => {
     closeOverlays()
     const nextDate = targetDate ?? calendarSelectedDate ?? toLocalDateKey(new Date())
@@ -701,6 +712,41 @@ function App() {
   const goHome = () => {
     closeOverlays()
     setActiveView('home')
+  }
+
+  const openAddClient = () => {
+    setEditingClientId(null)
+    setClientDraft({ fullName: '', companyName: '', address: '', abn: '', email: '' })
+    setIsClientModalOpen(true)
+  }
+
+  const openEditClient = (client: Client) => {
+    setEditingClientId(client.id)
+    setClientDraft({ fullName: client.fullName, companyName: client.companyName, address: client.address, abn: client.abn, email: client.email })
+    setIsClientModalOpen(true)
+  }
+
+  const closeClientModal = () => {
+    setIsClientModalOpen(false)
+    setEditingClientId(null)
+  }
+
+  const saveClient = async () => {
+    if (editingClientId !== null) {
+      await api.updateClient(editingClientId, clientDraft)
+      setClients(prev => prev.map(c => c.id === editingClientId ? { id: editingClientId, ...clientDraft } : c))
+    } else {
+      const data = await api.createClient(clientDraft)
+      if (data.id) setClients(prev => [...prev, { id: data.id, ...clientDraft }])
+    }
+    setIsClientModalOpen(false)
+  }
+
+  const handleDeleteClient = async (id: number) => {
+    const ok = window.confirm('Delete this client?')
+    if (!ok) return
+    await api.deleteClient(id)
+    setClients(prev => prev.filter(c => c.id !== id))
   }
 
   const goPrevPeriod = () => {
@@ -960,6 +1006,9 @@ function App() {
             </button>
             <button className="menu-item action" onClick={() => openCalendar()}>
               Calendar
+            </button>
+            <button className="menu-item action" onClick={openClients}>
+              Clients
             </button>
             <button className="menu-item action" onClick={openInvoiceModal}>
               Invoice details
@@ -1223,6 +1272,36 @@ function App() {
               </button>
             </div>
           </section>
+        ) : activeView === 'clients' ? (
+          <section className="reports-card">
+            <div className="modal-header" style={{ marginBottom: '12px' }}>
+              <div className="modal-title">Clients</div>
+              <button className="ghost-button" onClick={openAddClient}>+ Add Client</button>
+            </div>
+            {clients.length === 0 ? (
+              <div className="report-row empty">No clients yet. Add your first client.</div>
+            ) : (
+              clients.map(client => (
+                <div key={client.id} className="shift-card" style={{ cursor: 'pointer' }} onClick={() => openEditClient(client)}>
+                  <div className="shift-card__header">
+                    <div>
+                      <div className="shift-date">{client.companyName || client.fullName}</div>
+                      {client.companyName && client.fullName && (
+                        <div className="report-meta" style={{ marginTop: 2 }}><span className="label">{client.fullName}</span></div>
+                      )}
+                      {client.email && <div className="label" style={{ marginTop: 2 }}>{client.email}</div>}
+                    </div>
+                    <button
+                      className="ghost-button danger"
+                      onClick={e => { e.stopPropagation(); handleDeleteClient(client.id) }}
+                    >
+                      Delete
+                    </button>
+                  </div>
+                </div>
+              ))
+            )}
+          </section>
         ) : (
           <>
             <section className="calendar-card">
@@ -1410,6 +1489,72 @@ function App() {
             </div>
 
             <button className="primary-btn" onClick={handleSave}>
+              Save
+            </button>
+          </div>
+        </div>
+      )}
+
+      {isClientModalOpen && (
+        <div className="modal-backdrop" onClick={closeClientModal}>
+          <div className="modal" onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <button className="ghost-button" onClick={closeClientModal}>Cancel</button>
+              <div className="modal-title">{editingClientId !== null ? 'Edit Client' : 'Add Client'}</div>
+            </div>
+            <div className="form-grid" style={{ marginTop: '12px' }}>
+              <label className="field">
+                <span className="label">Full Name</span>
+                <input
+                  className="input"
+                  type="text"
+                  value={clientDraft.fullName}
+                  onChange={e => setClientDraft(prev => ({ ...prev, fullName: e.target.value }))}
+                  placeholder="Jane Smith"
+                />
+              </label>
+              <label className="field">
+                <span className="label">Company Name</span>
+                <input
+                  className="input"
+                  type="text"
+                  value={clientDraft.companyName}
+                  onChange={e => setClientDraft(prev => ({ ...prev, companyName: e.target.value }))}
+                  placeholder="Acme Pty Ltd"
+                />
+              </label>
+              <label className="field">
+                <span className="label">Address</span>
+                <input
+                  className="input"
+                  type="text"
+                  value={clientDraft.address}
+                  onChange={e => setClientDraft(prev => ({ ...prev, address: e.target.value }))}
+                  placeholder="123 Main St, Sydney NSW 2000"
+                />
+              </label>
+              <label className="field">
+                <span className="label">ABN</span>
+                <input
+                  className="input"
+                  type="text"
+                  value={clientDraft.abn}
+                  onChange={e => setClientDraft(prev => ({ ...prev, abn: e.target.value }))}
+                  placeholder="12 345 678 901"
+                />
+              </label>
+              <label className="field">
+                <span className="label">Email</span>
+                <input
+                  className="input"
+                  type="email"
+                  value={clientDraft.email}
+                  onChange={e => setClientDraft(prev => ({ ...prev, email: e.target.value }))}
+                  placeholder="billing@acme.com"
+                />
+              </label>
+            </div>
+            <button className="primary-btn" style={{ marginTop: '16px' }} onClick={saveClient}>
               Save
             </button>
           </div>

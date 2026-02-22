@@ -24,6 +24,17 @@ export type Settings = {
   accountantEmail: string
 }
 
+export type Client = {
+  id: number
+  fullName: string
+  companyName: string
+  address: string
+  abn: string
+  email: string
+}
+
+export type ClientDraft = Omit<Client, 'id'>
+
 export type InvoiceProfile = {
   fullName: string
   address: string
