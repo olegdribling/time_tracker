@@ -28,8 +28,6 @@ const DEFAULT_SETTINGS: Settings = {
   period: 'weekly',
   weekStart: 'monday',
   hourlyRate: INITIAL_HOURLY_RATE,
-  userEmail: '',
-  accountantEmail: 'sales@outdoorblindsgroup.com.au',
 }
 
 const DEFAULT_INVOICE_PROFILE: InvoiceProfile = {
@@ -42,6 +40,7 @@ const DEFAULT_INVOICE_PROFILE: InvoiceProfile = {
   accountNumber: '',
   nextInvoiceNumber: 1,
   chargeGst: false,
+  myEmail: '',
 }
 
 function formatDate(value: string) {
@@ -954,13 +953,14 @@ function App() {
       alert('Select a reporting period first.')
       return
     }
-    if (!settings.accountantEmail) {
-      alert('Fill accountant email in Settings first.')
+    const selectedClient = clients.find(c => c.id === selectedClientId)
+    if (!selectedClient?.email) {
+      alert('Select a client with an email address to send the invoice.')
       return
     }
     const invNumber = lastInvoiceNumber ?? invoiceForm.invoiceNumber
     const subject = `Invoice #${invNumber} - ${invoiceProfile.fullName || 'Invoice'}`
-    const mailto = `mailto:${encodeURIComponent(settings.accountantEmail)}?subject=${encodeURIComponent(subject)}`
+    const mailto = `mailto:${encodeURIComponent(selectedClient.email)}?subject=${encodeURIComponent(subject)}`
     window.location.href = mailto
   }
 
@@ -1688,27 +1688,6 @@ function App() {
                 />
               </label>
 
-              <label className="field">
-                <span className="label">Your email</span>
-                <input
-                  type="email"
-                  placeholder="you@example.com"
-                  value={settingsDraft.userEmail}
-                  onChange={(e) => setSettingsDraft((prev) => ({ ...prev, userEmail: e.target.value }))}
-                />
-              </label>
-
-              <label className="field">
-                <span className="label">Accountant email</span>
-                <input
-                  type="email"
-                  placeholder="accountant@example.com"
-                  value={settingsDraft.accountantEmail}
-                  onChange={(e) =>
-                    setSettingsDraft((prev) => ({ ...prev, accountantEmail: e.target.value }))
-                  }
-                />
-              </label>
             </div>
 
             <button className="primary-btn" onClick={saveSettings}>
@@ -1825,6 +1804,16 @@ function App() {
                   type="checkbox"
                   checked={invoiceDraft.chargeGst}
                   onChange={(e) => setInvoiceDraft((prev) => ({ ...prev, chargeGst: e.target.checked }))}
+                />
+              </label>
+
+              <label className="field">
+                <span className="label">My email</span>
+                <input
+                  type="email"
+                  placeholder="you@example.com"
+                  value={invoiceDraft.myEmail}
+                  onChange={(e) => setInvoiceDraft((prev) => ({ ...prev, myEmail: e.target.value }))}
                 />
               </label>
             </div>

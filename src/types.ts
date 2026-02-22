@@ -20,8 +20,6 @@ export type Settings = {
   period: 'weekly' | 'monthly' | 'custom'
   weekStart: 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday' | 'sunday'
   hourlyRate: number
-  userEmail: string
-  accountantEmail: string
 }
 
 export type Client = {
@@ -44,4 +42,5 @@ export type InvoiceProfile = {
   accountNumber: string
   nextInvoiceNumber: number
   chargeGst: boolean
+  myEmail: string
 }
