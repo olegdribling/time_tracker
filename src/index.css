@@ -1149,3 +1149,162 @@ textarea {
     display: none;
   }
 }
+
+/* LIGHT THEME */
+@media (prefers-color-scheme: light) {
+  .ld {
+    background: #f7f8fc;
+    color: #0f172a;
+  }
+
+  .ld-nav {
+    background: rgba(247, 248, 252, 0.9);
+    border-bottom-color: rgba(0, 0, 0, 0.08);
+  }
+
+  .ld-nav-link {
+    color: #64748b;
+  }
+
+  .ld-nav-link:hover {
+    color: #0f172a;
+  }
+
+  .ld-hero-glow {
+    background: radial-gradient(circle, rgba(106,90,249,0.12) 0%, transparent 70%);
+  }
+
+  .ld-hero-title {
+    color: #0f172a;
+  }
+
+  .ld-hero-sub {
+    color: #64748b;
+  }
+
+  .ld-btn-ghost {
+    color: #374151;
+    border-color: rgba(0, 0, 0, 0.15);
+  }
+
+  .ld-btn-ghost:hover {
+    color: #0f172a;
+    border-color: rgba(106, 90, 249, 0.5);
+  }
+
+  .ld-section--alt {
+    background: rgba(0, 0, 0, 0.025);
+    border-top-color: rgba(0, 0, 0, 0.06);
+    border-bottom-color: rgba(0, 0, 0, 0.06);
+  }
+
+  .ld-section-title {
+    color: #0f172a;
+  }
+
+  .ld-section-sub {
+    color: #64748b;
+  }
+
+  .ld-feature-card {
+    background: #ffffff;
+    border-color: rgba(0, 0, 0, 0.07);
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+  }
+
+  .ld-feature-card:hover {
+    border-color: rgba(106, 90, 249, 0.3);
+  }
+
+  .ld-feature-title {
+    color: #0f172a;
+  }
+
+  .ld-feature-desc {
+    color: #64748b;
+  }
+
+  .ld-steps::before {
+    background: linear-gradient(90deg, transparent, rgba(106,90,249,0.3), transparent);
+  }
+
+  .ld-step-title {
+    color: #0f172a;
+  }
+
+  .ld-step-desc {
+    color: #64748b;
+  }
+
+  .ld-price-card {
+    background: #ffffff;
+    border-color: rgba(0, 0, 0, 0.08);
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+  }
+
+  .ld-price-card--featured {
+    background: linear-gradient(160deg, #f3f0ff 0%, #ffffff 100%);
+    border-color: rgba(106, 90, 249, 0.4);
+    box-shadow: 0 0 40px rgba(106, 90, 249, 0.1);
+  }
+
+  .ld-price-plan {
+    color: #64748b;
+  }
+
+  .ld-price-num {
+    color: #0f172a;
+  }
+
+  .ld-price-per {
+    color: #94a3b8;
+  }
+
+  .ld-price-features li {
+    color: #64748b;
+  }
+
+  .ld-price-card--featured .ld-price-features li {
+    color: #374151;
+  }
+
+  .ld-cta-bottom {
+    background: rgba(106, 90, 249, 0.04);
+  }
+
+  .ld-cta-glow {
+    background: radial-gradient(ellipse, rgba(106,90,249,0.12) 0%, transparent 70%);
+  }
+
+  .ld-cta-title {
+    color: #0f172a;
+  }
+
+  .ld-cta-sub {
+    color: #64748b;
+  }
+
+  .ld-cta-hint {
+    color: #94a3b8;
+  }
+
+  .ld-footer {
+    border-top-color: rgba(0, 0, 0, 0.08);
+  }
+
+  .ld-footer-logo {
+    opacity: 0.6;
+  }
+
+  .ld-footer-links a {
+    color: #94a3b8;
+  }
+
+  .ld-footer-links a:hover {
+    color: #64748b;
+  }
+
+  .ld-footer-copy {
+    color: #94a3b8;
+  }
+}

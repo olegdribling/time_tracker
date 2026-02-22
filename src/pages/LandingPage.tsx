@@ -5,7 +5,10 @@ export function LandingPage() {
       {/* ── NAV ── */}
       <nav className="ld-nav">
         <a href="/" className="ld-nav-logo">
-          <img src="/tt_logo_dark.png" alt="TimeTracker" className="ld-nav-logo-img" />
+          <picture>
+            <source srcSet="/tt_logo_light.png" media="(prefers-color-scheme: light)" />
+            <img src="/tt_logo_dark.png" alt="TimeTracker" className="ld-nav-logo-img" />
+          </picture>
         </a>
         <div className="ld-nav-links">
           <a href="/login" className="ld-nav-link">Log in</a>
@@ -199,7 +202,10 @@ export function LandingPage() {
       {/* ── FOOTER ── */}
       <footer className="ld-footer">
         <div className="ld-container ld-footer-inner">
-          <img src="/tt_logo_dark.png" alt="TimeTracker" className="ld-footer-logo" />
+          <picture>
+            <source srcSet="/tt_logo_light.png" media="(prefers-color-scheme: light)" />
+            <img src="/tt_logo_dark.png" alt="TimeTracker" className="ld-footer-logo" />
+          </picture>
           <div className="ld-footer-links">
             <a href="/login">Log in</a>
             <a href="/register">Sign up</a>
