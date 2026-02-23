@@ -1,6 +1,17 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import './App.css'
+import {
+  Banknote,
+  ChevronLeft,
+  ChevronRight,
+  Clock,
+  Coffee,
+  MoreVertical,
+  Plus,
+  User,
+  X,
+} from 'lucide-react'
 import { api } from './api'
 import { calculateTotals, getPeriodByOffset, getPeriodRange, groupShiftsByDay, minutesBetween } from './lib/calculations'
 import { generateInvoicePdf } from './lib/invoice'
@@ -1016,9 +1027,9 @@ function App() {
           <div className="menu-overlay" onClick={() => setIsMenuOpen(false)} />
           <div className="menu-panel">
             <div className="menu-panel-header">
-              <div className="menu-panel-avatar">👤</div>
+              <div className="menu-panel-avatar"><User size={20} /></div>
               <div className="menu-panel-email">{userEmail || 'Account'}</div>
-              <button className="menu-panel-close" onClick={() => setIsMenuOpen(false)}>✕</button>
+              <button className="menu-panel-close" onClick={() => setIsMenuOpen(false)}><X size={18} /></button>
             </div>
             <div className="menu-panel-items">
               <button className="menu-panel-item" onClick={goHome}>Dashboard</button>
@@ -1050,7 +1061,7 @@ function App() {
                 >
                   {isInvoiceEditing ? 'Lock' : 'Edit'}
                 </button>
-                <button className="modal-close-btn" onClick={closeInvoiceScreen}>✕</button>
+                <button className="modal-close-btn" onClick={closeInvoiceScreen}><X size={18} /></button>
               </div>
             </div>
 
@@ -1170,7 +1181,7 @@ function App() {
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header-dark">
               <div className="modal-title-dark">Send invoice</div>
-              <button className="modal-close-btn" onClick={() => { setShowEmailPrompt(false); setActiveView('home') }}>✕</button>
+              <button className="modal-close-btn" onClick={() => { setShowEmailPrompt(false); setActiveView('home') }}><X size={18} /></button>
             </div>
             <div className="actions-row" style={{ padding: '16px 0 8px' }}>
               <button className="ghost-button" onClick={openEmailDraft}>
@@ -1222,7 +1233,7 @@ function App() {
                               className="shift-menu-btn"
                               onClick={(e) => { e.stopPropagation(); setOpenMenuShiftId(openMenuShiftId === shift.id ? null : shift.id) }}
                             >
-                              ⋮
+                              <MoreVertical size={16} />
                             </button>
                             {openMenuShiftId === shift.id && (
                               <div className="shift-context-menu">
@@ -1235,15 +1246,15 @@ function App() {
                         </div>
                         <div className="shift-info-row">
                           <div className="shift-icon-item">
-                            <div className="shift-icon-badge clock">🕐</div>
+                            <div className="shift-icon-badge clock"><Clock size={16} /></div>
                             {shift.start}–{shift.end}
                           </div>
                           <div className="shift-icon-item">
-                            <div className="shift-icon-badge lunch">☕</div>
+                            <div className="shift-icon-badge lunch"><Coffee size={16} /></div>
                             {formatLunch(shift.lunchMinutes)}
                           </div>
                           <div className="shift-icon-item">
-                            <div className="shift-icon-badge money">💵</div>
+                            <div className="shift-icon-badge money"><Banknote size={16} /></div>
                             <span className="shift-pay">${money(salary)}</span>
                           </div>
                         </div>
@@ -1258,24 +1269,24 @@ function App() {
         ) : activeView === 'reports' ? (
           <section className="reports-card">
             <div className="reports-header">
-              <button className="nav-btn" onClick={goPrevPeriod} disabled={!canNavigateReports}>‹</button>
+              <button className="nav-btn" onClick={goPrevPeriod} disabled={!canNavigateReports}><ChevronLeft size={16} /></button>
               <div className="reports-range">{reportPeriodLabel}</div>
-              <button className="nav-btn" onClick={goNextPeriod} disabled={!canNavigateReports}>›</button>
+              <button className="nav-btn" onClick={goNextPeriod} disabled={!canNavigateReports}><ChevronRight size={16} /></button>
             </div>
 
             <div className="reports-stats">
               <div className="reports-stat-item">
-                <div className="reports-stat-icon">🕐</div>
+                <div className="reports-stat-icon"><Clock size={20} /></div>
                 <div className="reports-stat-value">{formatDuration(reportTotals.durationMinutes)}</div>
                 <div className="reports-stat-label">Work</div>
               </div>
               <div className="reports-stat-item">
-                <div className="reports-stat-icon">☕</div>
+                <div className="reports-stat-icon"><Coffee size={20} /></div>
                 <div className="reports-stat-value">{formatLunch(reportLunchMinutes)}</div>
                 <div className="reports-stat-label">Lunch</div>
               </div>
               <div className="reports-stat-item">
-                <div className="reports-stat-icon">💵</div>
+                <div className="reports-stat-icon"><Banknote size={20} /></div>
                 <div className="reports-stat-value">${money(reportTotals.pay)}</div>
                 <div className="reports-stat-label">Earnings</div>
               </div>
@@ -1342,9 +1353,9 @@ function App() {
           <>
             <section className="calendar-card">
               <div className="reports-header">
-                <button className="nav-btn" onClick={goPrevCalendarMonth}>‹</button>
+                <button className="nav-btn" onClick={goPrevCalendarMonth}><ChevronLeft size={16} /></button>
                 <div className="reports-range">{calendarMonthLabel}</div>
-                <button className="nav-btn" onClick={goNextCalendarMonth}>›</button>
+                <button className="nav-btn" onClick={goNextCalendarMonth}><ChevronRight size={16} /></button>
               </div>
 
               <div className="calendar-weekdays">
@@ -1393,7 +1404,7 @@ function App() {
                             className="shift-menu-btn"
                             onClick={(e) => { e.stopPropagation(); setOpenMenuShiftId(openMenuShiftId === shift.id ? null : shift.id) }}
                           >
-                            ⋮
+                            <MoreVertical size={16} />
                           </button>
                           {openMenuShiftId === shift.id && (
                             <div className="shift-context-menu">
@@ -1405,15 +1416,15 @@ function App() {
                       </div>
                       <div className="shift-info-row">
                         <div className="shift-icon-item">
-                          <div className="shift-icon-badge clock">🕐</div>
+                          <div className="shift-icon-badge clock"><Clock size={16} /></div>
                           {shift.start}–{shift.end}
                         </div>
                         <div className="shift-icon-item">
-                          <div className="shift-icon-badge lunch">☕</div>
+                          <div className="shift-icon-badge lunch"><Coffee size={16} /></div>
                           {formatLunch(shift.lunchMinutes)}
                         </div>
                         <div className="shift-icon-item">
-                          <div className="shift-icon-badge money">💵</div>
+                          <div className="shift-icon-badge money"><Banknote size={16} /></div>
                           <span className="shift-pay">${money(salary)}</span>
                         </div>
                       </div>
@@ -1447,7 +1458,7 @@ function App() {
             </div>
           )}
           <button className="floating-btn" onClick={() => setIsFabOpen(prev => !prev)}>
-            {isFabOpen ? '✕' : '+'}
+            {isFabOpen ? <X size={24} /> : <Plus size={24} />}
           </button>
         </>
       )}
@@ -1458,7 +1469,7 @@ function App() {
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header-dark">
               <div className="modal-title-dark">{editingId ? 'Edit shift' : 'New shift'}</div>
-              <button className="modal-close-btn" onClick={closeModal}>✕</button>
+              <button className="modal-close-btn" onClick={closeModal}><X size={18} /></button>
             </div>
 
             <div className="form-grid">
@@ -1475,9 +1486,9 @@ function App() {
                 {activePickerField === 'date' && (
                   <div className="form-calendar">
                     <div className="form-calendar-header">
-                      <button type="button" className="nav-btn" onClick={() => setFormCalendarMonth(prev => shiftMonthKey(prev, -1))}>‹</button>
+                      <button type="button" className="nav-btn" onClick={() => setFormCalendarMonth(prev => shiftMonthKey(prev, -1))}><ChevronLeft size={16} /></button>
                       <span className="form-calendar-title">{formCalendarLabel}</span>
-                      <button type="button" className="nav-btn" onClick={() => setFormCalendarMonth(prev => shiftMonthKey(prev, 1))}>›</button>
+                      <button type="button" className="nav-btn" onClick={() => setFormCalendarMonth(prev => shiftMonthKey(prev, 1))}><ChevronRight size={16} /></button>
                     </div>
                     <div className="calendar-weekdays">
                       {calendarWeekLabels.map(l => <div key={l} className="calendar-weekday">{l}</div>)}
@@ -1655,7 +1666,7 @@ function App() {
           <div className="modal" onClick={e => e.stopPropagation()}>
             <div className="modal-header-dark">
               <div className="modal-title-dark">{editingClientId !== null ? 'Edit Client' : 'Add Client'}</div>
-              <button className="modal-close-btn" onClick={closeClientModal}>✕</button>
+              <button className="modal-close-btn" onClick={closeClientModal}><X size={18} /></button>
             </div>
             <div className="form-grid" style={{ marginTop: '12px' }}>
               <label className="field">
@@ -1711,7 +1722,7 @@ function App() {
           <div className="modal" onClick={e => e.stopPropagation()}>
             <div className="modal-header-dark">
               <div className="modal-title-dark">Upgrade to Pro</div>
-              <button className="modal-close-btn" onClick={() => setIsUpgradeModalOpen(false)}>✕</button>
+              <button className="modal-close-btn" onClick={() => setIsUpgradeModalOpen(false)}><X size={18} /></button>
             </div>
             <div style={{ padding: '8px 0 4px', textAlign: 'center' }}>
               <p style={{ marginBottom: '6px' }}>Your current plan allows only <strong>1 client</strong>.</p>
@@ -1735,7 +1746,7 @@ function App() {
           <div className="modal modal-pinned" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header-dark">
               <div className="modal-title-dark">Settings</div>
-              <button className="modal-close-btn" onClick={closeSettings}>✕</button>
+              <button className="modal-close-btn" onClick={closeSettings}><X size={18} /></button>
             </div>
 
             <div className="form-grid">
@@ -1829,7 +1840,7 @@ function App() {
           <div className="modal modal-pinned" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header-dark">
               <div className="modal-title-dark">Invoice details</div>
-              <button className="modal-close-btn" onClick={closeInvoiceModal}>✕</button>
+              <button className="modal-close-btn" onClick={closeInvoiceModal}><X size={18} /></button>
             </div>
 
             <div className="form-grid">
