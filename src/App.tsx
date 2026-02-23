@@ -21,7 +21,30 @@ const emptyForm = (): ShiftForm => {
     end: '17:00',
     lunchMinutes: 30,
     comment: '',
+    clientId: null,
   }
+}
+
+function formatShortDate(value: string) {
+  const date = new Date(`${value}T00:00:00`)
+  const todayKey = toLocalDateKey(new Date())
+  const yesterdayKey = toLocalDateKey(new Date(Date.now() - 86400000))
+  if (value === todayKey) return 'Today'
+  if (value === yesterdayKey) return 'Yesterday'
+  return new Intl.DateTimeFormat('en-AU', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'short',
+  }).format(date)
+}
+
+function formatLunch(minutes: number) {
+  if (minutes === 0) return 'No lunch'
+  if (minutes < 60) return `${minutes} min`
+  const h = Math.floor(minutes / 60)
+  const m = minutes % 60
+  if (m === 0) return `${h} hour${h > 1 ? 's' : ''}`
+  return `${h}h ${m}m`
 }
 
 const DEFAULT_SETTINGS: Settings = {
@@ -226,7 +249,7 @@ const WheelPicker = ({ options, value, onChange, itemHeight = 44 }: WheelPickerP
 }
 
 function App() {
-  const [themeMode, setThemeMode] = useState<ThemeMode>(() => {
+  const [themeMode] = useState<ThemeMode>(() => {
     try {
       const storedMode = localStorage.getItem(THEME_MODE_STORAGE_KEY)
       if (storedMode === 'system' || storedMode === 'light' || storedMode === 'dark') {
@@ -291,6 +314,14 @@ function App() {
   const [periodOffset, setPeriodOffset] = useState(0)
   const [calendarMonth, setCalendarMonth] = useState(() => toMonthKey(new Date()))
   const [calendarSelectedDate, setCalendarSelectedDate] = useState(() => toLocalDateKey(new Date()))
+  const [openMenuShiftId, setOpenMenuShiftId] = useState<string | null>(null)
+  const [isFabOpen, setIsFabOpen] = useState(false)
+  const [activePickerField, setActivePickerField] = useState<'date' | 'start' | 'end' | 'lunch' | null>(null)
+  const [formCalendarMonth, setFormCalendarMonth] = useState(() => toMonthKey(new Date()))
+  const [clockDisplay, setClockDisplay] = useState(() => {
+    const now = new Date()
+    return `${pad2(now.getHours())}:${pad2(now.getMinutes())}`
+  })
 
   const appliedTheme: Theme = themeMode === 'system' ? systemTheme : themeMode
 
@@ -375,6 +406,15 @@ function App() {
   }, [isMenuOpen])
 
   useEffect(() => {
+    const tick = () => {
+      const now = new Date()
+      setClockDisplay(`${pad2(now.getHours())}:${pad2(now.getMinutes())}`)
+    }
+    const id = setInterval(tick, 30000)
+    return () => clearInterval(id)
+  }, [])
+
+  useEffect(() => {
     setHourlyRateInput(String(settingsDraft.hourlyRate))
   }, [settingsDraft.hourlyRate])
 
@@ -390,38 +430,6 @@ function App() {
       year: 'numeric',
     }).format(now)
   }, [])
-
-  const parseDateParts = (value: string) => {
-    const [y, m, d] = value.split('-').map(Number)
-    return { year: y, month: m, day: d }
-  }
-
-  const monthOptions = useMemo(() => {
-    const now = new Date()
-    const start = new Date(now.getFullYear(), now.getMonth() - 12, 1)
-    const months: Option[] = []
-    for (let i = 0; i < 48; i++) {
-      const date = new Date(start.getFullYear(), start.getMonth() + i, 1)
-      const year = date.getFullYear()
-      const month = date.getMonth() + 1
-      const label = new Intl.DateTimeFormat('en-AU', {
-        month: 'long',
-        year: 'numeric',
-      }).format(date)
-      months.push({ value: `${year}-${String(month).padStart(2, '0')}`, label })
-    }
-    return months
-  }, [])
-
-  const selectedDate = useMemo(() => parseDateParts(form.date), [form.date])
-
-  const dayOptions = useMemo(() => {
-    const daysInMonth = new Date(selectedDate.year, selectedDate.month, 0).getDate()
-    return Array.from({ length: daysInMonth }, (_, i) => {
-      const day = i + 1
-      return { value: String(day).padStart(2, '0'), label: String(day) }
-    })
-  }, [selectedDate])
 
   const hourOptions = useMemo<Option[]>(
     () => Array.from({ length: 24 }, (_, i) => ({ value: String(i).padStart(2, '0'), label: String(i) })),
@@ -446,23 +454,6 @@ function App() {
     [],
   )
 
-  const updateDateByMonth = (monthValue: string) => {
-    const [yearStr, monthStr] = monthValue.split('-')
-    const { day } = selectedDate
-    const year = Number(yearStr)
-    const month = Number(monthStr)
-    const daysInNewMonth = new Date(year, month, 0).getDate()
-    const newDay = Math.min(day, daysInNewMonth)
-    const newDate = `${yearStr}-${monthStr}-${String(newDay).padStart(2, '0')}`
-    setForm((prev) => ({ ...prev, date: newDate }))
-  }
-
-  const updateDateByDay = (dayValue: string) => {
-    const { year, month } = selectedDate
-    const newDate = `${year}-${String(month).padStart(2, '0')}-${dayValue}`
-    setForm((prev) => ({ ...prev, date: newDate }))
-  }
-
   const updateTime = (field: 'start' | 'end', part: 'hour' | 'minute', value: string) => {
     setForm((prev) => {
       const [h, m] = prev[field].split(':')
@@ -478,6 +469,44 @@ function App() {
       ),
     [shifts],
   )
+
+  const shiftGroups = useMemo(() => {
+    const now = new Date()
+    const currentWeekStart = (() => {
+      const d = new Date(now)
+      const day = d.getDay()
+      const diff = (day - CALENDAR_WEEK_START_INDEX + 7) % 7
+      d.setDate(d.getDate() - diff)
+      d.setHours(0, 0, 0, 0)
+      return d
+    })()
+    const getWeekLabel = (dateStr: string): string => {
+      const date = new Date(`${dateStr}T00:00:00`)
+      const d = new Date(date)
+      const day = d.getDay()
+      const diff = (day - CALENDAR_WEEK_START_INDEX + 7) % 7
+      d.setDate(d.getDate() - diff)
+      d.setHours(0, 0, 0, 0)
+      const diffMs = currentWeekStart.getTime() - d.getTime()
+      const diffWeeks = Math.round(diffMs / (7 * 24 * 60 * 60 * 1000))
+      if (diffWeeks < 0) return 'Upcoming'
+      if (diffWeeks === 0) return 'This Week'
+      if (diffWeeks === 1) return 'Last Week'
+      if (diffWeeks === 2) return '2 Weeks Ago'
+      return `${diffWeeks} Weeks Ago`
+    }
+    const groupMap = new Map<string, Shift[]>()
+    const labelOrder: string[] = []
+    for (const shift of sortedShifts) {
+      const label = getWeekLabel(shift.date)
+      if (!groupMap.has(label)) {
+        groupMap.set(label, [])
+        labelOrder.push(label)
+      }
+      groupMap.get(label)!.push(shift)
+    }
+    return labelOrder.map(label => ({ label, shifts: groupMap.get(label)! }))
+  }, [sortedShifts])
 
   const periodRange = useMemo(() => getPeriodRange(settings), [settings])
 
@@ -498,6 +527,13 @@ function App() {
 
   const reportTotals = useMemo(
     () => calculateTotals(shifts, reportRange),
+    [shifts, reportRange],
+  )
+
+  const reportLunchMinutes = useMemo(
+    () => shifts
+      .filter(s => reportRange ? s.date >= reportRange.start && s.date <= reportRange.end : true)
+      .reduce((sum, s) => sum + s.lunchMinutes, 0),
     [shifts, reportRange],
   )
 
@@ -553,6 +589,30 @@ function App() {
     return cells
   }, [calendarMonth])
 
+  const formCalendarCells = useMemo(() => {
+    const { year, month } = parseMonthKey(formCalendarMonth)
+    const firstDay = new Date(year, month - 1, 1).getDay()
+    const daysInMonth = new Date(year, month, 0).getDate()
+    const leadingBlanks = (firstDay - CALENDAR_WEEK_START_INDEX + 7) % 7
+    const totalCells = Math.ceil((leadingBlanks + daysInMonth) / 7) * 7
+    const monthPrefix = `${year}-${pad2(month)}`
+    const cells: Array<{ date: string | null; day: number | null }> = []
+    for (let idx = 0; idx < totalCells; idx += 1) {
+      const day = idx - leadingBlanks + 1
+      if (day < 1 || day > daysInMonth) {
+        cells.push({ date: null, day: null })
+      } else {
+        cells.push({ date: `${monthPrefix}-${pad2(day)}`, day })
+      }
+    }
+    return cells
+  }, [formCalendarMonth])
+
+  const formCalendarLabel = useMemo(() => {
+    const { year, month } = parseMonthKey(formCalendarMonth)
+    return new Intl.DateTimeFormat('en-AU', { month: 'long', year: 'numeric' }).format(new Date(year, month - 1, 1))
+  }, [formCalendarMonth])
+
   const shiftsByDate = useMemo(() => {
     const map = new Map<string, Shift[]>()
     shifts.forEach((shift) => {
@@ -584,19 +644,25 @@ function App() {
   const openCreate = () => {
     closeOverlays()
     setEditingId(null)
-    setForm(emptyForm())
+    const f = emptyForm()
+    setForm(f)
+    setFormCalendarMonth(f.date.slice(0, 7))
+    setActivePickerField(null)
     setIsAddOpen(true)
   }
 
   const openEdit = (shift: Shift) => {
     closeOverlays()
     setEditingId(shift.id)
+    setActivePickerField(null)
+    setFormCalendarMonth(shift.date.slice(0, 7))
     setForm({
       date: shift.date,
       start: shift.start,
       end: shift.end,
       lunchMinutes: shift.lunchMinutes,
       comment: shift.comment ?? '',
+      clientId: shift.clientId ?? null,
     })
     setIsAddOpen(true)
   }
@@ -604,6 +670,7 @@ function App() {
   const closeModal = () => {
     setIsAddOpen(false)
     setEditingId(null)
+    setActivePickerField(null)
   }
 
   const openSettings = () => {
@@ -808,12 +875,14 @@ function App() {
           lunchMinutes: form.lunchMinutes,
           comment: form.comment.trim(),
           hourlyRate: settings.hourlyRate,
+          clientId: form.clientId,
         }),
         date: form.date,
         start: form.start,
         end: form.end,
         lunchMinutes: form.lunchMinutes,
         comment: form.comment.trim(),
+        clientId: form.clientId,
       }
       setShifts((prev) =>
         prev.map((shift) =>
@@ -834,6 +903,7 @@ function App() {
         lunchMinutes: form.lunchMinutes,
         comment: form.comment.trim(),
         hourlyRate: settings.hourlyRate,
+        clientId: form.clientId,
       }
       setShifts((prev) => [...prev, newShift])
       try {
@@ -965,7 +1035,7 @@ function App() {
   }
 
   return (
-    <div className="app-shell">
+    <div className="app-shell" onClick={() => { if (openMenuShiftId) setOpenMenuShiftId(null) }}>
       <input
         type="file"
         accept="application/json"
@@ -973,6 +1043,8 @@ function App() {
         style={{ display: 'none' }}
         onChange={handleImportFile}
       />
+
+      {/* HEADER */}
       <header className="top-bar">
         <button
           type="button"
@@ -980,85 +1052,62 @@ function App() {
           aria-label="Open calendar"
           onClick={toggleCalendarFromHeader}
         >
-          <div className="today-label">Today</div>
+          <div className="today-label">{clockDisplay}</div>
           <div className="today-value">{todayLabel}</div>
         </button>
-        <div className="actions">
-          <button
-            className="icon-button"
-            aria-label="Переключить тему (System/Light/Dark)"
-            onClick={() =>
-              setThemeMode((prev) => (prev === 'system' ? 'light' : prev === 'light' ? 'dark' : 'system'))
-            }
-          >
-            {themeMode === 'system'
-              ? `System (${appliedTheme === 'dark' ? 'Dark' : 'Light'})`
-              : themeMode === 'light'
-                ? 'Light'
-                : 'Dark'}
-          </button>
-          <button
-            className="burger"
-            aria-label="Меню"
-            onClick={() => setIsMenuOpen((prev) => !prev)}
-          >
-            <span />
-            <span />
-          </button>
-        </div>
-        {isMenuOpen && (
-          <div className="menu-sheet">
-            <div className="menu-item">
-              <div className="menu-title">Account</div>
-              <div className="menu-sub">{userEmail}</div>
-            </div>
-            <button className="menu-item action" onClick={goHome}>
-              Dashboard
-            </button>
-            <button className="menu-item action" onClick={openReports}>
-              Reports
-            </button>
-            <button className="menu-item action" onClick={() => openCalendar()}>
-              Calendar
-            </button>
-            <button className="menu-item action" onClick={openClients}>
-              Clients
-            </button>
-            <button className="menu-item action" onClick={openInvoiceModal}>
-              Invoice details
-            </button>
-            <button className="menu-item action" onClick={exportData}>
-              Export data
-            </button>
-            <button className="menu-item action" onClick={triggerImport}>
-              Import data
-            </button>
-            <button className="menu-item action" onClick={openSettings}>
-              Settings
-            </button>
-            <button className="menu-item action" onClick={() => navigate('/app/billing')}>
-              Subscription
-            </button>
-            <button className="menu-item action" onClick={handleLogout}>
-              Log out
-            </button>
-          </div>
-        )}
+        <button
+          className="burger"
+          aria-label="Menu"
+          onClick={() => setIsMenuOpen(true)}
+        >
+          <span />
+          <span />
+          <span />
+        </button>
       </header>
 
+      {/* RIGHT SLIDE-IN MENU PANEL */}
+      {isMenuOpen && (
+        <>
+          <div className="menu-overlay" onClick={() => setIsMenuOpen(false)} />
+          <div className="menu-panel">
+            <div className="menu-panel-header">
+              <div className="menu-panel-avatar">👤</div>
+              <div className="menu-panel-email">{userEmail || 'Account'}</div>
+              <button className="menu-panel-close" onClick={() => setIsMenuOpen(false)}>✕</button>
+            </div>
+            <div className="menu-panel-items">
+              <button className="menu-panel-item" onClick={goHome}>Dashboard</button>
+              <button className="menu-panel-item" onClick={openReports}>Reports</button>
+              <button className="menu-panel-item" onClick={() => openCalendar()}>Calendar</button>
+              <button className="menu-panel-item" onClick={openClients}>Clients</button>
+              <button className="menu-panel-item" onClick={openSettings}>Settings</button>
+              <button className="menu-panel-item" onClick={openInvoiceModal}>Invoice details</button>
+              <button className="menu-panel-item" onClick={exportData}>Export data</button>
+              <button className="menu-panel-item" onClick={triggerImport}>Import data</button>
+              <button className="menu-panel-item" onClick={() => { setIsMenuOpen(false); navigate('/app/billing') }}>Subscription</button>
+              <hr className="menu-panel-divider" />
+              <button className="menu-panel-item danger" onClick={handleLogout}>Log out</button>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* INVOICE SCREEN MODAL */}
       {isInvoiceScreenOpen && (
         <div className="modal-backdrop" onClick={closeInvoiceScreen}>
           <div className="modal wide" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header end">
-              <button className="ghost-button" onClick={closeInvoiceScreen}>
-                Close
-              </button>
-              <button
-                className="ghost-button"
-                onClick={() => setIsInvoiceEditing((prev) => !prev)}
-              >
-                {isInvoiceEditing ? 'Lock' : 'Edit'}
-              </button>
+            <div className="modal-header-dark">
+              <div className="modal-title-dark">Create Invoice</div>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                <button
+                  style={{ background: 'transparent', border: 'none', color: 'rgba(255,255,255,0.8)', cursor: 'pointer', fontSize: 14, fontWeight: 600 }}
+                  onClick={() => setIsInvoiceEditing((prev) => !prev)}
+                >
+                  {isInvoiceEditing ? 'Lock' : 'Edit'}
+                </button>
+                <button className="modal-close-btn" onClick={closeInvoiceScreen}>✕</button>
+              </div>
             </div>
 
             <div className="form-grid">
@@ -1171,13 +1220,15 @@ function App() {
         </div>
       )}
 
+      {/* SEND EMAIL PROMPT */}
       {showEmailPrompt && (
         <div className="modal-backdrop" onClick={() => { setShowEmailPrompt(false); setActiveView('home') }}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <div className="modal-title">Send invoice</div>
+            <div className="modal-header-dark">
+              <div className="modal-title-dark">Send invoice</div>
+              <button className="modal-close-btn" onClick={() => { setShowEmailPrompt(false); setActiveView('home') }}>✕</button>
             </div>
-            <div className="actions-row">
+            <div className="actions-row" style={{ padding: '16px 0 8px' }}>
               <button className="ghost-button" onClick={openEmailDraft}>
                 Open email draft
               </button>
@@ -1195,6 +1246,7 @@ function App() {
         </div>
       )}
 
+      {/* MAIN CONTENT */}
       <main className="content">
         {activeView === 'home' ? (
           <>
@@ -1206,62 +1258,83 @@ function App() {
               <div className="overview-sub">Rate: {settings.hourlyRate} AUD/hr</div>
             </section>
 
-            <section className="shift-list">
-              {sortedShifts.map((shift) => {
-                const workedMinutes = minutesBetween(shift.start, shift.end) - shift.lunchMinutes
-                const hours = Math.max(workedMinutes, 0) / 60
-                const salary = hours * shift.hourlyRate
-                return (
-                  <article key={shift.id} className="shift-card">
-                    <div className="shift-card__header">
-                      <div className="shift-date">{formatDate(shift.date)}</div>
-                      <div className="shift-actions">
-                        <button className="ghost-button danger" onClick={() => handleDelete(shift.id)}>
-                          Delete
-                        </button>
-                        <button className="ghost-button" onClick={() => openEdit(shift)}>
-                          Edit
-                        </button>
-                      </div>
-                    </div>
-                    <div className="shift-grid">
-                      <div>
-                        <div className="label">Start</div>
-                        <div className="value">{shift.start}</div>
-                      </div>
-                      <div>
-                        <div className="label">End</div>
-                        <div className="value">{shift.end}</div>
-                      </div>
-                      <div>
-                        <div className="label">Lunch</div>
-                        <div className="value">{shift.lunchMinutes} min</div>
-                      </div>
-                      <div>
-                        <div className="label">Duration</div>
-                        <div className="value">{formatDuration(workedMinutes)}</div>
-                      </div>
-                      <div>
-                        <div className="label">Pay</div>
-                        <div className="value accent">${money(salary)} AUD</div>
-                      </div>
-                    </div>
-                    {shift.comment && <div className="comment">“{shift.comment}”</div>}
-                  </article>
-                )
-              })}
-            </section>
+            <div className="shift-list">
+              {shiftGroups.length === 0 && (
+                <div className="report-row empty">No shifts yet. Add your first shift.</div>
+              )}
+              {shiftGroups.map((group) => (
+                <div key={group.label}>
+                  <div className="section-header">{group.label}</div>
+                  {group.shifts.map((shift) => {
+                    const workedMinutes = minutesBetween(shift.start, shift.end) - shift.lunchMinutes
+                    const hours = Math.max(workedMinutes, 0) / 60
+                    const salary = hours * shift.hourlyRate
+                    return (
+                      <article key={shift.id} className="shift-card">
+                        <div className="shift-card__header">
+                          <div className="shift-date">{formatShortDate(shift.date)}</div>
+                          <div style={{ position: 'relative' }}>
+                            <button
+                              className="shift-menu-btn"
+                              onClick={(e) => { e.stopPropagation(); setOpenMenuShiftId(openMenuShiftId === shift.id ? null : shift.id) }}
+                            >
+                              ⋮
+                            </button>
+                            {openMenuShiftId === shift.id && (
+                              <div className="shift-context-menu">
+                                <button className="shift-context-item" onClick={() => { openEdit(shift); setOpenMenuShiftId(null) }}>Edit</button>
+                                <button className="shift-context-item" onClick={() => { openReports(); setOpenMenuShiftId(null) }}>Create Invoice</button>
+                                <button className="shift-context-item danger" onClick={() => { handleDelete(shift.id); setOpenMenuShiftId(null) }}>Delete</button>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        <div className="shift-info-row">
+                          <div className="shift-icon-item">
+                            <div className="shift-icon-badge clock">🕐</div>
+                            {shift.start}–{shift.end}
+                          </div>
+                          <div className="shift-icon-item">
+                            <div className="shift-icon-badge lunch">☕</div>
+                            {formatLunch(shift.lunchMinutes)}
+                          </div>
+                          <div className="shift-icon-item">
+                            <div className="shift-icon-badge money">💵</div>
+                            <span className="shift-pay">${money(salary)}</span>
+                          </div>
+                        </div>
+                        {shift.comment && <div className="comment">"{shift.comment}"</div>}
+                      </article>
+                    )
+                  })}
+                </div>
+              ))}
+            </div>
           </>
         ) : activeView === 'reports' ? (
           <section className="reports-card">
             <div className="reports-header">
-              <button className="nav-btn" onClick={goPrevPeriod} disabled={!canNavigateReports}>
-                ‹
-              </button>
+              <button className="nav-btn" onClick={goPrevPeriod} disabled={!canNavigateReports}>‹</button>
               <div className="reports-range">{reportPeriodLabel}</div>
-              <button className="nav-btn" onClick={goNextPeriod} disabled={!canNavigateReports}>
-                ›
-              </button>
+              <button className="nav-btn" onClick={goNextPeriod} disabled={!canNavigateReports}>›</button>
+            </div>
+
+            <div className="reports-stats">
+              <div className="reports-stat-item">
+                <div className="reports-stat-icon">🕐</div>
+                <div className="reports-stat-value">{formatDuration(reportTotals.durationMinutes)}</div>
+                <div className="reports-stat-label">Work</div>
+              </div>
+              <div className="reports-stat-item">
+                <div className="reports-stat-icon">☕</div>
+                <div className="reports-stat-value">{formatLunch(reportLunchMinutes)}</div>
+                <div className="reports-stat-label">Lunch</div>
+              </div>
+              <div className="reports-stat-item">
+                <div className="reports-stat-icon">💵</div>
+                <div className="reports-stat-value">${money(reportTotals.pay)}</div>
+                <div className="reports-stat-label">Earnings</div>
+              </div>
             </div>
 
             <div className="reports-list">
@@ -1281,21 +1354,16 @@ function App() {
               )}
             </div>
 
-            <div className="reports-total">
-              <div className="label">Total payout</div>
-              <div className="value accent">${money(reportTotals.pay)}</div>
-            </div>
-
             <div className="reports-actions">
               {!hasInvoiceCoreFields && (
                 <div className="hint">Fill invoice details to enable invoicing.</div>
               )}
               <button
-                className="primary-btn"
+                className="reports-create-invoice-btn"
                 onClick={openInvoiceScreen}
                 disabled={!hasInvoiceCoreFields || reportDays.length === 0}
               >
-                Create invoice
+                Create Invoice
               </button>
             </div>
           </section>
@@ -1330,20 +1398,14 @@ function App() {
           <>
             <section className="calendar-card">
               <div className="reports-header">
-                <button className="nav-btn" onClick={goPrevCalendarMonth}>
-                  ‹
-                </button>
+                <button className="nav-btn" onClick={goPrevCalendarMonth}>‹</button>
                 <div className="reports-range">{calendarMonthLabel}</div>
-                <button className="nav-btn" onClick={goNextCalendarMonth}>
-                  ›
-                </button>
+                <button className="nav-btn" onClick={goNextCalendarMonth}>›</button>
               </div>
 
               <div className="calendar-weekdays">
                 {calendarWeekLabels.map((label) => (
-                  <div key={label} className="calendar-weekday">
-                    {label}
-                  </div>
+                  <div key={label} className="calendar-weekday">{label}</div>
                 ))}
               </div>
 
@@ -1352,12 +1414,10 @@ function App() {
                   if (!cell.date || !cell.day) {
                     return <div key={`blank-${idx}`} className="calendar-day-empty" />
                   }
-
                   const dateKey = cell.date
                   const hasShifts = shiftsByDate.has(dateKey)
                   const isSelected = dateKey === calendarSelectedDate
                   const isToday = dateKey === todayIso
-
                   return (
                     <button
                       key={dateKey}
@@ -1383,39 +1443,37 @@ function App() {
                   return (
                     <article key={shift.id} className="shift-card">
                       <div className="shift-card__header">
-                        <div className="shift-date">{formatDate(shift.date)}</div>
-                        <div className="shift-actions">
-                          <button className="ghost-button danger" onClick={() => handleDelete(shift.id)}>
-                            Delete
+                        <div className="shift-date">{formatShortDate(shift.date)}</div>
+                        <div style={{ position: 'relative' }}>
+                          <button
+                            className="shift-menu-btn"
+                            onClick={(e) => { e.stopPropagation(); setOpenMenuShiftId(openMenuShiftId === shift.id ? null : shift.id) }}
+                          >
+                            ⋮
                           </button>
-                          <button className="ghost-button" onClick={() => openEdit(shift)}>
-                            Edit
-                          </button>
+                          {openMenuShiftId === shift.id && (
+                            <div className="shift-context-menu">
+                              <button className="shift-context-item" onClick={() => { openEdit(shift); setOpenMenuShiftId(null) }}>Edit</button>
+                              <button className="shift-context-item danger" onClick={() => { handleDelete(shift.id); setOpenMenuShiftId(null) }}>Delete</button>
+                            </div>
+                          )}
                         </div>
                       </div>
-                      <div className="shift-grid">
-                        <div>
-                          <div className="label">Start</div>
-                          <div className="value">{shift.start}</div>
+                      <div className="shift-info-row">
+                        <div className="shift-icon-item">
+                          <div className="shift-icon-badge clock">🕐</div>
+                          {shift.start}–{shift.end}
                         </div>
-                        <div>
-                          <div className="label">End</div>
-                          <div className="value">{shift.end}</div>
+                        <div className="shift-icon-item">
+                          <div className="shift-icon-badge lunch">☕</div>
+                          {formatLunch(shift.lunchMinutes)}
                         </div>
-                        <div>
-                          <div className="label">Lunch</div>
-                          <div className="value">{shift.lunchMinutes} min</div>
-                        </div>
-                        <div>
-                          <div className="label">Duration</div>
-                          <div className="value">{formatDuration(workedMinutes)}</div>
-                        </div>
-                        <div>
-                          <div className="label">Pay</div>
-                          <div className="value accent">${money(salary)} AUD</div>
+                        <div className="shift-icon-item">
+                          <div className="shift-icon-badge money">💵</div>
+                          <span className="shift-pay">${money(salary)}</span>
                         </div>
                       </div>
-                      {shift.comment && <div className="comment">“{shift.comment}”</div>}
+                      {shift.comment && <div className="comment">"{shift.comment}"</div>}
                     </article>
                   )
                 })
@@ -1427,80 +1485,143 @@ function App() {
         )}
       </main>
 
+      {/* FAB (circular, expandable) */}
       {activeView === 'home' && (
-        <button className="floating-btn" onClick={openCreate}>
-          Add work time
-        </button>
+        <>
+          {isFabOpen && <div className="fab-backdrop" onClick={() => setIsFabOpen(false)} />}
+          {isFabOpen && (
+            <div className="fab-menu">
+              <button className="fab-menu-item" onClick={() => { setIsFabOpen(false); openReports() }}>
+                Create Invoice
+              </button>
+              <button className="fab-menu-item" onClick={() => { setIsFabOpen(false); openCreate() }}>
+                New Shift
+              </button>
+              <button className="fab-menu-item" onClick={() => { setIsFabOpen(false); openReports() }}>
+                Reports
+              </button>
+            </div>
+          )}
+          <button className="floating-btn" onClick={() => setIsFabOpen(prev => !prev)}>
+            {isFabOpen ? '✕' : '+'}
+          </button>
+        </>
       )}
 
+      {/* SHIFT FORM MODAL */}
       {isAddOpen && (
         <div className="modal-backdrop" onClick={closeModal}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <button className="ghost-button" onClick={closeModal}>
-                Close
-              </button>
-              <div className="modal-title">
-                {editingId ? 'Edit shift' : 'New shift'}
-              </div>
+            <div className="modal-header-dark">
+              <div className="modal-title-dark">{editingId ? 'Edit shift' : 'New shift'}</div>
+              <button className="modal-close-btn" onClick={closeModal}>✕</button>
             </div>
 
             <div className="form-grid">
-              <div className="picker-group">
-                <div className="picker-title">Date</div>
-                <div className="picker-row">
-                  <WheelPicker
-                    options={dayOptions}
-                    value={String(selectedDate.day).padStart(2, '0')}
-                    onChange={updateDateByDay}
-                  />
-                  <WheelPicker options={monthOptions} value={`${selectedDate.year}-${String(selectedDate.month).padStart(2, '0')}`} onChange={updateDateByMonth} />
-                </div>
+              {/* Date */}
+              <div className="field">
+                <span className="label">Date</span>
+                <button
+                  type="button"
+                  className="form-field-btn"
+                  onClick={() => setActivePickerField(activePickerField === 'date' ? null : 'date')}
+                >
+                  {formatDate(form.date)}
+                </button>
+                {activePickerField === 'date' && (
+                  <div className="form-calendar">
+                    <div className="form-calendar-header">
+                      <button type="button" className="nav-btn" onClick={() => setFormCalendarMonth(prev => shiftMonthKey(prev, -1))}>‹</button>
+                      <span className="form-calendar-title">{formCalendarLabel}</span>
+                      <button type="button" className="nav-btn" onClick={() => setFormCalendarMonth(prev => shiftMonthKey(prev, 1))}>›</button>
+                    </div>
+                    <div className="calendar-weekdays">
+                      {calendarWeekLabels.map(l => <div key={l} className="calendar-weekday">{l}</div>)}
+                    </div>
+                    <div className="calendar-grid">
+                      {formCalendarCells.map((cell, idx) => {
+                        if (!cell.date || !cell.day) return <div key={`fb-${idx}`} className="calendar-day-empty" />
+                        const isSelected = cell.date === form.date
+                        const isToday = cell.date === todayIso
+                        return (
+                          <button
+                            key={cell.date}
+                            type="button"
+                            className={`calendar-day${isSelected ? ' is-selected' : ''}${isToday ? ' is-today' : ''}`}
+                            onClick={() => {
+                              setForm(prev => ({ ...prev, date: cell.date! }))
+                              setActivePickerField(null)
+                            }}
+                          >
+                            <span className="calendar-day-number">{cell.day}</span>
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )}
               </div>
 
-              <div className="picker-group">
-                <div className="picker-title">Start</div>
-                <div className="picker-row">
-                  <WheelPicker
-                    options={hourOptions}
-                    value={form.start.split(':')[0]}
-                    onChange={(val) => updateTime('start', 'hour', val)}
-                  />
-                  <WheelPicker
-                    options={minuteOptions}
-                    value={form.start.split(':')[1]}
-                    onChange={(val) => updateTime('start', 'minute', val)}
-                  />
+              {/* Client */}
+              {clients.length > 0 && (
+                <div className="field">
+                  <span className="label">Client</span>
+                  <select
+                    value={form.clientId ?? ''}
+                    onChange={e => setForm(prev => ({ ...prev, clientId: e.target.value ? Number(e.target.value) : null }))}
+                  >
+                    <option value="">— No client —</option>
+                    {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                  </select>
                 </div>
+              )}
+
+              {/* Start */}
+              <div className="field">
+                <span className="label">
+                  Start
+                  <span className="picker-badge">{form.start}</span>
+                </span>
+                <button
+                  type="button"
+                  className="form-field-btn"
+                  onClick={() => setActivePickerField(activePickerField === 'start' ? null : 'start')}
+                >
+                  {form.start}
+                </button>
               </div>
 
-              <div className="picker-group">
-                <div className="picker-title">End</div>
-                <div className="picker-row">
-                  <WheelPicker
-                    options={hourOptions}
-                    value={form.end.split(':')[0]}
-                    onChange={(val) => updateTime('end', 'hour', val)}
-                  />
-                  <WheelPicker
-                    options={minuteOptions}
-                    value={form.end.split(':')[1]}
-                    onChange={(val) => updateTime('end', 'minute', val)}
-                  />
-                </div>
+              {/* End */}
+              <div className="field">
+                <span className="label">
+                  End
+                  <span className="picker-badge">{form.end}</span>
+                </span>
+                <button
+                  type="button"
+                  className="form-field-btn"
+                  onClick={() => setActivePickerField(activePickerField === 'end' ? null : 'end')}
+                >
+                  {form.end}
+                </button>
               </div>
 
-              <div className="picker-group">
-                <div className="picker-title">Lunch (min)</div>
-                <div className="picker-row single">
-                  <WheelPicker
-                    options={lunchOptions}
-                    value={String(form.lunchMinutes)}
-                    onChange={(val) => setForm((prev) => ({ ...prev, lunchMinutes: Number(val) }))}
-                  />
-                </div>
+              {/* Lunch */}
+              <div className="field">
+                <span className="label">
+                  Lunch
+                  <span className="picker-badge">{formatLunch(form.lunchMinutes)}</span>
+                </span>
+                <button
+                  type="button"
+                  className="form-field-btn"
+                  onClick={() => setActivePickerField(activePickerField === 'lunch' ? null : 'lunch')}
+                >
+                  {formatLunch(form.lunchMinutes)}
+                </button>
               </div>
 
+              {/* Comment */}
               <label className="field">
                 <span className="label">Comment</span>
                 <textarea
@@ -1512,19 +1633,85 @@ function App() {
               </label>
             </div>
 
-            <button className="primary-btn" onClick={handleSave}>
-              Save
-            </button>
+            <button className="primary-btn" onClick={handleSave}>Save</button>
           </div>
         </div>
       )}
 
+      {/* TIME PICKER BOTTOM SHEET */}
+      {(activePickerField === 'start' || activePickerField === 'end') && (
+        <>
+          <div className="picker-sheet-backdrop" onClick={() => setActivePickerField(null)} />
+          <div className="picker-sheet">
+            <div className="picker-sheet-title">{activePickerField === 'start' ? 'Start Time' : 'End Time'}</div>
+            <div className="picker-display">
+              <div className="picker-display-label">Selected</div>
+              <div className="picker-display-value">
+                {activePickerField === 'start' ? form.start : form.end}
+              </div>
+            </div>
+            <div className="picker-cols">
+              <div>
+                <div className="picker-col-label">
+                  <span className="picker-col-title">Hour</span>
+                </div>
+                <WheelPicker
+                  options={hourOptions}
+                  value={(activePickerField === 'start' ? form.start : form.end).split(':')[0]}
+                  onChange={(val) => updateTime(activePickerField as 'start' | 'end', 'hour', val)}
+                />
+              </div>
+              <div>
+                <div className="picker-col-label">
+                  <span className="picker-col-title">Minute</span>
+                </div>
+                <WheelPicker
+                  options={minuteOptions}
+                  value={(activePickerField === 'start' ? form.start : form.end).split(':')[1]}
+                  onChange={(val) => updateTime(activePickerField as 'start' | 'end', 'minute', val)}
+                />
+              </div>
+            </div>
+            <div className="actions-row">
+              <button className="ghost-button" onClick={() => setActivePickerField(null)}>Cancel</button>
+              <button className="primary-btn" onClick={() => setActivePickerField(null)}>Done</button>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* LUNCH PICKER BOTTOM SHEET */}
+      {activePickerField === 'lunch' && (
+        <>
+          <div className="picker-sheet-backdrop" onClick={() => setActivePickerField(null)} />
+          <div className="picker-sheet">
+            <div className="picker-sheet-title">Lunch Break</div>
+            <div className="picker-display">
+              <div className="picker-display-label">Selected</div>
+              <div className="picker-display-value">{formatLunch(form.lunchMinutes)}</div>
+            </div>
+            <div className="picker-row single">
+              <WheelPicker
+                options={lunchOptions}
+                value={String(form.lunchMinutes)}
+                onChange={(val) => setForm(prev => ({ ...prev, lunchMinutes: Number(val) }))}
+              />
+            </div>
+            <div className="actions-row">
+              <button className="ghost-button" onClick={() => setActivePickerField(null)}>Cancel</button>
+              <button className="primary-btn" onClick={() => setActivePickerField(null)}>Done</button>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* CLIENT MODAL */}
       {isClientModalOpen && (
         <div className="modal-backdrop" onClick={closeClientModal}>
           <div className="modal" onClick={e => e.stopPropagation()}>
-            <div className="modal-header">
-              <button className="ghost-button" onClick={closeClientModal}>Cancel</button>
-              <div className="modal-title">{editingClientId !== null ? 'Edit Client' : 'Add Client'}</div>
+            <div className="modal-header-dark">
+              <div className="modal-title-dark">{editingClientId !== null ? 'Edit Client' : 'Add Client'}</div>
+              <button className="modal-close-btn" onClick={closeClientModal}>✕</button>
             </div>
             <div className="form-grid" style={{ marginTop: '12px' }}>
               <label className="field">
@@ -1569,19 +1756,18 @@ function App() {
                 />
               </label>
             </div>
-            <button className="primary-btn" style={{ marginTop: '16px' }} onClick={saveClient}>
-              Save
-            </button>
+            <button className="primary-btn" style={{ marginTop: '16px' }} onClick={saveClient}>Save</button>
           </div>
         </div>
       )}
 
+      {/* UPGRADE MODAL */}
       {isUpgradeModalOpen && (
         <div className="modal-backdrop" onClick={() => setIsUpgradeModalOpen(false)}>
           <div className="modal" onClick={e => e.stopPropagation()}>
-            <div className="modal-header">
-              <button className="ghost-button" onClick={() => setIsUpgradeModalOpen(false)}>Close</button>
-              <div className="modal-title">Upgrade to Pro</div>
+            <div className="modal-header-dark">
+              <div className="modal-title-dark">Upgrade to Pro</div>
+              <button className="modal-close-btn" onClick={() => setIsUpgradeModalOpen(false)}>✕</button>
             </div>
             <div style={{ padding: '8px 0 4px', textAlign: 'center' }}>
               <p style={{ marginBottom: '6px' }}>Your current plan allows only <strong>1 client</strong>.</p>
@@ -1599,14 +1785,13 @@ function App() {
         </div>
       )}
 
+      {/* SETTINGS MODAL */}
       {isSettingsOpen && (
         <div className="modal-backdrop" onClick={closeSettings}>
           <div className="modal modal-pinned" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <button className="ghost-button" onClick={closeSettings}>
-                Close
-              </button>
-              <div className="modal-title">Settings</div>
+            <div className="modal-header-dark">
+              <div className="modal-title-dark">Settings</div>
+              <button className="modal-close-btn" onClick={closeSettings}>✕</button>
             </div>
 
             <div className="form-grid">
@@ -1687,24 +1872,20 @@ function App() {
                   }}
                 />
               </label>
-
             </div>
 
-            <button className="primary-btn" onClick={saveSettings}>
-              Save
-            </button>
+            <button className="primary-btn" onClick={saveSettings}>Save</button>
           </div>
         </div>
       )}
 
+      {/* INVOICE DETAILS MODAL */}
       {isInvoiceModalOpen && (
         <div className="modal-backdrop" onClick={closeInvoiceModal}>
           <div className="modal modal-pinned" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <button className="ghost-button" onClick={closeInvoiceModal}>
-                Close
-              </button>
-              <div className="modal-title">Invoice details</div>
+            <div className="modal-header-dark">
+              <div className="modal-title-dark">Invoice details</div>
+              <button className="modal-close-btn" onClick={closeInvoiceModal}>✕</button>
             </div>
 
             <div className="form-grid">
@@ -1806,12 +1987,9 @@ function App() {
                   onChange={(e) => setInvoiceDraft((prev) => ({ ...prev, chargeGst: e.target.checked }))}
                 />
               </label>
-
             </div>
 
-            <button className="primary-btn" onClick={saveInvoiceProfile}>
-              Save
-            </button>
+            <button className="primary-btn" onClick={saveInvoiceProfile}>Save</button>
           </div>
         </div>
       )}

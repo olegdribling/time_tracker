@@ -13,6 +13,7 @@ const rowToShift = (row) => ({
   lunchMinutes: row.lunch_minutes,
   comment: row.comment,
   hourlyRate: parseFloat(row.hourly_rate),
+  clientId: row.client_id ?? null,
 })
 
 router.get('/', async (req, res) => {
@@ -29,16 +30,16 @@ router.get('/', async (req, res) => {
 })
 
 router.post('/', async (req, res) => {
-  const { id, date, start, end, lunchMinutes, comment, hourlyRate } = req.body
+  const { id, date, start, end, lunchMinutes, comment, hourlyRate, clientId } = req.body
   try {
     await pool.query(
-      `INSERT INTO shifts (id, user_id, date, start_time, end_time, lunch_minutes, comment, hourly_rate)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      `INSERT INTO shifts (id, user_id, date, start_time, end_time, lunch_minutes, comment, hourly_rate, client_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
        ON CONFLICT (id) DO UPDATE SET
          date=EXCLUDED.date, start_time=EXCLUDED.start_time, end_time=EXCLUDED.end_time,
          lunch_minutes=EXCLUDED.lunch_minutes, comment=EXCLUDED.comment,
-         hourly_rate=EXCLUDED.hourly_rate, updated_at=NOW()`,
-      [id, req.userId, date, start, end, lunchMinutes, comment || '', hourlyRate]
+         hourly_rate=EXCLUDED.hourly_rate, client_id=EXCLUDED.client_id, updated_at=NOW()`,
+      [id, req.userId, date, start, end, lunchMinutes, comment || '', hourlyRate, clientId ?? null]
     )
     res.json({ ok: true })
   } catch (err) {
@@ -48,13 +49,13 @@ router.post('/', async (req, res) => {
 })
 
 router.put('/:id', async (req, res) => {
-  const { date, start, end, lunchMinutes, comment, hourlyRate } = req.body
+  const { date, start, end, lunchMinutes, comment, hourlyRate, clientId } = req.body
   try {
     await pool.query(
       `UPDATE shifts SET date=$1, start_time=$2, end_time=$3, lunch_minutes=$4,
-       comment=$5, hourly_rate=$6, updated_at=NOW()
-       WHERE id=$7 AND user_id=$8`,
-      [date, start, end, lunchMinutes, comment || '', hourlyRate, req.params.id, req.userId]
+       comment=$5, hourly_rate=$6, client_id=$7, updated_at=NOW()
+       WHERE id=$8 AND user_id=$9`,
+      [date, start, end, lunchMinutes, comment || '', hourlyRate, clientId ?? null, req.params.id, req.userId]
     )
     res.json({ ok: true })
   } catch (err) {

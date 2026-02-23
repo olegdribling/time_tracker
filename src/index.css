@@ -9,31 +9,47 @@
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 
-  --app-bg: linear-gradient(180deg, #f5f6fb 0%, #eef0f8 100%);
+  --app-bg: #f0f2f5;
   --surface: #ffffff;
-  --input-bg: #f7f8fc;
-  --text-primary: #0f172a;
-  --text-muted: #6b7287;
-  --border: #e5e7ef;
-  --accent: #6a5af9;
-  --accent-faint: rgba(106, 90, 249, 0.24);
-  --accent-gradient: linear-gradient(135deg, #6a5af9 0%, #b66bff 100%);
-  --shadow-soft: 0 6px 22px rgba(15, 23, 42, 0.06);
-  --shadow-strong: 0 20px 60px rgba(15, 23, 42, 0.16);
+  --input-bg: #f5f7fa;
+  --text-primary: #1a2b42;
+  --text-muted: #8a9ab8;
+  --border: #e4e8f0;
+  --accent: #1a2b42;
+  --accent-faint: rgba(26, 43, 66, 0.08);
+  --accent-gradient: #1a2b42;
+  --header-bg: #1a2b42;
+  --shadow-soft: 0 2px 12px rgba(26, 43, 66, 0.08);
+  --shadow-strong: 0 8px 32px rgba(26, 43, 66, 0.16);
+
+  --icon-clock-bg: #eef0f6;
+  --icon-clock-fg: #8a9ab8;
+  --icon-lunch-bg: #fff8e6;
+  --icon-lunch-fg: #f59e0b;
+  --icon-money-bg: #e8f8ee;
+  --icon-money-fg: #22c55e;
 }
 
 :root[data-theme='dark'] {
-  --app-bg: linear-gradient(180deg, #0c111f 0%, #0b1328 100%);
-  --surface: #11192c;
-  --input-bg: #0f1726;
-  --text-primary: #e5e7f3;
-  --text-muted: #9ca3b7;
-  --border: #1f2a3f;
-  --accent: #8f7bff;
-  --accent-faint: rgba(143, 123, 255, 0.3);
-  --accent-gradient: linear-gradient(135deg, #8f7bff 0%, #c35dff 100%);
-  --shadow-soft: 0 6px 22px rgba(0, 0, 0, 0.35);
-  --shadow-strong: 0 20px 60px rgba(0, 0, 0, 0.55);
+  --app-bg: #0f1826;
+  --surface: #162236;
+  --input-bg: #1a2b42;
+  --text-primary: #e2e8f4;
+  --text-muted: #7a8fab;
+  --border: #243450;
+  --accent: #4a90d9;
+  --accent-faint: rgba(74, 144, 217, 0.2);
+  --accent-gradient: #4a90d9;
+  --header-bg: #0c1525;
+  --shadow-soft: 0 2px 12px rgba(0, 0, 0, 0.3);
+  --shadow-strong: 0 8px 32px rgba(0, 0, 0, 0.5);
+
+  --icon-clock-bg: #1e2d44;
+  --icon-clock-fg: #7a8fab;
+  --icon-lunch-bg: #2a1f0a;
+  --icon-lunch-fg: #f59e0b;
+  --icon-money-bg: #0a2016;
+  --icon-money-fg: #22c55e;
 }
 
 *,
@@ -137,7 +153,7 @@ textarea {
 .auth-btn {
   width: 100%;
   padding: 14px;
-  background: var(--accent-gradient);
+  background: var(--header-bg);
   color: #fff;
   border: none;
   border-radius: 14px;

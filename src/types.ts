@@ -6,6 +6,7 @@ export type Shift = {
   lunchMinutes: number
   comment?: string
   hourlyRate: number
+  clientId?: number | null
 }
 
 export type ShiftForm = {
@@ -14,6 +15,7 @@ export type ShiftForm = {
   end: string
   lunchMinutes: number
   comment: string
+  clientId: number | null
 }
 
 export type Settings = {
