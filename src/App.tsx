@@ -15,7 +15,7 @@ import {
   X,
 } from 'lucide-react'
 import { api } from './api'
-import { calculateTotals, getPeriodByOffset, getPeriodRange, groupShiftsByDay, minutesBetween } from './lib/calculations'
+import { calculateTotals, getPeriodByOffset, getPeriodRange, minutesBetween } from './lib/calculations'
 import { generateInvoicePdf } from './lib/invoice'
 import type { Client, ClientDraft, InvoiceProfile, Settings, Shift, ShiftForm } from './types'
 import { saveAs } from 'file-saver'
@@ -296,6 +296,7 @@ function App() {
   const [billingPlan, setBillingPlan] = useState<string>('trial')
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false)
   const [periodOffset, setPeriodOffset] = useState(0)
+  const [reportClientId, setReportClientId] = useState<number | null>(null)
   const [calendarMonth, setCalendarMonth] = useState(() => toMonthKey(new Date()))
   const [calendarSelectedDate, setCalendarSelectedDate] = useState(() => toLocalDateKey(new Date()))
   const [openMenuShiftId, setOpenMenuShiftId] = useState<string | null>(null)
@@ -477,21 +478,23 @@ function App() {
     [settings, periodOffset],
   )
 
-  const reportDays = useMemo(
-    () => groupShiftsByDay(shifts, reportRange),
-    [shifts, reportRange],
-  )
+  const reportShifts = useMemo(() => {
+    const inRange = reportRange
+      ? shifts.filter(s => s.date >= reportRange.start && s.date <= reportRange.end)
+      : shifts
+    return reportClientId !== null
+      ? inRange.filter(s => s.clientId === reportClientId)
+      : inRange
+  }, [shifts, reportRange, reportClientId])
 
   const reportTotals = useMemo(
-    () => calculateTotals(shifts, reportRange),
-    [shifts, reportRange],
+    () => calculateTotals(reportShifts, null),
+    [reportShifts],
   )
 
   const reportLunchMinutes = useMemo(
-    () => shifts
-      .filter(s => reportRange ? s.date >= reportRange.start && s.date <= reportRange.end : true)
-      .reduce((sum, s) => sum + s.lunchMinutes, 0),
-    [shifts, reportRange],
+    () => reportShifts.reduce((sum, s) => sum + s.lunchMinutes, 0),
+    [reportShifts],
   )
 
   const totalPay = totals.pay
@@ -1269,59 +1272,112 @@ function App() {
             </div>
           </>
         ) : activeView === 'reports' ? (
-          <section className="reports-card">
+          <section className="reports-page">
+            {/* Header */}
             <div className="reports-header">
-              <button className="nav-btn" onClick={goPrevPeriod} disabled={!canNavigateReports}><ChevronLeft size={16} /></button>
-              <div className="reports-range">{reportPeriodLabel}</div>
-              <button className="nav-btn" onClick={goNextPeriod} disabled={!canNavigateReports}><ChevronRight size={16} /></button>
+              <div className="reports-period-label">REPORTING<br />PERIOD</div>
+              <div className="reports-nav-row">
+                <button className="nav-btn" onClick={goPrevPeriod}><ChevronLeft size={16} /></button>
+                <div className="reports-range">{reportPeriodLabel}</div>
+                <button className="nav-btn" onClick={goNextPeriod}><ChevronRight size={16} /></button>
+              </div>
+              <button className="reports-close-btn" onClick={goHome}><X size={18} /></button>
             </div>
 
-            <div className="reports-stats">
+            {/* Client filter */}
+            <div className="reports-client-wrap">
+              <select
+                className="reports-client-select"
+                value={reportClientId ?? ''}
+                onChange={e => setReportClientId(e.target.value === '' ? null : Number(e.target.value))}
+              >
+                <option value="">All Clients</option>
+                {clients.map(c => (
+                  <option key={c.id} value={c.id}>{c.name}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Create Invoice button */}
+            <button
+              className="reports-create-invoice-btn"
+              onClick={openInvoiceScreen}
+              disabled={reportClientId === null || !hasInvoiceCoreFields || reportShifts.length === 0}
+            >
+              <FileText size={18} />
+              Create Invoice
+            </button>
+
+            {/* Stats */}
+            <div className="reports-stats-card">
               <div className="reports-stat-item">
                 <div className="reports-stat-icon"><Clock size={20} /></div>
-                <div className="reports-stat-value">{formatDuration(reportTotals.durationMinutes)}</div>
                 <div className="reports-stat-label">Work</div>
+                <div className="reports-stat-value">{formatDuration(reportTotals.durationMinutes)}</div>
               </div>
+              <div className="reports-stat-divider" />
               <div className="reports-stat-item">
                 <div className="reports-stat-icon"><Coffee size={20} /></div>
-                <div className="reports-stat-value">{formatLunch(reportLunchMinutes)}</div>
                 <div className="reports-stat-label">Lunch</div>
+                <div className="reports-stat-value">{formatLunch(reportLunchMinutes)}</div>
               </div>
+              <div className="reports-stat-divider" />
               <div className="reports-stat-item">
                 <div className="reports-stat-icon"><Banknote size={20} /></div>
-                <div className="reports-stat-value">${money(reportTotals.pay)}</div>
                 <div className="reports-stat-label">Earnings</div>
+                <div className="reports-stat-value">${money(reportTotals.pay)}</div>
               </div>
             </div>
 
-            <div className="reports-list">
-              {reportDays.map((day) => (
-                <div key={day.date} className="report-row">
-                  <div className="report-date">{formatDate(day.date)}</div>
-                  <div className="report-meta">
-                    <div className="value">{formatDuration(day.durationMinutes)}</div>
-                  </div>
-                  <div className="report-meta">
-                    <div className="value accent">${money(day.pay)}</div>
-                  </div>
-                </div>
-              ))}
-              {reportDays.length === 0 && (
+            {/* Shift cards */}
+            <div className="reports-shift-list">
+              {reportShifts.length === 0 && (
                 <div className="report-row empty">No shifts in this period</div>
               )}
-            </div>
-
-            <div className="reports-actions">
-              {!hasInvoiceCoreFields && (
-                <div className="hint">Fill invoice details to enable invoicing.</div>
-              )}
-              <button
-                className="reports-create-invoice-btn"
-                onClick={openInvoiceScreen}
-                disabled={!hasInvoiceCoreFields || reportDays.length === 0}
-              >
-                Create Invoice
-              </button>
+              {reportShifts
+                .slice()
+                .sort((a, b) => b.date.localeCompare(a.date) || b.start.localeCompare(a.start))
+                .map((shift) => {
+                  const workedMinutes = minutesBetween(shift.start, shift.end) - shift.lunchMinutes
+                  const hours = Math.max(workedMinutes, 0) / 60
+                  const salary = hours * shift.hourlyRate
+                  return (
+                    <article key={shift.id} className="shift-card">
+                      <div className="shift-card__header">
+                        <div className="shift-date">{formatShortDate(shift.date)}</div>
+                        <div style={{ position: 'relative' }}>
+                          <button
+                            className="shift-menu-btn"
+                            onClick={(e) => { e.stopPropagation(); setOpenMenuShiftId(openMenuShiftId === shift.id ? null : shift.id) }}
+                          >
+                            <MoreVertical size={16} />
+                          </button>
+                          {openMenuShiftId === shift.id && (
+                            <div className="shift-context-menu">
+                              <button className="shift-context-item" onClick={() => { openEdit(shift); setOpenMenuShiftId(null) }}>Edit</button>
+                              <button className="shift-context-item danger" onClick={() => { handleDelete(shift.id); setOpenMenuShiftId(null) }}>Delete</button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      <div className="shift-info-row">
+                        <div className="shift-icon-item">
+                          <div className="shift-icon-badge clock"><Clock size={16} /></div>
+                          {shift.start}–{shift.end}
+                        </div>
+                        <div className="shift-icon-item">
+                          <div className="shift-icon-badge lunch"><Coffee size={16} /></div>
+                          {formatLunch(shift.lunchMinutes)}
+                        </div>
+                        <div className="shift-icon-item">
+                          <div className="shift-icon-badge money"><Banknote size={16} /></div>
+                          <span className="shift-pay">${money(salary)}</span>
+                        </div>
+                      </div>
+                      {shift.comment && <div className="comment">"{shift.comment}"</div>}
+                    </article>
+                  )
+                })}
             </div>
           </section>
         ) : activeView === 'clients' ? (
