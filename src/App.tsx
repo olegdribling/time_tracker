@@ -8,8 +8,6 @@ import type { Client, ClientDraft, InvoiceProfile, Settings, Shift, ShiftForm } 
 import { saveAs } from 'file-saver'
 
 const INITIAL_HOURLY_RATE = 25
-const THEME_STORAGE_KEY = 'worktracker:theme'
-const THEME_MODE_STORAGE_KEY = 'worktracker:theme-mode'
 const MENU_STORAGE_KEY = 'worktracker:menu-open'
 
 const emptyForm = (): ShiftForm => {
@@ -104,15 +102,6 @@ type Option = {
   label: string
 }
 
-type ThemeMode = 'system' | 'light' | 'dark'
-type Theme = 'light' | 'dark'
-
-const getSystemTheme = (): Theme => {
-  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
-    return 'light'
-  }
-  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
-}
 
 const WEEKDAYS: Settings['weekStart'][] = [
   'sunday',
@@ -249,25 +238,7 @@ const WheelPicker = ({ options, value, onChange, itemHeight = 44 }: WheelPickerP
 }
 
 function App() {
-  const [themeMode] = useState<ThemeMode>(() => {
-    try {
-      const storedMode = localStorage.getItem(THEME_MODE_STORAGE_KEY)
-      if (storedMode === 'system' || storedMode === 'light' || storedMode === 'dark') {
-        return storedMode
-      }
-
-      // Keep compatibility with older saved theme value.
-      const storedLegacy = localStorage.getItem(THEME_STORAGE_KEY)
-      if (storedLegacy === 'light' || storedLegacy === 'dark') {
-        return storedLegacy
-      }
-    } catch (error) {
-      console.error('Failed to read stored theme', error)
-    }
-    return 'system'
-  })
   const navigate = useNavigate()
-  const [systemTheme, setSystemTheme] = useState<Theme>(getSystemTheme)
   const [shifts, setShifts] = useState<Shift[]>([])
   const [isAddOpen, setIsAddOpen] = useState(false)
   const [isMenuOpen, setIsMenuOpen] = useState(() => {
@@ -322,33 +293,6 @@ function App() {
     const now = new Date()
     return `${pad2(now.getHours())}:${pad2(now.getMinutes())}`
   })
-
-  const appliedTheme: Theme = themeMode === 'system' ? systemTheme : themeMode
-
-  useEffect(() => {
-    document.documentElement.dataset.theme = appliedTheme
-  }, [appliedTheme])
-
-  useEffect(() => {
-    try {
-      localStorage.setItem(THEME_MODE_STORAGE_KEY, themeMode)
-      localStorage.removeItem(THEME_STORAGE_KEY)
-    } catch (error) {
-      console.error('Failed to persist theme', error)
-    }
-  }, [themeMode])
-
-  useEffect(() => {
-    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return
-    const media = window.matchMedia('(prefers-color-scheme: dark)')
-    const updateTheme = (event: MediaQueryListEvent) => {
-      setSystemTheme(event.matches ? 'dark' : 'light')
-    }
-
-    setSystemTheme(media.matches ? 'dark' : 'light')
-    media.addEventListener('change', updateTheme)
-    return () => media.removeEventListener('change', updateTheme)
-  }, [])
 
   useEffect(() => {
     let cancelled = false

@@ -30,27 +30,6 @@
   --icon-money-fg: #22c55e;
 }
 
-:root[data-theme='dark'] {
-  --app-bg: #0f1826;
-  --surface: #162236;
-  --input-bg: #1a2b42;
-  --text-primary: #e2e8f4;
-  --text-muted: #7a8fab;
-  --border: #243450;
-  --accent: #4a90d9;
-  --accent-faint: rgba(74, 144, 217, 0.2);
-  --accent-gradient: #4a90d9;
-  --header-bg: #0c1525;
-  --shadow-soft: 0 2px 12px rgba(0, 0, 0, 0.3);
-  --shadow-strong: 0 8px 32px rgba(0, 0, 0, 0.5);
-
-  --icon-clock-bg: #1e2d44;
-  --icon-clock-fg: #7a8fab;
-  --icon-lunch-bg: #2a1f0a;
-  --icon-lunch-fg: #f59e0b;
-  --icon-money-bg: #0a2016;
-  --icon-money-fg: #22c55e;
-}
 
 *,
 *::before,
