@@ -5,8 +5,10 @@ import {
   Banknote,
   ChevronLeft,
   ChevronRight,
+  BarChart2,
   Clock,
   Coffee,
+  FileText,
   MoreVertical,
   Plus,
   User,
@@ -1447,12 +1449,15 @@ function App() {
           {isFabOpen && (
             <div className="fab-menu">
               <button className="fab-menu-item" onClick={() => { setIsFabOpen(false); openReports() }}>
+                <FileText size={20} />
                 Create Invoice
               </button>
               <button className="fab-menu-item" onClick={() => { setIsFabOpen(false); openCreate() }}>
+                <Clock size={20} />
                 New Shift
               </button>
               <button className="fab-menu-item" onClick={() => { setIsFabOpen(false); openReports() }}>
+                <BarChart2 size={20} />
                 Reports
               </button>
             </div>
