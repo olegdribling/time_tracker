@@ -9,6 +9,7 @@ import {
   Clock,
   Coffee,
   FileText,
+  Home,
   MoreVertical,
   Plus,
   User,
@@ -1507,7 +1508,11 @@ function App() {
       </main>
 
       {/* FAB (circular, expandable) */}
-      {activeView === 'home' && (
+      {activeView === 'reports' ? (
+        <button className="floating-btn" onClick={goHome}>
+          <Home size={24} />
+        </button>
+      ) : activeView === 'home' && (
         <>
           {isFabOpen && <div className="fab-backdrop" onClick={() => { setIsFabOpen(false); setFabInvoiceOpen(false) }} />}
           {isFabOpen && (
