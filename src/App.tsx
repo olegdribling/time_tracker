@@ -307,11 +307,14 @@ function App() {
   const [isInvoiceByTimeOpen, setIsInvoiceByTimeOpen] = useState(false)
   const [invBTForm, setInvBTForm] = useState({
     number: '1',
+    date: toLocalDateKey(new Date()),
     description: '',
     hours: '0',
     rate: '0',
     clientId: null as number | null,
   })
+  const [invBTCalendarOpen, setInvBTCalendarOpen] = useState(false)
+  const [invBTCalendarMonth, setInvBTCalendarMonth] = useState(() => toMonthKey(new Date()))
   const [activePickerField, setActivePickerField] = useState<'date' | 'start' | 'end' | 'lunch' | null>(null)
   const [formCalendarMonth, setFormCalendarMonth] = useState(() => toMonthKey(new Date()))
   const [clockDisplay, setClockDisplay] = useState(() => {
@@ -583,6 +586,23 @@ function App() {
     const { year, month } = parseMonthKey(formCalendarMonth)
     return new Intl.DateTimeFormat('en-AU', { month: 'long', year: 'numeric' }).format(new Date(year, month - 1, 1))
   }, [formCalendarMonth])
+
+  const invBTCalendarCells = useMemo(() => {
+    const { year, month } = parseMonthKey(invBTCalendarMonth)
+    const firstDay = new Date(year, month - 1, 1).getDay()
+    const daysInMonth = new Date(year, month, 0).getDate()
+    const cells: { date: string | null; day: number | null }[] = []
+    for (let i = 0; i < firstDay; i++) cells.push({ date: null, day: null })
+    for (let d = 1; d <= daysInMonth; d++) {
+      cells.push({ date: `${year}-${String(month).padStart(2, '0')}-${String(d).padStart(2, '0')}`, day: d })
+    }
+    return cells
+  }, [invBTCalendarMonth])
+
+  const invBTCalendarLabel = useMemo(() => {
+    const { year, month } = parseMonthKey(invBTCalendarMonth)
+    return new Intl.DateTimeFormat('en-AU', { month: 'long', year: 'numeric' }).format(new Date(year, month - 1, 1))
+  }, [invBTCalendarMonth])
 
   const shiftsByDate = useMemo(() => {
     const map = new Map<string, Shift[]>()
@@ -956,13 +976,17 @@ function App() {
 
   const openInvoiceByTime = () => {
     const hours = Math.max(reportTotals.durationMinutes, 0) / 60
+    const today = toLocalDateKey(new Date())
     setInvBTForm({
       number: String(invoiceProfile.nextInvoiceNumber),
+      date: today,
       description: invoiceProfile.speciality || 'Work shift',
       hours: String(Math.round(hours * 100) / 100),
       rate: String(settings.hourlyRate),
       clientId: reportClientId,
     })
+    setInvBTCalendarMonth(toMonthKey(new Date()))
+    setInvBTCalendarOpen(false)
     setIsFabOpen(false)
     setFabInvoiceOpen(false)
     setIsInvoiceByTimeOpen(true)
@@ -975,8 +999,7 @@ function App() {
     const gst = invoiceProfile.chargeGst ? subtotal * 0.1 : 0
     const total = subtotal + gst
     const invNum = parseInt(invBTForm.number) || 1
-    const today = toLocalDateKey(new Date())
-    const period = reportRange ?? { start: today, end: today }
+    const period = reportRange ?? { start: invBTForm.date, end: invBTForm.date }
     const selectedClient = clients.find(c => c.id === invBTForm.clientId)
     try {
       await generateInvoicePdf({
@@ -1271,7 +1294,45 @@ function App() {
                   </div>
                   <div className="field">
                     <span className="label">Date</span>
-                    <input type="text" value={formatShortDate(toLocalDateKey(new Date()))} disabled />
+                    <button
+                      type="button"
+                      className="form-field-btn"
+                      onClick={() => setInvBTCalendarOpen(prev => !prev)}
+                    >
+                      {formatDate(invBTForm.date)}
+                    </button>
+                    {invBTCalendarOpen && (
+                      <div className="form-calendar">
+                        <div className="form-calendar-header">
+                          <button type="button" className="nav-btn" onClick={() => setInvBTCalendarMonth(prev => shiftMonthKey(prev, -1))}><ChevronLeft size={16} /></button>
+                          <span className="form-calendar-title">{invBTCalendarLabel}</span>
+                          <button type="button" className="nav-btn" onClick={() => setInvBTCalendarMonth(prev => shiftMonthKey(prev, 1))}><ChevronRight size={16} /></button>
+                        </div>
+                        <div className="calendar-weekdays">
+                          {calendarWeekLabels.map(l => <div key={l} className="calendar-weekday">{l}</div>)}
+                        </div>
+                        <div className="calendar-grid">
+                          {invBTCalendarCells.map((cell, idx) => {
+                            if (!cell.date || !cell.day) return <div key={`invbt-${idx}`} className="calendar-day-empty" />
+                            const isSelected = cell.date === invBTForm.date
+                            const isToday = cell.date === todayIso
+                            return (
+                              <button
+                                key={cell.date}
+                                type="button"
+                                className={`calendar-day${isSelected ? ' is-selected' : ''}${isToday ? ' is-today' : ''}`}
+                                onClick={() => {
+                                  setInvBTForm(prev => ({ ...prev, date: cell.date! }))
+                                  setInvBTCalendarOpen(false)
+                                }}
+                              >
+                                <span className="calendar-day-number">{cell.day}</span>
+                              </button>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    )}
                   </div>
                   <div className="field">
                     <span className="label">Client</span>
