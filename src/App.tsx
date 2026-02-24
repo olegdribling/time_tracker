@@ -912,7 +912,7 @@ function App() {
 
   const hasInvoiceCoreFields = invoiceProfile.fullName.trim() !== '' && invoiceProfile.accountNumber.trim() !== ''
 
-  const openInvoiceScreen = () => {
+  const openInvoiceScreen = (preselectedClientId?: number | null) => {
     if (!reportRange) {
       alert('Select a reporting period first.')
       return
@@ -932,7 +932,11 @@ function App() {
     setInvoiceTotalInput(String(reportTotals.pay))
     setIsInvoiceEditing(false)
     setShowEmailPrompt(false)
-    setSelectedClientId(clients.length === 1 ? clients[0].id : null)
+    setSelectedClientId(
+      preselectedClientId !== undefined
+        ? preselectedClientId
+        : clients.length === 1 ? clients[0].id : null
+    )
     setIsInvoiceScreenOpen(true)
   }
 
@@ -1310,11 +1314,11 @@ function App() {
             {/* Create Invoice button */}
             <button
               className="reports-create-invoice-btn"
-              onClick={openInvoiceScreen}
+              onClick={() => openInvoiceScreen(reportClientId)}
               disabled={reportClientId === null || !hasInvoiceCoreFields || reportShifts.length === 0}
             >
               <FileText size={18} />
-              Create Invoice
+              Create Invoice by Period
             </button>
 
             {/* Stats */}
