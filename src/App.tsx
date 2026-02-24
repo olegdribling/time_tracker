@@ -1172,7 +1172,7 @@ function App() {
             </div>
 
             <div className="actions-row center">
-              <button className="primary-btn" onClick={saveInvoicePdf}>
+              <button className="primary-btn" onClick={saveInvoicePdf} disabled={selectedClientId === null}>
                 Save
               </button>
             </div>
