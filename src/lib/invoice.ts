@@ -114,7 +114,7 @@ export async function generateInvoicePdf(params: {
 
   const rightStartY = height - margin - 10
   drawText('TAX Invoice', rightX, rightStartY, { bold: true, size: 14  })
-  drawText(`Invoice # ${String(invoiceNumber).padStart(3, '0')}`, rightX, rightStartY - line * 1.2, { bold: true })
+  drawText(`Invoice # INV-${String(invoiceNumber).padStart(3, '0')}`, rightX, rightStartY - line * 1.2, { bold: true })
   drawText(`Date  ${formatShortDate(period.end)}`, rightX, rightStartY - line * 2.4, { bold: true })
   drawText(`Period  ${formatDate(period.start)} — ${formatDate(period.end)}`, rightX, rightStartY - line * 3.6, { size: 10 })
 
@@ -200,5 +200,5 @@ export async function generateInvoicePdf(params: {
   const pdfBytes = await pdfDoc.save()
   const arrayBuffer = pdfBytes.buffer.slice(pdfBytes.byteOffset, pdfBytes.byteOffset + pdfBytes.byteLength) as ArrayBuffer
   const blob = new Blob([arrayBuffer], { type: 'application/pdf' })
-  saveAs(blob, `Invoice-${invoiceNumber}-${period.start}-to-${period.end}.pdf`)
+  saveAs(blob, `Invoice-INV-${String(invoiceNumber).padStart(3, '0')}-${period.start}-to-${period.end}.pdf`)
 }

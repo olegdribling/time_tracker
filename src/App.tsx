@@ -1178,11 +1178,9 @@ function App() {
               </label>
             </div>
 
-            <div className="actions-row center">
-              <button className="primary-btn" onClick={saveInvoicePdf} disabled={selectedClientId === null}>
-                Save
-              </button>
-            </div>
+            <button className="primary-btn" onClick={saveInvoicePdf} disabled={selectedClientId === null}>
+              Save
+            </button>
           </div>
         </div>
       )}
