@@ -1508,11 +1508,11 @@ function App() {
               {fabInvoiceOpen ? (
                 <>
                   <button className="fab-menu-item" onClick={() => { setIsFabOpen(false); setFabInvoiceOpen(false); openReports() }}>
-                    <div className="fab-menu-icon-badge" style={{ background: '#e8edf8' }}><Clock size={20} style={{ color: '#4a6fa5' }} /></div>
+                    <Clock size={20} />
                     Invoice by Time
                   </button>
                   <button className="fab-menu-item" onClick={() => { setIsFabOpen(false); setFabInvoiceOpen(false); openReports() }}>
-                    <div className="fab-menu-icon-badge" style={{ background: '#f0ebfa' }}><Wrench size={20} style={{ color: '#8b5cf6' }} /></div>
+                    <Wrench size={20} />
                     Invoice by Services
                   </button>
                 </>
