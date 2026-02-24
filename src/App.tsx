@@ -1280,7 +1280,14 @@ function App() {
               <div className="reports-period-label">REPORTING<br />PERIOD</div>
               <div className="reports-nav-row">
                 <button className="nav-btn" onClick={goPrevPeriod}><ChevronLeft size={16} /></button>
-                <div className="reports-range">{reportPeriodLabel}</div>
+                <div className="reports-range">
+                  {reportRange && reportRange.start !== reportRange.end ? (
+                    <>
+                      <span>{formatDate(reportRange.start)}</span>
+                      <span>{formatDate(reportRange.end)}</span>
+                    </>
+                  ) : reportPeriodLabel}
+                </div>
                 <button className="nav-btn" onClick={goNextPeriod}><ChevronRight size={16} /></button>
               </div>
             </div>
