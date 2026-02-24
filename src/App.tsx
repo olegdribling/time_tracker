@@ -1281,7 +1281,6 @@ function App() {
                 <div className="reports-range">{reportPeriodLabel}</div>
                 <button className="nav-btn" onClick={goNextPeriod}><ChevronRight size={16} /></button>
               </div>
-              <button className="reports-close-btn" onClick={goHome}><X size={18} /></button>
             </div>
 
             {/* Client filter */}
