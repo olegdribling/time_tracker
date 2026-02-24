@@ -12,6 +12,7 @@ import {
   MoreVertical,
   Plus,
   User,
+  Wrench,
   X,
 } from 'lucide-react'
 import { api } from './api'
@@ -301,6 +302,7 @@ function App() {
   const [calendarSelectedDate, setCalendarSelectedDate] = useState(() => toLocalDateKey(new Date()))
   const [openMenuShiftId, setOpenMenuShiftId] = useState<string | null>(null)
   const [isFabOpen, setIsFabOpen] = useState(false)
+  const [fabInvoiceOpen, setFabInvoiceOpen] = useState(false)
   const [activePickerField, setActivePickerField] = useState<'date' | 'start' | 'end' | 'lunch' | null>(null)
   const [formCalendarMonth, setFormCalendarMonth] = useState(() => toMonthKey(new Date()))
   const [clockDisplay, setClockDisplay] = useState(() => {
@@ -1500,24 +1502,39 @@ function App() {
       {/* FAB (circular, expandable) */}
       {activeView === 'home' && (
         <>
-          {isFabOpen && <div className="fab-backdrop" onClick={() => setIsFabOpen(false)} />}
+          {isFabOpen && <div className="fab-backdrop" onClick={() => { setIsFabOpen(false); setFabInvoiceOpen(false) }} />}
           {isFabOpen && (
             <div className="fab-menu">
-              <button className="fab-menu-item" onClick={() => { setIsFabOpen(false); openReports() }}>
-                <FileText size={20} />
-                Create Invoice
-              </button>
-              <button className="fab-menu-item" onClick={() => { setIsFabOpen(false); openCreate() }}>
-                <Clock size={20} />
-                New Shift
-              </button>
-              <button className="fab-menu-item" onClick={() => { setIsFabOpen(false); openReports() }}>
-                <BarChart2 size={20} />
-                Reports
-              </button>
+              {fabInvoiceOpen ? (
+                <>
+                  <button className="fab-menu-item" onClick={() => { setIsFabOpen(false); setFabInvoiceOpen(false); openReports() }}>
+                    <div className="fab-menu-icon-badge" style={{ background: '#e8edf8' }}><Clock size={20} style={{ color: '#4a6fa5' }} /></div>
+                    Invoice by Time
+                  </button>
+                  <button className="fab-menu-item" onClick={() => { setIsFabOpen(false); setFabInvoiceOpen(false); openReports() }}>
+                    <div className="fab-menu-icon-badge" style={{ background: '#f0ebfa' }}><Wrench size={20} style={{ color: '#8b5cf6' }} /></div>
+                    Invoice by Services
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button className="fab-menu-item" onClick={() => setFabInvoiceOpen(true)}>
+                    <FileText size={20} />
+                    Create Invoice
+                  </button>
+                  <button className="fab-menu-item" onClick={() => { setIsFabOpen(false); openCreate() }}>
+                    <Clock size={20} />
+                    New Shift
+                  </button>
+                  <button className="fab-menu-item" onClick={() => { setIsFabOpen(false); openReports() }}>
+                    <BarChart2 size={20} />
+                    Reports
+                  </button>
+                </>
+              )}
             </div>
           )}
-          <button className="floating-btn" onClick={() => setIsFabOpen(prev => !prev)}>
+          <button className="floating-btn" onClick={() => { setIsFabOpen(prev => !prev); setFabInvoiceOpen(false) }}>
             {isFabOpen ? <X size={24} /> : <Plus size={24} />}
           </button>
         </>
