@@ -1648,7 +1648,7 @@ function App() {
               </label>
             </div>
 
-            <button className="primary-btn" onClick={handleSave}>Save</button>
+            <button className="primary-btn" onClick={handleSave} disabled={form.clientId === null}>Save</button>
           </div>
         </div>
       )}
