@@ -1387,6 +1387,130 @@
   margin-top: 4px;
 }
 
+/* ── Invoice by Time modal ──────────────────────────────── */
+.inv-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.inv-header-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--text-primary);
+}
+
+.inv-header-title {
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.inv-close-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: var(--input-bg);
+  color: var(--text-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.inv-close-btn:hover {
+  background: var(--border);
+}
+
+.inv-section-title {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-primary);
+}
+
+.inv-line-item-card {
+  background: var(--input-bg);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.inv-line-item-card .field input {
+  background: var(--surface);
+}
+
+.inv-item-title {
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--text-primary);
+}
+
+.inv-item-amount {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 4px;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.inv-item-amount strong {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.inv-summary-card {
+  background: var(--header-bg);
+  border-radius: 14px;
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.inv-summary-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 14px;
+}
+
+.inv-summary-total {
+  color: #fff;
+  font-size: 16px;
+}
+
+.inv-summary-divider {
+  height: 1px;
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.inv-footer {
+  display: flex;
+  gap: 12px;
+  padding: 16px 20px 20px;
+  flex-shrink: 0;
+}
+
+.inv-footer .ghost-button {
+  flex: 1;
+  padding: 14px;
+  font-size: 15px;
+  border-radius: 14px;
+  text-align: center;
+}
+
 /* ── Misc ───────────────────────────────────────────────── */
 @media (max-width: 520px) {
   .app-shell {

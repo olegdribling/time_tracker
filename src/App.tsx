@@ -304,6 +304,14 @@ function App() {
   const [openMenuShiftId, setOpenMenuShiftId] = useState<string | null>(null)
   const [isFabOpen, setIsFabOpen] = useState(false)
   const [fabInvoiceOpen, setFabInvoiceOpen] = useState(false)
+  const [isInvoiceByTimeOpen, setIsInvoiceByTimeOpen] = useState(false)
+  const [invBTForm, setInvBTForm] = useState({
+    number: '1',
+    description: '',
+    hours: '0',
+    rate: '0',
+    clientId: null as number | null,
+  })
   const [activePickerField, setActivePickerField] = useState<'date' | 'start' | 'end' | 'lunch' | null>(null)
   const [formCalendarMonth, setFormCalendarMonth] = useState(() => toMonthKey(new Date()))
   const [clockDisplay, setClockDisplay] = useState(() => {
@@ -946,6 +954,55 @@ function App() {
     setShowEmailPrompt(false)
   }
 
+  const openInvoiceByTime = () => {
+    const hours = Math.max(reportTotals.durationMinutes, 0) / 60
+    setInvBTForm({
+      number: String(invoiceProfile.nextInvoiceNumber),
+      description: invoiceProfile.speciality || 'Work shift',
+      hours: String(Math.round(hours * 100) / 100),
+      rate: String(settings.hourlyRate),
+      clientId: reportClientId,
+    })
+    setIsFabOpen(false)
+    setFabInvoiceOpen(false)
+    setIsInvoiceByTimeOpen(true)
+  }
+
+  const generateInvoiceByTime = async () => {
+    const hours = parseFloat(invBTForm.hours) || 0
+    const rate = parseFloat(invBTForm.rate) || 0
+    const subtotal = hours * rate
+    const gst = invoiceProfile.chargeGst ? subtotal * 0.1 : 0
+    const total = subtotal + gst
+    const invNum = parseInt(invBTForm.number) || 1
+    const today = toLocalDateKey(new Date())
+    const period = reportRange ?? { start: today, end: today }
+    const selectedClient = clients.find(c => c.id === invBTForm.clientId)
+    try {
+      await generateInvoicePdf({
+        profile: invoiceProfile,
+        period,
+        invoiceNumber: invNum,
+        itemLabel: invBTForm.description,
+        unitPrice: rate,
+        quantityMinutes: hours * 60,
+        subtotal,
+        gst,
+        balanceDue: total,
+        billTo: selectedClient ? { name: selectedClient.name, address: selectedClient.address, abn: selectedClient.abn } : undefined,
+      })
+      const nextNumber = invNum >= invoiceProfile.nextInvoiceNumber ? invNum + 1 : invoiceProfile.nextInvoiceNumber + 1
+      const updated: InvoiceProfile = { ...invoiceProfile, nextInvoiceNumber: nextNumber }
+      setInvoiceProfile(updated)
+      setInvoiceDraft(updated)
+      await api.saveInvoiceProfile(updated)
+      setIsInvoiceByTimeOpen(false)
+    } catch (error) {
+      console.error('Failed to generate invoice', error)
+      alert('Failed to generate invoice.')
+    }
+  }
+
   const saveInvoicePdf = async () => {
     if (!reportRange) return
     const lineItem = invoiceProfile.speciality || 'Service'
@@ -1181,6 +1238,123 @@ function App() {
             <button className="primary-btn" onClick={saveInvoicePdf} disabled={selectedClientId === null}>
               Save
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* INVOICE BY TIME MODAL */}
+      {isInvoiceByTimeOpen && (
+        <div className="modal-backdrop" onClick={() => setIsInvoiceByTimeOpen(false)}>
+          <div className="modal" onClick={e => e.stopPropagation()}>
+            <div className="inv-header">
+              <div className="inv-header-left">
+                <FileText size={20} />
+                <span className="inv-header-title">Create Invoice</span>
+              </div>
+              <button className="inv-close-btn" onClick={() => setIsInvoiceByTimeOpen(false)}><X size={18} /></button>
+            </div>
+
+            <div className="form-grid">
+              <div>
+                <div className="inv-section-title">INVOICE DETAILS</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 14, marginTop: 14 }}>
+                  <div className="field">
+                    <span className="label">Invoice Number</span>
+                    <input
+                      type="text"
+                      value={`INV-${String(invBTForm.number).padStart(3, '0')}`}
+                      onChange={e => {
+                        const raw = e.target.value.replace(/^INV-0*/, '').replace(/\D/g, '')
+                        setInvBTForm(prev => ({ ...prev, number: raw || '1' }))
+                      }}
+                    />
+                  </div>
+                  <div className="field">
+                    <span className="label">Date</span>
+                    <input type="text" value={formatShortDate(toLocalDateKey(new Date()))} disabled />
+                  </div>
+                  <div className="field">
+                    <span className="label">Client</span>
+                    <select
+                      value={invBTForm.clientId ?? ''}
+                      onChange={e => setInvBTForm(prev => ({ ...prev, clientId: e.target.value ? Number(e.target.value) : null }))}
+                    >
+                      <option value="">Select Client</option>
+                      {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <div className="inv-section-title">LINE ITEMS</div>
+                <div className="inv-line-item-card" style={{ marginTop: 14 }}>
+                  <div className="inv-item-title">Item 1</div>
+                  <div className="field">
+                    <span className="label">Description</span>
+                    <input
+                      type="text"
+                      value={invBTForm.description}
+                      onChange={e => setInvBTForm(prev => ({ ...prev, description: e.target.value }))}
+                    />
+                  </div>
+                  <div className="double">
+                    <div className="field">
+                      <span className="label">Hours</span>
+                      <input
+                        type="text"
+                        value={invBTForm.hours}
+                        onChange={e => setInvBTForm(prev => ({ ...prev, hours: e.target.value }))}
+                      />
+                    </div>
+                    <div className="field">
+                      <span className="label">Rate ($/hr)</span>
+                      <input
+                        type="text"
+                        value={invBTForm.rate}
+                        onChange={e => setInvBTForm(prev => ({ ...prev, rate: e.target.value }))}
+                      />
+                    </div>
+                  </div>
+                  <div className="inv-item-amount">
+                    <span>Amount</span>
+                    <strong>${money((parseFloat(invBTForm.hours) || 0) * (parseFloat(invBTForm.rate) || 0))}</strong>
+                  </div>
+                </div>
+              </div>
+
+              {(() => {
+                const subtotal = (parseFloat(invBTForm.hours) || 0) * (parseFloat(invBTForm.rate) || 0)
+                const gst = invoiceProfile.chargeGst ? subtotal * 0.1 : 0
+                const total = subtotal + gst
+                return (
+                  <div className="inv-summary-card">
+                    <div className="inv-summary-row">
+                      <span>Subtotal</span>
+                      <span>${money(subtotal)}</span>
+                    </div>
+                    {invoiceProfile.chargeGst && (
+                      <div className="inv-summary-row">
+                        <span>GST (10%)</span>
+                        <span>${money(gst)}</span>
+                      </div>
+                    )}
+                    <div className="inv-summary-divider" />
+                    <div className="inv-summary-row inv-summary-total">
+                      <strong>Total</strong>
+                      <strong>${money(total)}</strong>
+                    </div>
+                  </div>
+                )
+              })()}
+            </div>
+
+            <div className="inv-footer">
+              <button className="ghost-button" onClick={() => setIsInvoiceByTimeOpen(false)}>Cancel</button>
+              <button className="primary-btn" style={{ flex: 1 }} onClick={generateInvoiceByTime} disabled={invBTForm.clientId === null}>
+                Generate Invoice
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -1521,7 +1695,7 @@ function App() {
             <div className="fab-menu">
               {fabInvoiceOpen ? (
                 <>
-                  <button className="fab-menu-item" onClick={() => { setIsFabOpen(false); setFabInvoiceOpen(false); openReports() }}>
+                  <button className="fab-menu-item" onClick={openInvoiceByTime}>
                     <Clock size={20} />
                     Invoice by Time
                   </button>
