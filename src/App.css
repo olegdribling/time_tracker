@@ -6,6 +6,8 @@
   padding: 0 0 100px;
   color: var(--text-primary);
   background: var(--app-bg);
+  overflow-x: hidden;
+  width: 100%;
 }
 
 /* ── Top bar ────────────────────────────────────────────── */
