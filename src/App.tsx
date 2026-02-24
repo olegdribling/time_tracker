@@ -1617,10 +1617,7 @@ function App() {
 
               {/* Start */}
               <div className="field">
-                <span className="label">
-                  Start
-                  <span className="picker-badge">{form.start}</span>
-                </span>
+                <span className="label">Start</span>
                 <button
                   type="button"
                   className="form-field-btn"
@@ -1632,10 +1629,7 @@ function App() {
 
               {/* End */}
               <div className="field">
-                <span className="label">
-                  End
-                  <span className="picker-badge">{form.end}</span>
-                </span>
+                <span className="label">End</span>
                 <button
                   type="button"
                   className="form-field-btn"
@@ -1647,10 +1641,7 @@ function App() {
 
               {/* Lunch */}
               <div className="field">
-                <span className="label">
-                  Lunch
-                  <span className="picker-badge">{formatLunch(form.lunchMinutes)}</span>
-                </span>
+                <span className="label">Lunch</span>
                 <button
                   type="button"
                   className="form-field-btn"
