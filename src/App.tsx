@@ -43,9 +43,9 @@ function formatShortDate(value: string) {
   if (value === todayKey) return 'Today'
   if (value === yesterdayKey) return 'Yesterday'
   return new Intl.DateTimeFormat('en-AU', {
-    weekday: 'long',
     day: 'numeric',
-    month: 'short',
+    month: 'long',
+    year: 'numeric',
   }).format(date)
 }
 
@@ -429,20 +429,20 @@ function App() {
   )
 
   const shiftGroups = useMemo(() => {
+    const weekStartIndex = WEEKDAYS.indexOf(settings.weekStart)
     const now = new Date()
     const currentWeekStart = (() => {
       const d = new Date(now)
       const day = d.getDay()
-      const diff = (day - CALENDAR_WEEK_START_INDEX + 7) % 7
+      const diff = (day - weekStartIndex + 7) % 7
       d.setDate(d.getDate() - diff)
       d.setHours(0, 0, 0, 0)
       return d
     })()
     const getWeekLabel = (dateStr: string): string => {
-      const date = new Date(`${dateStr}T00:00:00`)
-      const d = new Date(date)
+      const d = new Date(`${dateStr}T00:00:00`)
       const day = d.getDay()
-      const diff = (day - CALENDAR_WEEK_START_INDEX + 7) % 7
+      const diff = (day - weekStartIndex + 7) % 7
       d.setDate(d.getDate() - diff)
       d.setHours(0, 0, 0, 0)
       const diffMs = currentWeekStart.getTime() - d.getTime()
@@ -464,7 +464,7 @@ function App() {
       groupMap.get(label)!.push(shift)
     }
     return labelOrder.map(label => ({ label, shifts: groupMap.get(label)! }))
-  }, [sortedShifts])
+  }, [sortedShifts, settings.weekStart])
 
   const periodRange = useMemo(() => getPeriodRange(settings), [settings])
 
