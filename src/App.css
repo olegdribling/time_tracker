@@ -739,7 +739,6 @@
   font-size: 16px;
   cursor: pointer;
   transition: opacity 0.15s ease;
-  width: 100%;
 }
 
 .modal > .primary-btn {
@@ -797,6 +796,20 @@
   justify-content: space-between;
   align-items: center;
   gap: 12px;
+}
+
+.picker-sheet .actions-row {
+  margin-top: 20px;
+  gap: 12px;
+}
+
+.picker-sheet .actions-row .ghost-button,
+.picker-sheet .actions-row .primary-btn {
+  flex: 1;
+  text-align: center;
+  padding: 14px 16px;
+  font-size: 15px;
+  border-radius: 14px;
 }
 
 .actions-row.center {
@@ -876,7 +889,9 @@
 .picker-sheet-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.45);
+  background: rgba(0, 0, 0, 0.2);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
   z-index: 300;
 }
 
