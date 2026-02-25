@@ -1026,16 +1026,16 @@ function App() {
     setShowEmailPrompt(false)
   }
 
-  const openInvoiceByTime = () => {
-    const hours = Math.max(reportTotals.durationMinutes, 0) / 60
+  const openInvoiceByTime = (manual = false) => {
+    const hours = manual ? 1 : Math.max(reportTotals.durationMinutes, 0) / 60
     const today = toLocalDateKey(new Date())
     setInvBTForm({
       number: String(invoiceProfile.nextInvoiceNumber),
       date: today,
       description: invoiceProfile.speciality || 'Work shift',
-      hours: String(Math.round(hours * 100) / 100),
+      hours: String(manual ? 1 : Math.round(hours * 100) / 100),
       rate: String(settings.hourlyRate),
-      clientId: reportClientId ?? soloClientId,
+      clientId: manual ? soloClientId : (reportClientId ?? soloClientId),
     })
     setInvBTCalendarMonth(toMonthKey(new Date()))
     setInvBTCalendarOpen(false)
@@ -1537,7 +1537,7 @@ function App() {
             <div className="inv-footer">
               <button className="ghost-button" onClick={() => setIsInvoiceByTimeOpen(false)}>Cancel</button>
               <button className="primary-btn" style={{ flex: 1 }} onClick={generateInvoiceByTime} disabled={invBTForm.clientId === null}>
-                Generate Invoice
+                Save
               </button>
             </div>
           </div>
@@ -1711,7 +1711,7 @@ function App() {
             <div className="inv-footer">
               <button className="ghost-button" onClick={() => setIsInvoiceByServicesOpen(false)}>Cancel</button>
               <button className="primary-btn" style={{ flex: 1 }} onClick={generateInvoiceByServices} disabled={invBSForm.clientId === null}>
-                Generate Invoice
+                Save
               </button>
             </div>
           </div>
@@ -2057,7 +2057,7 @@ function App() {
             <div className="fab-menu">
               {fabInvoiceOpen ? (
                 <>
-                  <button className="fab-menu-item" onClick={openInvoiceByTime}>
+                  <button className="fab-menu-item" onClick={() => openInvoiceByTime(true)}>
                     <Clock size={20} />
                     Invoice by Time
                   </button>
