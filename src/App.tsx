@@ -513,10 +513,10 @@ function App() {
     const inRange = reportRange
       ? shifts.filter(s => s.date >= reportRange.start && s.date <= reportRange.end)
       : shifts
-    return reportClientId !== null
+    return reportClientId !== null && clients.length > 1
       ? inRange.filter(s => s.clientId === reportClientId)
       : inRange
-  }, [shifts, reportRange, reportClientId])
+  }, [shifts, reportRange, reportClientId, clients.length])
 
   const reportTotals = useMemo(
     () => calculateTotals(reportShifts, null),
