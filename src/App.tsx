@@ -646,6 +646,9 @@ function App() {
 
   const todayIso = useMemo(() => toLocalDateKey(new Date()), [])
 
+  // Auto-select the only client when there's exactly one
+  const soloClientId = clients.length === 1 ? clients[0].id : null
+
   const closeOverlays = () => {
     setIsMenuOpen(false)
     setIsSettingsOpen(false)
@@ -657,7 +660,7 @@ function App() {
   const openCreate = () => {
     closeOverlays()
     setEditingId(null)
-    const f = emptyForm()
+    const f = { ...emptyForm(), clientId: soloClientId }
     setForm(f)
     setFormCalendarMonth(f.date.slice(0, 7))
     setActivePickerField(null)
@@ -675,7 +678,7 @@ function App() {
       end: shift.end,
       lunchMinutes: shift.lunchMinutes,
       comment: shift.comment ?? '',
-      clientId: shift.clientId ?? null,
+      clientId: shift.clientId ?? soloClientId,
     })
     setIsAddOpen(true)
   }
@@ -983,9 +986,7 @@ function App() {
     setIsInvoiceEditing(false)
     setShowEmailPrompt(false)
     setSelectedClientId(
-      preselectedClientId !== undefined
-        ? preselectedClientId
-        : clients.length === 1 ? clients[0].id : null
+      preselectedClientId !== undefined ? preselectedClientId : soloClientId
     )
     setIsInvoiceScreenOpen(true)
   }
@@ -1005,7 +1006,7 @@ function App() {
       description: invoiceProfile.speciality || 'Work shift',
       hours: String(Math.round(hours * 100) / 100),
       rate: String(settings.hourlyRate),
-      clientId: reportClientId,
+      clientId: reportClientId ?? soloClientId,
     })
     setInvBTCalendarMonth(toMonthKey(new Date()))
     setInvBTCalendarOpen(false)
@@ -1091,7 +1092,7 @@ function App() {
     setInvBSForm({
       number: String(invoiceProfile.nextInvoiceNumber),
       date: toLocalDateKey(new Date()),
-      clientId: reportClientId,
+      clientId: reportClientId ?? soloClientId,
     })
     setInvBSItems([{ id: 1, description: 'Services', amount: '0' }])
     setInvBSCalendarMonth(toMonthKey(new Date()))
@@ -1234,7 +1235,7 @@ function App() {
                   value={selectedClientId ?? ''}
                   onChange={e => setSelectedClientId(e.target.value ? Number(e.target.value) : null)}
                 >
-                  <option value="">— No client —</option>
+                  {clients.length !== 1 && <option value="">Select Client</option>}
                   {clients.map(c => (
                     <option key={c.id} value={c.id}>{c.name}</option>
                   ))}
@@ -1410,7 +1411,7 @@ function App() {
                       value={invBTForm.clientId ?? ''}
                       onChange={e => setInvBTForm(prev => ({ ...prev, clientId: e.target.value ? Number(e.target.value) : null }))}
                     >
-                      <option value="">Select Client</option>
+                      {clients.length !== 1 && <option value="">Select Client</option>}
                       {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                     </select>
                   </div>
@@ -1565,7 +1566,7 @@ function App() {
                       value={invBSForm.clientId ?? ''}
                       onChange={e => setInvBSForm(prev => ({ ...prev, clientId: e.target.value ? Number(e.target.value) : null }))}
                     >
-                      <option value="">Select Client</option>
+                      {clients.length !== 1 && <option value="">Select Client</option>}
                       {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                     </select>
                   </div>
@@ -2092,7 +2093,7 @@ function App() {
                     value={form.clientId ?? ''}
                     onChange={e => setForm(prev => ({ ...prev, clientId: e.target.value ? Number(e.target.value) : null }))}
                   >
-                    <option value="">— No client —</option>
+                    {clients.length !== 1 && <option value="">Select Client</option>}
                     {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                   </select>
                 </div>
