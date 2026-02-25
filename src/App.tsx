@@ -1846,7 +1846,7 @@ function App() {
             {/* Create Invoice button */}
             <button
               className="reports-create-invoice-btn"
-              onClick={openInvoiceByTime}
+              onClick={() => openInvoiceByTime()}
               disabled={reportClientId === null || !hasInvoiceCoreFields || reportShifts.length === 0}
             >
               <FileText size={18} />
