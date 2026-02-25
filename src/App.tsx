@@ -1041,6 +1041,25 @@ function App() {
     setIsInvoiceByTimeOpen(true)
   }
 
+  const openInvoiceFromShift = (shift: Shift) => {
+    const workMinutes = Math.max(minutesBetween(shift.start, shift.end) - shift.lunchMinutes, 0)
+    const hours = workMinutes / 60
+    const today = toLocalDateKey(new Date())
+    setInvBTForm({
+      number: String(invoiceProfile.nextInvoiceNumber),
+      date: today,
+      description: invoiceProfile.speciality || 'Work shift',
+      hours: String(Math.round(hours * 100) / 100),
+      rate: String(shift.hourlyRate),
+      clientId: shift.clientId ?? soloClientId,
+    })
+    setInvBTCalendarMonth(toMonthKey(new Date()))
+    setInvBTCalendarOpen(false)
+    setIsFabOpen(false)
+    setFabInvoiceOpen(false)
+    setIsInvoiceByTimeOpen(true)
+  }
+
   const generateInvoiceByTime = async () => {
     const hours = parseFloat(invBTForm.hours) || 0
     const rate = parseFloat(invBTForm.rate) || 0
@@ -1756,7 +1775,7 @@ function App() {
                             {openMenuShiftId === shift.id && (
                               <div className="shift-context-menu">
                                 <button className="shift-context-item" onClick={() => { openEdit(shift); setOpenMenuShiftId(null) }}>Edit</button>
-                                <button className="shift-context-item" onClick={() => { openReports(); setOpenMenuShiftId(null) }}>Create Invoice</button>
+                                <button className="shift-context-item" onClick={() => { openInvoiceFromShift(shift); setOpenMenuShiftId(null) }}>Create Invoice</button>
                                 <button className="shift-context-item danger" onClick={() => { handleDelete(shift.id); setOpenMenuShiftId(null) }}>Delete</button>
                               </div>
                             )}
@@ -1874,6 +1893,7 @@ function App() {
                           {openMenuShiftId === shift.id && (
                             <div className="shift-context-menu">
                               <button className="shift-context-item" onClick={() => { openEdit(shift); setOpenMenuShiftId(null) }}>Edit</button>
+                              <button className="shift-context-item" onClick={() => { openInvoiceFromShift(shift); setOpenMenuShiftId(null) }}>Create Invoice</button>
                               <button className="shift-context-item danger" onClick={() => { handleDelete(shift.id); setOpenMenuShiftId(null) }}>Delete</button>
                             </div>
                           )}
@@ -1986,6 +2006,7 @@ function App() {
                           {openMenuShiftId === shift.id && (
                             <div className="shift-context-menu">
                               <button className="shift-context-item" onClick={() => { openEdit(shift); setOpenMenuShiftId(null) }}>Edit</button>
+                              <button className="shift-context-item" onClick={() => { openInvoiceFromShift(shift); setOpenMenuShiftId(null) }}>Create Invoice</button>
                               <button className="shift-context-item danger" onClick={() => { handleDelete(shift.id); setOpenMenuShiftId(null) }}>Delete</button>
                             </div>
                           )}
