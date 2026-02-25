@@ -58,6 +58,7 @@ export async function generateInvoicePdf(params: {
   gst?: number
   balanceDue?: number
   billTo?: { name: string; address: string; abn: string }
+  lineItems?: { description: string; amount: number }[]
 }) {
   const {
     profile,
@@ -70,6 +71,7 @@ export async function generateInvoicePdf(params: {
     gst = 0,
     balanceDue = subtotal + gst,
     billTo,
+    lineItems,
   } = params
 
   const pdfDoc = await PDFDocument.create()
@@ -145,14 +147,21 @@ export async function generateInvoicePdf(params: {
   const colX = [margin, margin + colWidths[0], margin + colWidths[0] + colWidths[1], margin + colWidths[0] + colWidths[1] + colWidths[2]]
   const headers = ['Item', 'Unit Price', 'Qty', 'Subtotal']
 
-  const rows = [
-    {
-      item: itemLabel || 'Service',
-      unit: `$${money(unitPrice)}`,
-      qty: formatDuration(quantityMinutes),
-      subtotal: `$${money(subtotal)}`,
-    },
-  ]
+  const rows = lineItems
+    ? lineItems.map(li => ({
+        item: li.description || 'Service',
+        unit: '',
+        qty: '',
+        subtotal: `$${money(li.amount)}`,
+      }))
+    : [
+        {
+          item: itemLabel || 'Service',
+          unit: `$${money(unitPrice)}`,
+          qty: formatDuration(quantityMinutes),
+          subtotal: `$${money(subtotal)}`,
+        },
+      ]
 
   const footerRows = [
     { item: '10% GST', unit: '', qty: '', subtotal: gst ? `$${money(gst)}` : '' },

@@ -305,6 +305,11 @@ function App() {
   const [isFabOpen, setIsFabOpen] = useState(false)
   const [fabInvoiceOpen, setFabInvoiceOpen] = useState(false)
   const [isInvoiceByTimeOpen, setIsInvoiceByTimeOpen] = useState(false)
+  const [isInvoiceByServicesOpen, setIsInvoiceByServicesOpen] = useState(false)
+  const [invBSForm, setInvBSForm] = useState({ number: '1', date: toLocalDateKey(new Date()), clientId: null as number | null })
+  const [invBSItems, setInvBSItems] = useState<{ id: number; description: string; amount: string }[]>([])
+  const [invBSCalendarOpen, setInvBSCalendarOpen] = useState(false)
+  const [invBSCalendarMonth, setInvBSCalendarMonth] = useState(() => toMonthKey(new Date()))
   const [invBTForm, setInvBTForm] = useState({
     number: '1',
     date: toLocalDateKey(new Date()),
@@ -603,6 +608,23 @@ function App() {
     const { year, month } = parseMonthKey(invBTCalendarMonth)
     return new Intl.DateTimeFormat('en-AU', { month: 'long', year: 'numeric' }).format(new Date(year, month - 1, 1))
   }, [invBTCalendarMonth])
+
+  const invBSCalendarCells = useMemo(() => {
+    const { year, month } = parseMonthKey(invBSCalendarMonth)
+    const firstDay = new Date(year, month - 1, 1).getDay()
+    const daysInMonth = new Date(year, month, 0).getDate()
+    const cells: { date: string | null; day: number | null }[] = []
+    for (let i = 0; i < firstDay; i++) cells.push({ date: null, day: null })
+    for (let d = 1; d <= daysInMonth; d++) {
+      cells.push({ date: `${year}-${String(month).padStart(2, '0')}-${String(d).padStart(2, '0')}`, day: d })
+    }
+    return cells
+  }, [invBSCalendarMonth])
+
+  const invBSCalendarLabel = useMemo(() => {
+    const { year, month } = parseMonthKey(invBSCalendarMonth)
+    return new Intl.DateTimeFormat('en-AU', { month: 'long', year: 'numeric' }).format(new Date(year, month - 1, 1))
+  }, [invBSCalendarMonth])
 
   const shiftsByDate = useMemo(() => {
     const map = new Map<string, Shift[]>()
@@ -1065,6 +1087,54 @@ function App() {
     }
   }
 
+  const openInvoiceByServices = () => {
+    setInvBSForm({
+      number: String(invoiceProfile.nextInvoiceNumber),
+      date: toLocalDateKey(new Date()),
+      clientId: reportClientId,
+    })
+    setInvBSItems([{ id: 1, description: 'Services', amount: '0' }])
+    setInvBSCalendarMonth(toMonthKey(new Date()))
+    setInvBSCalendarOpen(false)
+    setIsFabOpen(false)
+    setFabInvoiceOpen(false)
+    setIsInvoiceByServicesOpen(true)
+  }
+
+  const generateInvoiceByServices = async () => {
+    const items = invBSItems.map(i => ({ description: i.description, amount: parseFloat(i.amount) || 0 }))
+    const subtotal = items.reduce((s, i) => s + i.amount, 0)
+    const gst = invoiceProfile.chargeGst ? subtotal * 0.1 : 0
+    const total = subtotal + gst
+    const invNum = parseInt(invBSForm.number) || 1
+    const period = reportRange ?? { start: invBSForm.date, end: invBSForm.date }
+    const selectedClient = clients.find(c => c.id === invBSForm.clientId)
+    try {
+      await generateInvoicePdf({
+        profile: invoiceProfile,
+        period,
+        invoiceNumber: invNum,
+        itemLabel: '',
+        unitPrice: 0,
+        quantityMinutes: 0,
+        subtotal,
+        gst,
+        balanceDue: total,
+        billTo: selectedClient ? { name: selectedClient.name, address: selectedClient.address, abn: selectedClient.abn } : undefined,
+        lineItems: items,
+      })
+      const nextNumber = invNum >= invoiceProfile.nextInvoiceNumber ? invNum + 1 : invoiceProfile.nextInvoiceNumber + 1
+      const updated: InvoiceProfile = { ...invoiceProfile, nextInvoiceNumber: nextNumber }
+      setInvoiceProfile(updated)
+      setInvoiceDraft(updated)
+      await api.saveInvoiceProfile(updated)
+      setIsInvoiceByServicesOpen(false)
+    } catch (error) {
+      console.error('Failed to generate invoice', error)
+      alert('Failed to generate invoice.')
+    }
+  }
+
   const openEmailDraft = () => {
     if (!reportRange) {
       alert('Select a reporting period first.')
@@ -1420,6 +1490,177 @@ function App() {
         </div>
       )}
 
+      {/* INVOICE BY SERVICES MODAL */}
+      {isInvoiceByServicesOpen && (
+        <div className="modal-backdrop" onClick={() => setIsInvoiceByServicesOpen(false)}>
+          <div className="modal" onClick={e => e.stopPropagation()}>
+            <div className="inv-header">
+              <div className="inv-header-left">
+                <FileText size={20} />
+                <span className="inv-header-title">Create Invoice</span>
+              </div>
+              <button className="inv-close-btn" onClick={() => setIsInvoiceByServicesOpen(false)}><X size={18} /></button>
+            </div>
+
+            <div className="form-grid">
+              <div>
+                <div className="inv-section-title">INVOICE DETAILS</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 14, marginTop: 14 }}>
+                  <div className="field">
+                    <span className="label">Invoice Number</span>
+                    <input
+                      type="text"
+                      value={`INV-${String(invBSForm.number).padStart(3, '0')}`}
+                      onChange={e => {
+                        const raw = e.target.value.replace(/^INV-0*/, '').replace(/\D/g, '')
+                        setInvBSForm(prev => ({ ...prev, number: raw || '1' }))
+                      }}
+                    />
+                  </div>
+                  <div className="field">
+                    <span className="label">Date</span>
+                    <button
+                      type="button"
+                      className="form-field-btn"
+                      onClick={() => setInvBSCalendarOpen(prev => !prev)}
+                    >
+                      {formatDate(invBSForm.date)}
+                    </button>
+                    {invBSCalendarOpen && (
+                      <div className="form-calendar">
+                        <div className="form-calendar-header">
+                          <button type="button" className="nav-btn" onClick={() => setInvBSCalendarMonth(prev => shiftMonthKey(prev, -1))}><ChevronLeft size={16} /></button>
+                          <span className="form-calendar-title">{invBSCalendarLabel}</span>
+                          <button type="button" className="nav-btn" onClick={() => setInvBSCalendarMonth(prev => shiftMonthKey(prev, 1))}><ChevronRight size={16} /></button>
+                        </div>
+                        <div className="calendar-weekdays">
+                          {calendarWeekLabels.map(l => <div key={l} className="calendar-weekday">{l}</div>)}
+                        </div>
+                        <div className="calendar-grid">
+                          {invBSCalendarCells.map((cell, idx) => {
+                            if (!cell.date || !cell.day) return <div key={`invbs-${idx}`} className="calendar-day-empty" />
+                            const isSelected = cell.date === invBSForm.date
+                            const isToday = cell.date === todayIso
+                            return (
+                              <button
+                                key={cell.date}
+                                type="button"
+                                className={`calendar-day${isSelected ? ' is-selected' : ''}${isToday ? ' is-today' : ''}`}
+                                onClick={() => {
+                                  setInvBSForm(prev => ({ ...prev, date: cell.date! }))
+                                  setInvBSCalendarOpen(false)
+                                }}
+                              >
+                                <span className="calendar-day-number">{cell.day}</span>
+                              </button>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  <div className="field">
+                    <span className="label">Client</span>
+                    <select
+                      value={invBSForm.clientId ?? ''}
+                      onChange={e => setInvBSForm(prev => ({ ...prev, clientId: e.target.value ? Number(e.target.value) : null }))}
+                    >
+                      <option value="">Select Client</option>
+                      {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <div className="inv-section-title-row">
+                  <div className="inv-section-title">LINE ITEMS</div>
+                  <button
+                    type="button"
+                    className="inv-add-item-btn"
+                    onClick={() => {
+                      const newId = invBSItems.length > 0 ? Math.max(...invBSItems.map(i => i.id)) + 1 : 1
+                      setInvBSItems(prev => [...prev, { id: newId, description: '', amount: '0' }])
+                    }}
+                  >
+                    + Add Item
+                  </button>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 14 }}>
+                  {invBSItems.map((item, idx) => (
+                    <div key={item.id} className="inv-line-item-card">
+                      <div className="inv-item-title-row">
+                        <div className="inv-item-title">Item {idx + 1}</div>
+                        {invBSItems.length > 1 && (
+                          <button
+                            type="button"
+                            className="inv-remove-item-btn"
+                            onClick={() => setInvBSItems(prev => prev.filter(i => i.id !== item.id))}
+                          >
+                            <X size={14} />
+                          </button>
+                        )}
+                      </div>
+                      <div className="field">
+                        <span className="label">Description</span>
+                        <input
+                          type="text"
+                          value={item.description}
+                          placeholder="Services"
+                          onChange={e => setInvBSItems(prev => prev.map(i => i.id === item.id ? { ...i, description: e.target.value } : i))}
+                        />
+                      </div>
+                      <div className="field">
+                        <span className="label">Amount ($)</span>
+                        <input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={item.amount}
+                          onChange={e => setInvBSItems(prev => prev.map(i => i.id === item.id ? { ...i, amount: e.target.value } : i))}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {(() => {
+                const subtotal = invBSItems.reduce((s, i) => s + (parseFloat(i.amount) || 0), 0)
+                const gst = invoiceProfile.chargeGst ? subtotal * 0.1 : 0
+                const total = subtotal + gst
+                return (
+                  <div className="inv-summary-card">
+                    <div className="inv-summary-row">
+                      <span>Subtotal</span>
+                      <span>${money(subtotal)}</span>
+                    </div>
+                    {invoiceProfile.chargeGst && (
+                      <div className="inv-summary-row">
+                        <span>GST (10%)</span>
+                        <span>${money(gst)}</span>
+                      </div>
+                    )}
+                    <div className="inv-summary-divider" />
+                    <div className="inv-summary-row inv-summary-total">
+                      <strong>Total</strong>
+                      <strong>${money(total)}</strong>
+                    </div>
+                  </div>
+                )
+              })()}
+            </div>
+
+            <div className="inv-footer">
+              <button className="ghost-button" onClick={() => setIsInvoiceByServicesOpen(false)}>Cancel</button>
+              <button className="primary-btn" style={{ flex: 1 }} onClick={generateInvoiceByServices} disabled={invBSForm.clientId === null}>
+                Generate Invoice
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* SEND EMAIL PROMPT */}
       {showEmailPrompt && (
         <div className="modal-backdrop" onClick={() => { setShowEmailPrompt(false); setActiveView('home') }}>
@@ -1760,7 +2001,7 @@ function App() {
                     <Clock size={20} />
                     Invoice by Time
                   </button>
-                  <button className="fab-menu-item" onClick={() => { setIsFabOpen(false); setFabInvoiceOpen(false); openReports() }}>
+                  <button className="fab-menu-item" onClick={openInvoiceByServices}>
                     <Wrench size={20} />
                     Invoice by Services
                   </button>

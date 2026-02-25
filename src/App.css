@@ -1434,6 +1434,50 @@
   color: var(--text-primary);
 }
 
+.inv-section-title-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.inv-add-item-btn {
+  background: none;
+  border: none;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--header-bg);
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 8px;
+  transition: background 0.15s;
+}
+
+.inv-add-item-btn:hover {
+  background: var(--accent-faint);
+}
+
+.inv-item-title-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.inv-remove-item-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-muted);
+  padding: 4px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  transition: color 0.15s;
+}
+
+.inv-remove-item-btn:hover {
+  color: #e53e3e;
+}
+
 .inv-line-item-card {
   background: var(--input-bg);
   border: 1px solid var(--border);
