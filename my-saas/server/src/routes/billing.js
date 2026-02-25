@@ -53,6 +53,19 @@ router.post('/checkout', authMiddleware, async (req, res) => {
   if (!PLANS[plan]) return res.status(400).json({ error: 'Invalid plan' })
 
   try {
+    // Не создаём новую подписку если уже есть активная платная
+    const existingRes = await pool.query(
+      'SELECT plan, current_period_end FROM subscriptions WHERE user_id = $1',
+      [req.userId]
+    )
+    const existing = existingRes.rows[0]
+    if (existing && (existing.plan === 'solo' || existing.plan === 'pro')) {
+      const isActive = existing.current_period_end && new Date(existing.current_period_end) > new Date()
+      if (isActive) {
+        return res.status(400).json({ error: 'Already subscribed. Use the portal to change your plan.' })
+      }
+    }
+
     const userRes = await pool.query('SELECT email FROM users WHERE id = $1', [req.userId])
     const email = userRes.rows[0]?.email
 

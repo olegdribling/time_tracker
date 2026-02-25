@@ -156,14 +156,20 @@ export function BillingPage() {
               </ul>
               <button
                 className={`billing-plan-btn ${isActive ? 'billing-plan-btn--active' : 'billing-plan-btn--upgrade'}`}
-                onClick={() => !isActive && handleCheckout(p.id)}
-                disabled={isActive || checkoutLoading !== null}
+                onClick={() => {
+                  if (isActive) return
+                  if (isPaid) handlePortal()
+                  else handleCheckout(p.id)
+                }}
+                disabled={isActive || checkoutLoading !== null || portalLoading}
               >
-                {checkoutLoading === p.id
+                {checkoutLoading === p.id || (portalLoading && !isActive && isPaid)
                   ? 'Redirecting…'
                   : isActive
                     ? 'Current plan'
-                    : 'Subscribe'}
+                    : isPaid
+                      ? 'Switch plan'
+                      : 'Subscribe'}
               </button>
             </div>
           )
