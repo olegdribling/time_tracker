@@ -1299,6 +1299,23 @@
   margin: 12px 0;
 }
 
+/* Label row with action button (e.g. Client + Add Client) */
+.field-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.field-label-row .label {
+  margin-bottom: 0;
+}
+
+.field-label-row .add-action-btn {
+  padding: 4px 10px;
+  font-size: 12px;
+}
+
 /* ── Reports shift list ─────────────────────────────────── */
 .reports-shift-list {
   display: flex;

@@ -298,6 +298,7 @@ function App() {
   const [isClientModalOpen, setIsClientModalOpen] = useState(false)
   const [editingClientId, setEditingClientId] = useState<number | null>(null)
   const [clientDraft, setClientDraft] = useState<ClientDraft>({ name: '', address: '', abn: '', email: '' })
+  const [clientReturnContext, setClientReturnContext] = useState<'invoiceByTime' | 'invoiceByServices' | 'invoiceScreen' | null>(null)
   const [billingPlan, setBillingPlan] = useState<string>('trial')
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false)
   const [periodOffset, setPeriodOffset] = useState(0)
@@ -823,6 +824,22 @@ function App() {
     }
     setEditingClientId(null)
     setClientDraft({ name: '', address: '', abn: '', email: '' })
+    setClientReturnContext(null)
+    setIsClientModalOpen(true)
+  }
+
+  const openAddClientFromInvoice = (context: 'invoiceByTime' | 'invoiceByServices' | 'invoiceScreen') => {
+    if ((billingPlan === 'trial' || billingPlan === 'solo') && clients.length >= 1) {
+      setIsUpgradeModalOpen(true)
+      return
+    }
+    setEditingClientId(null)
+    setClientDraft({ name: '', address: '', abn: '', email: '' })
+    setClientReturnContext(context)
+    // скрываем текущую инвойс-модалку пока создаём клиента
+    if (context === 'invoiceByTime') setIsInvoiceByTimeOpen(false)
+    if (context === 'invoiceByServices') setIsInvoiceByServicesOpen(false)
+    if (context === 'invoiceScreen') setIsInvoiceScreenOpen(false)
     setIsClientModalOpen(true)
   }
 
@@ -841,11 +858,31 @@ function App() {
     if (editingClientId !== null) {
       await api.updateClient(editingClientId, clientDraft)
       setClients(prev => prev.map(c => c.id === editingClientId ? { id: editingClientId, ...clientDraft } : c))
+      setIsClientModalOpen(false)
+      setClientReturnContext(null)
     } else {
       const data = await api.createClient(clientDraft)
-      if (data.id) setClients(prev => [...prev, { id: data.id, ...clientDraft }])
+      if (data.id) {
+        const newClient = { id: data.id, ...clientDraft }
+        setClients(prev => [...prev, newClient])
+        setIsClientModalOpen(false)
+        // возвращаемся в инвойс-модалку с выбранным клиентом
+        if (clientReturnContext === 'invoiceByTime') {
+          setInvBTForm(prev => ({ ...prev, clientId: data.id }))
+          setIsInvoiceByTimeOpen(true)
+        } else if (clientReturnContext === 'invoiceByServices') {
+          setInvBSForm(prev => ({ ...prev, clientId: data.id }))
+          setIsInvoiceByServicesOpen(true)
+        } else if (clientReturnContext === 'invoiceScreen') {
+          setSelectedClientId(data.id)
+          setIsInvoiceScreenOpen(true)
+        }
+        setClientReturnContext(null)
+      } else {
+        setIsClientModalOpen(false)
+        setClientReturnContext(null)
+      }
     }
-    setIsClientModalOpen(false)
   }
 
   const handleDeleteClient = async (id: number) => {
@@ -1242,7 +1279,10 @@ function App() {
 
             <div className="form-grid">
               <div className="field">
-                <span className="label">Client</span>
+                <div className="field-label-row">
+                  <span className="label">Client</span>
+                  <button type="button" className="add-action-btn" onClick={() => openAddClientFromInvoice('invoiceScreen')}>+ Add Client</button>
+                </div>
                 <select
                   value={selectedClientId ?? ''}
                   onChange={e => setSelectedClientId(e.target.value ? Number(e.target.value) : null)}
@@ -1418,7 +1458,10 @@ function App() {
                     )}
                   </div>
                   <div className="field">
-                    <span className="label">Client</span>
+                    <div className="field-label-row">
+                      <span className="label">Client</span>
+                      <button type="button" className="add-action-btn" onClick={() => openAddClientFromInvoice('invoiceByTime')}>+ Add Client</button>
+                    </div>
                     <select
                       value={invBTForm.clientId ?? ''}
                       onChange={e => setInvBTForm(prev => ({ ...prev, clientId: e.target.value ? Number(e.target.value) : null }))}
@@ -1573,7 +1616,10 @@ function App() {
                     )}
                   </div>
                   <div className="field">
-                    <span className="label">Client</span>
+                    <div className="field-label-row">
+                      <span className="label">Client</span>
+                      <button type="button" className="add-action-btn" onClick={() => openAddClientFromInvoice('invoiceByServices')}>+ Add Client</button>
+                    </div>
                     <select
                       value={invBSForm.clientId ?? ''}
                       onChange={e => setInvBSForm(prev => ({ ...prev, clientId: e.target.value ? Number(e.target.value) : null }))}
