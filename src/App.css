@@ -23,7 +23,7 @@
   width: 100%;
   max-width: 520px;
   z-index: 40;
-  padding: 14px 20px;
+  padding: calc(14px + env(safe-area-inset-top, 0px)) 20px 14px;
   background: var(--header-bg);
 }
 
@@ -1572,7 +1572,7 @@
 /* ── Misc ───────────────────────────────────────────────── */
 @media (max-width: 520px) {
   .app-shell {
-    padding: 0 0 90px;
+    padding: calc(120px + env(safe-area-inset-top, 0px)) 0 90px;
   }
 
   .content {
