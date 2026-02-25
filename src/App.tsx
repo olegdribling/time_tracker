@@ -1577,7 +1577,7 @@ function App() {
                   <div className="inv-section-title">LINE ITEMS</div>
                   <button
                     type="button"
-                    className="inv-add-item-btn"
+                    className="add-action-btn"
                     onClick={() => {
                       const newId = invBSItems.length > 0 ? Math.max(...invBSItems.map(i => i.id)) + 1 : 1
                       setInvBSItems(prev => [...prev, { id: newId, description: '', amount: '0' }])
@@ -1868,10 +1868,10 @@ function App() {
             </div>
           </section>
         ) : activeView === 'clients' ? (
-          <section className="reports-card">
+          <section className="clients-section">
             <div className="modal-header" style={{ marginBottom: '12px' }}>
               <div className="modal-title">Clients</div>
-              <button className="ghost-button" onClick={openAddClient}>+ Add Client</button>
+              <button className="add-action-btn" onClick={openAddClient}>+ Add Client</button>
             </div>
             {clients.length === 0 ? (
               <div className="report-row empty">No clients yet. Add your first client.</div>

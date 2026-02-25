@@ -1281,6 +1281,32 @@
   flex-direction: column;
 }
 
+/* Clients view — no white wrapper */
+.clients-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+/* Standard "add" action button — used for + Add Client, + Add Item, etc. */
+.add-action-btn {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+  white-space: nowrap;
+}
+
+.add-action-btn:hover {
+  border-color: var(--header-bg);
+  background: var(--accent-faint);
+}
+
 /* ── Calendar card (calendar view) ─────────────────────── */
 .calendar-card {
   background: var(--surface);
@@ -1440,21 +1466,6 @@
   align-items: center;
 }
 
-.inv-add-item-btn {
-  background: none;
-  border: none;
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--header-bg);
-  cursor: pointer;
-  padding: 4px 8px;
-  border-radius: 8px;
-  transition: background 0.15s;
-}
-
-.inv-add-item-btn:hover {
-  background: var(--accent-faint);
-}
 
 .inv-item-title-row {
   display: flex;
