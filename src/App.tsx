@@ -1986,7 +1986,7 @@ function App() {
       </main>
 
       {/* FAB (circular, expandable) */}
-      {activeView === 'reports' ? (
+      {activeView === 'reports' || activeView === 'calendar' || activeView === 'clients' ? (
         <button className="floating-btn" onClick={goHome}>
           <Home size={24} />
         </button>
