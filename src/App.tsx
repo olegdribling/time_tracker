@@ -298,7 +298,7 @@ function App() {
   const [isClientModalOpen, setIsClientModalOpen] = useState(false)
   const [editingClientId, setEditingClientId] = useState<number | null>(null)
   const [clientDraft, setClientDraft] = useState<ClientDraft>({ name: '', address: '', abn: '', email: '' })
-  const [clientReturnContext, setClientReturnContext] = useState<'invoiceByTime' | 'invoiceByServices' | 'invoiceScreen' | null>(null)
+  const [clientReturnContext, setClientReturnContext] = useState<'invoiceByTime' | 'invoiceByServices' | 'invoiceScreen' | 'shiftForm' | null>(null)
   const [billingPlan, setBillingPlan] = useState<string>('trial')
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false)
   const [periodOffset, setPeriodOffset] = useState(0)
@@ -828,7 +828,7 @@ function App() {
     setIsClientModalOpen(true)
   }
 
-  const openAddClientFromInvoice = (context: 'invoiceByTime' | 'invoiceByServices' | 'invoiceScreen') => {
+  const openAddClientFromInvoice = (context: 'invoiceByTime' | 'invoiceByServices' | 'invoiceScreen' | 'shiftForm') => {
     if ((billingPlan === 'trial' || billingPlan === 'solo') && clients.length >= 1) {
       setIsUpgradeModalOpen(true)
       return
@@ -836,10 +836,10 @@ function App() {
     setEditingClientId(null)
     setClientDraft({ name: '', address: '', abn: '', email: '' })
     setClientReturnContext(context)
-    // скрываем текущую инвойс-модалку пока создаём клиента
     if (context === 'invoiceByTime') setIsInvoiceByTimeOpen(false)
     if (context === 'invoiceByServices') setIsInvoiceByServicesOpen(false)
     if (context === 'invoiceScreen') setIsInvoiceScreenOpen(false)
+    if (context === 'shiftForm') setIsAddOpen(false)
     setIsClientModalOpen(true)
   }
 
@@ -876,6 +876,9 @@ function App() {
         } else if (clientReturnContext === 'invoiceScreen') {
           setSelectedClientId(data.id)
           setIsInvoiceScreenOpen(true)
+        } else if (clientReturnContext === 'shiftForm') {
+          setForm(prev => ({ ...prev, clientId: data.id }))
+          setIsAddOpen(true)
         }
         setClientReturnContext(null)
       } else {
@@ -1280,7 +1283,8 @@ function App() {
                   value={selectedClientId ?? ''}
                   onChange={e => setSelectedClientId(e.target.value ? Number(e.target.value) : null)}
                 >
-                  {clients.length !== 1 && <option value="">Select Client</option>}
+                  {clients.length === 0 && <option value="" disabled>Add new Client</option>}
+                  {clients.length > 1 && <option value="">Select Client</option>}
                   {clients.map(c => (
                     <option key={c.id} value={c.id}>{c.name}</option>
                   ))}
@@ -1459,7 +1463,8 @@ function App() {
                       value={invBTForm.clientId ?? ''}
                       onChange={e => setInvBTForm(prev => ({ ...prev, clientId: e.target.value ? Number(e.target.value) : null }))}
                     >
-                      {clients.length !== 1 && <option value="">Select Client</option>}
+                      {clients.length === 0 && <option value="" disabled>Add new Client</option>}
+                      {clients.length > 1 && <option value="">Select Client</option>}
                       {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                     </select>
                   </div>
@@ -1617,7 +1622,8 @@ function App() {
                       value={invBSForm.clientId ?? ''}
                       onChange={e => setInvBSForm(prev => ({ ...prev, clientId: e.target.value ? Number(e.target.value) : null }))}
                     >
-                      {clients.length !== 1 && <option value="">Select Client</option>}
+                      {clients.length === 0 && <option value="" disabled>Add new Client</option>}
+                      {clients.length > 1 && <option value="">Select Client</option>}
                       {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                     </select>
                   </div>
@@ -1829,7 +1835,8 @@ function App() {
                 value={reportClientId ?? ''}
                 onChange={e => setReportClientId(e.target.value === '' ? null : Number(e.target.value))}
               >
-                {clients.length !== 1 && <option value="">All Clients</option>}
+                {clients.length === 0 && <option value="" disabled>Add new Client</option>}
+                {clients.length > 1 && <option value="">All Clients</option>}
                 {clients.map(c => (
                   <option key={c.id} value={c.id}>{c.name}</option>
                 ))}
@@ -2138,18 +2145,20 @@ function App() {
               </div>
 
               {/* Client */}
-              {clients.length > 0 && (
-                <div className="field">
+              <div className="field">
+                <div className="field-label-row">
                   <span className="label">Client</span>
-                  <select
-                    value={form.clientId ?? ''}
-                    onChange={e => setForm(prev => ({ ...prev, clientId: e.target.value ? Number(e.target.value) : null }))}
-                  >
-                    {clients.length !== 1 && <option value="">Select Client</option>}
-                    {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                  </select>
+                  <button type="button" className="add-action-btn" onClick={() => openAddClientFromInvoice('shiftForm')}>+ Add Client</button>
                 </div>
-              )}
+                <select
+                  value={form.clientId ?? ''}
+                  onChange={e => setForm(prev => ({ ...prev, clientId: e.target.value ? Number(e.target.value) : null }))}
+                >
+                  {clients.length === 0 && <option value="" disabled>Add new Client</option>}
+                  {clients.length > 1 && <option value="">Select Client</option>}
+                  {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+              </div>
 
               {/* Start */}
               <div className="field">
