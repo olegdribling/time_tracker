@@ -3,7 +3,7 @@
   max-width: 520px;
   margin: 0 auto;
   min-height: 100vh;
-  padding: 0 0 100px;
+  padding: 64px 0 100px;
   color: var(--text-primary);
   background: var(--app-bg);
   overflow-x: hidden;
@@ -16,12 +16,15 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  position: sticky;
+  position: fixed;
   top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100%;
+  max-width: 520px;
   z-index: 40;
   padding: 14px 20px;
   background: var(--header-bg);
-  margin-bottom: 20px;
 }
 
 .date-block .today-label {

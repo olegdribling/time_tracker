@@ -1196,9 +1196,6 @@ function App() {
               <button className="menu-panel-close" onClick={() => setIsMenuOpen(false)}><X size={18} /></button>
             </div>
             <div className="menu-panel-items">
-              <button className="menu-panel-item" onClick={goHome}>Dashboard</button>
-              <button className="menu-panel-item" onClick={openReports}>Reports</button>
-              <button className="menu-panel-item" onClick={() => openCalendar()}>Calendar</button>
               <button className="menu-panel-item" onClick={openClients}>Clients</button>
               <button className="menu-panel-item" onClick={openSettings}>Settings</button>
               <button className="menu-panel-item" onClick={openInvoiceModal}>Invoice details</button>
