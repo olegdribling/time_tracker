@@ -1605,7 +1605,6 @@ function App() {
                         <input
                           type="text"
                           value={item.description}
-                          placeholder="Services"
                           onChange={e => setInvBSItems(prev => prev.map(i => i.id === item.id ? { ...i, description: e.target.value } : i))}
                         />
                       </div>
@@ -2138,7 +2137,6 @@ function App() {
                 <span className="label">Comment</span>
                 <textarea
                   rows={3}
-                  placeholder="Optional"
                   value={form.comment}
                   onChange={(e) => setForm((prev) => ({ ...prev, comment: e.target.value }))}
                 />
@@ -2233,7 +2231,6 @@ function App() {
                   type="text"
                   value={clientDraft.name}
                   onChange={e => setClientDraft(prev => ({ ...prev, name: e.target.value }))}
-                  placeholder="Jane Smith / Acme Pty Ltd"
                   autoFocus
                 />
               </label>
@@ -2244,7 +2241,6 @@ function App() {
                   type="text"
                   value={clientDraft.address}
                   onChange={e => setClientDraft(prev => ({ ...prev, address: e.target.value }))}
-                  placeholder="123 Main St, Sydney NSW 2000"
                 />
               </label>
               <label className="field">
@@ -2254,7 +2250,6 @@ function App() {
                   type="text"
                   value={clientDraft.abn}
                   onChange={e => setClientDraft(prev => ({ ...prev, abn: e.target.value }))}
-                  placeholder="12 345 678 901"
                 />
               </label>
               <label className="field">
@@ -2264,7 +2259,6 @@ function App() {
                   type="email"
                   value={clientDraft.email}
                   onChange={e => setClientDraft(prev => ({ ...prev, email: e.target.value }))}
-                  placeholder="billing@acme.com"
                 />
               </label>
             </div>

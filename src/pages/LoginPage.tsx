@@ -37,7 +37,6 @@ export function LoginPage() {
           <input
             className="auth-input"
             type="email"
-            placeholder="you@example.com"
             value={email}
             onChange={e => setEmail(e.target.value)}
             onKeyDown={handleKey}
@@ -50,7 +49,6 @@ export function LoginPage() {
           <input
             className="auth-input"
             type="password"
-            placeholder="••••••••"
             value={password}
             onChange={e => setPassword(e.target.value)}
             onKeyDown={handleKey}
