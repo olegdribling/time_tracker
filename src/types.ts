@@ -22,6 +22,8 @@ export type Settings = {
   period: 'weekly' | 'monthly' | 'custom'
   weekStart: 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday' | 'sunday'
   hourlyRate: number
+  weekendRateEnabled: boolean
+  weekendRate: number
 }
 
 export type Client = {

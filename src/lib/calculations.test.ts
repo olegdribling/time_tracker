@@ -6,6 +6,8 @@ const baseSettings: Settings = {
   period: 'weekly',
   weekStart: 'monday',
   hourlyRate: 25,
+  weekendRateEnabled: false,
+  weekendRate: 25,
 }
 
 

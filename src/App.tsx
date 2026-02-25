@@ -64,6 +64,8 @@ const DEFAULT_SETTINGS: Settings = {
   period: 'weekly',
   weekStart: 'monday',
   hourlyRate: INITIAL_HOURLY_RATE,
+  weekendRateEnabled: false,
+  weekendRate: INITIAL_HOURLY_RATE,
 }
 
 const DEFAULT_INVOICE_PROFILE: InvoiceProfile = {
@@ -275,6 +277,7 @@ function App() {
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS)
   const [settingsDraft, setSettingsDraft] = useState<Settings>(DEFAULT_SETTINGS)
   const [hourlyRateInput, setHourlyRateInput] = useState(() => String(DEFAULT_SETTINGS.hourlyRate))
+  const [weekendRateInput, setWeekendRateInput] = useState(() => String(DEFAULT_SETTINGS.weekendRate))
   const [invoiceProfile, setInvoiceProfile] = useState<InvoiceProfile>(DEFAULT_INVOICE_PROFILE)
   const [invoiceDraft, setInvoiceDraft] = useState<InvoiceProfile>(DEFAULT_INVOICE_PROFILE)
   const [invoiceForm, setInvoiceForm] = useState({
@@ -344,8 +347,12 @@ function App() {
         if (cancelled) return
 
         if (settingsRow) {
-          setSettings(settingsRow)
-          setSettingsDraft(settingsRow)
+          const merged = {
+            ...DEFAULT_SETTINGS,
+            ...settingsRow,
+          }
+          setSettings(merged)
+          setSettingsDraft(merged)
         } else {
           setSettings(DEFAULT_SETTINGS)
           setSettingsDraft(DEFAULT_SETTINGS)
@@ -394,6 +401,10 @@ function App() {
   useEffect(() => {
     setHourlyRateInput(String(settingsDraft.hourlyRate))
   }, [settingsDraft.hourlyRate])
+
+  useEffect(() => {
+    setWeekendRateInput(String(settingsDraft.weekendRate))
+  }, [settingsDraft.weekendRate])
 
   useEffect(() => {
     setNextInvoiceNumberInput(String(invoiceDraft.nextInvoiceNumber))
@@ -912,6 +923,9 @@ function App() {
         console.error('Failed to update shift', error)
       }
     } else {
+      const dayOfWeek = new Date(`${form.date}T00:00:00`).getDay()
+      const isWeekend = dayOfWeek === 0 || dayOfWeek === 6
+      const rateToUse = settings.weekendRateEnabled && isWeekend ? settings.weekendRate : settings.hourlyRate
       const newShift: Shift = {
         id: crypto.randomUUID(),
         date: form.date,
@@ -919,7 +933,7 @@ function App() {
         end: form.end,
         lunchMinutes: form.lunchMinutes,
         comment: form.comment.trim(),
-        hourlyRate: settings.hourlyRate,
+        hourlyRate: rateToUse,
         clientId: form.clientId,
       }
       setShifts((prev) => [...prev, newShift])
@@ -2362,7 +2376,7 @@ function App() {
               )}
 
               <label className="field">
-                <span className="label">Hourly rate (AUD)</span>
+                <span className="label">Weekday rate (AUD)</span>
                 <input
                   type="text"
                   inputMode="decimal"
@@ -2378,6 +2392,39 @@ function App() {
                   }}
                 />
               </label>
+
+              <div className="field">
+                <div className="toggle-row">
+                  <span className="label">Different rate for weekends</span>
+                  <button
+                    type="button"
+                    className={`toggle-btn ${settingsDraft.weekendRateEnabled ? 'is-on' : ''}`}
+                    onClick={() => setSettingsDraft(prev => ({ ...prev, weekendRateEnabled: !prev.weekendRateEnabled }))}
+                  >
+                    <span className="toggle-knob" />
+                  </button>
+                </div>
+              </div>
+
+              {settingsDraft.weekendRateEnabled && (
+                <label className="field">
+                  <span className="label">Weekend rate (AUD)</span>
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    pattern="[0-9]*[.,]?[0-9]*"
+                    value={weekendRateInput}
+                    onChange={(e) => {
+                      const raw = e.target.value
+                      setWeekendRateInput(raw)
+                      const parsed = parseDecimal(raw)
+                      if (parsed !== null) {
+                        setSettingsDraft((prev) => ({ ...prev, weekendRate: Math.max(0, parsed) }))
+                      }
+                    }}
+                  />
+                </label>
+              )}
             </div>
 
             <button className="primary-btn" onClick={saveSettings}>Save</button>
