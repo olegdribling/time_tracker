@@ -1572,7 +1572,7 @@
 /* ── Misc ───────────────────────────────────────────────── */
 @media (max-width: 520px) {
   .app-shell {
-    padding: calc(80px + env(safe-area-inset-top, 0px)) 0 90px;
+    padding: calc(100px + env(safe-area-inset-top, 0px)) 0 90px;
   }
 
   .content {
