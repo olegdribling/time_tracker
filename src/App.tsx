@@ -699,6 +699,7 @@ function App() {
     closeOverlays()
     setActiveView('reports')
     setPeriodOffset(0)
+    setReportClientId(soloClientId)
   }
 
   const openClients = () => {
@@ -1779,7 +1780,7 @@ function App() {
                 value={reportClientId ?? ''}
                 onChange={e => setReportClientId(e.target.value === '' ? null : Number(e.target.value))}
               >
-                <option value="">All Clients</option>
+                {clients.length !== 1 && <option value="">All Clients</option>}
                 {clients.map(c => (
                   <option key={c.id} value={c.id}>{c.name}</option>
                 ))}
