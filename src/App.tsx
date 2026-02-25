@@ -1017,32 +1017,6 @@ function App() {
 
   const hasInvoiceCoreFields = invoiceProfile.fullName.trim() !== '' && invoiceProfile.accountNumber.trim() !== ''
 
-  const openInvoiceScreen = (preselectedClientId?: number | null) => {
-    if (!reportRange) {
-      alert('Select a reporting period first.')
-      return
-    }
-    if (!hasInvoiceCoreFields) {
-      alert('Fill invoice details first (Full Name and Account number at minimum).')
-      return
-    }
-    setInvoiceForm({
-      invoiceNumber: invoiceProfile.nextInvoiceNumber,
-      rate: settings.hourlyRate,
-      durationMinutes: reportTotals.durationMinutes,
-      total: reportTotals.pay,
-    })
-    setInvoiceNumberInput(String(invoiceProfile.nextInvoiceNumber))
-    setInvoiceRateInput(String(settings.hourlyRate))
-    setInvoiceTotalInput(String(reportTotals.pay))
-    setIsInvoiceEditing(false)
-    setShowEmailPrompt(false)
-    setSelectedClientId(
-      preselectedClientId !== undefined ? preselectedClientId : soloClientId
-    )
-    setIsInvoiceScreenOpen(true)
-  }
-
   const closeInvoiceScreen = () => {
     setIsInvoiceScreenOpen(false)
     setIsInvoiceEditing(false)
