@@ -1846,11 +1846,11 @@ function App() {
             {/* Create Invoice button */}
             <button
               className="reports-create-invoice-btn"
-              onClick={() => openInvoiceScreen(reportClientId)}
+              onClick={openInvoiceByTime}
               disabled={reportClientId === null || !hasInvoiceCoreFields || reportShifts.length === 0}
             >
               <FileText size={18} />
-              Create Invoice by Period
+              Invoice by Period
             </button>
 
             {/* Stats */}
