@@ -1,5 +1,6 @@
 const express = require('express')
 const cors = require('cors')
+const path = require('path')
 require('dotenv').config()
 
 const app = express()
@@ -20,6 +21,13 @@ app.use('/api/clients', require('./routes/clients'))
 
 app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok' })
+})
+
+// Serve built frontend
+const distPath = path.join(__dirname, '../../../dist')
+app.use(express.static(distPath))
+app.get('*', (_req, res) => {
+  res.sendFile(path.join(distPath, 'index.html'))
 })
 
 const PORT = process.env.PORT || 3001
