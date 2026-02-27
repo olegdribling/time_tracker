@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "postinstall": "cd my-saas/server && npm install",
+    "postinstall": "npm run build && cd my-saas/server && npm install",
     "start": "node my-saas/server/src/app.js",
     "lint": "eslint .",
     "test": "vitest",
