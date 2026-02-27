@@ -26,8 +26,7 @@ const INITIAL_HOURLY_RATE = 25
 const MENU_STORAGE_KEY = 'worktracker:menu-open'
 
 const emptyForm = (): ShiftForm => {
-  const today = new Date()
-  const date = today.toISOString().slice(0, 10)
+  const date = toLocalDateKey(new Date())
   return {
     date,
     start: '07:00',
