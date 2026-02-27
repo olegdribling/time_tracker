@@ -11,6 +11,7 @@ import {
   FileText,
   Home,
   MoreVertical,
+  Package,
   Plus,
   User,
   Wrench,
@@ -19,7 +20,7 @@ import {
 import { api } from './api'
 import { calculateTotals, getPeriodByOffset, getPeriodRange, minutesBetween } from './lib/calculations'
 import { generateInvoicePdf } from './lib/invoice'
-import type { Client, ClientDraft, InvoiceProfile, Settings, Shift, ShiftForm } from './types'
+import type { Client, ClientDraft, InvoiceProfile, Product, ProductDraft, Settings, Shift, ShiftForm } from './types'
 import { saveAs } from 'file-saver'
 
 const INITIAL_HOURLY_RATE = 25
@@ -296,12 +297,12 @@ function App() {
   const importInputRef = useRef<HTMLInputElement | null>(null)
   const [userEmail, setUserEmail] = useState<string>('')
   const [editingId, setEditingId] = useState<string | null>(null)
-  const [activeView, setActiveView] = useState<'home' | 'reports' | 'calendar' | 'clients'>('home')
+  const [activeView, setActiveView] = useState<'home' | 'reports' | 'calendar' | 'clients' | 'products'>('home')
   const [clients, setClients] = useState<Client[]>([])
   const [isClientModalOpen, setIsClientModalOpen] = useState(false)
   const [editingClientId, setEditingClientId] = useState<number | null>(null)
   const [clientDraft, setClientDraft] = useState<ClientDraft>({ name: '', address: '', abn: '', email: '' })
-  const [clientReturnContext, setClientReturnContext] = useState<'invoiceByTime' | 'invoiceByServices' | 'invoiceScreen' | 'shiftForm' | null>(null)
+  const [clientReturnContext, setClientReturnContext] = useState<'invoiceByTime' | 'invoiceByServices' | 'invoiceByProducts' | 'invoiceScreen' | 'shiftForm' | null>(null)
   const [billingPlan, setBillingPlan] = useState<string>('trial')
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false)
   const [periodOffset, setPeriodOffset] = useState(0)
@@ -327,6 +328,15 @@ function App() {
   })
   const [invBTCalendarOpen, setInvBTCalendarOpen] = useState(false)
   const [invBTCalendarMonth, setInvBTCalendarMonth] = useState(() => toMonthKey(new Date()))
+  const [isInvoiceByProductsOpen, setIsInvoiceByProductsOpen] = useState(false)
+  const [invBPForm, setInvBPForm] = useState({ number: '1', date: toLocalDateKey(new Date()), clientId: null as number | null })
+  const [invBPItems, setInvBPItems] = useState<{ id: number; productId: number | null; description: string; quantity: string; unitPrice: string }[]>([])
+  const [invBPCalendarOpen, setInvBPCalendarOpen] = useState(false)
+  const [invBPCalendarMonth, setInvBPCalendarMonth] = useState(() => toMonthKey(new Date()))
+  const [products, setProducts] = useState<Product[]>([])
+  const [isProductModalOpen, setIsProductModalOpen] = useState(false)
+  const [editingProductId, setEditingProductId] = useState<number | null>(null)
+  const [productDraft, setProductDraft] = useState<ProductDraft>({ name: '', price: 0 })
   const [activePickerField, setActivePickerField] = useState<'date' | 'start' | 'end' | 'lunch' | null>(null)
   const [formCalendarMonth, setFormCalendarMonth] = useState(() => toMonthKey(new Date()))
   const [clockDisplay, setClockDisplay] = useState(() => {
@@ -337,23 +347,25 @@ function App() {
   useEffect(() => {
     let cancelled = false
     ;(async () => {
-      const [shiftsRes, settingsRes, invoiceRes, meRes, clientsRes, billingRes] = await Promise.allSettled([
+      const [shiftsRes, settingsRes, invoiceRes, meRes, clientsRes, billingRes, productsRes] = await Promise.allSettled([
         api.getShifts(),
         api.getSettings(),
         api.getInvoiceProfile(),
         api.me(),
         api.getClients(),
         api.getBillingStatus(),
+        api.getProducts(),
       ])
 
       if (cancelled) return
 
-      const shiftRows  = shiftsRes.status  === 'fulfilled' ? shiftsRes.value  : []
+      const shiftRows   = shiftsRes.status   === 'fulfilled' ? shiftsRes.value   : []
       const settingsRow = settingsRes.status === 'fulfilled' ? settingsRes.value : null
       const invoiceRow  = invoiceRes.status  === 'fulfilled' ? invoiceRes.value  : null
       const meRow       = meRes.status       === 'fulfilled' ? meRes.value       : null
       const clientRows  = clientsRes.status  === 'fulfilled' ? clientsRes.value  : []
       const billingRow  = billingRes.status  === 'fulfilled' ? billingRes.value  : null
+      const productRows = productsRes.status === 'fulfilled' ? productsRes.value : []
 
       if (meRow?.email) setUserEmail(meRow.email)
 
@@ -382,6 +394,7 @@ function App() {
 
         setShifts(shiftRows)
         setClients(clientRows)
+        setProducts(productRows)
         if (billingRow?.plan) setBillingPlan(billingRow.plan)
       } catch (error) {
         console.error('Failed to load data', error)
@@ -649,6 +662,23 @@ function App() {
     return new Intl.DateTimeFormat('en-AU', { month: 'long', year: 'numeric' }).format(new Date(year, month - 1, 1))
   }, [invBSCalendarMonth])
 
+  const invBPCalendarCells = useMemo(() => {
+    const { year, month } = parseMonthKey(invBPCalendarMonth)
+    const firstDay = new Date(year, month - 1, 1).getDay()
+    const daysInMonth = new Date(year, month, 0).getDate()
+    const cells: { date: string | null; day: number | null }[] = []
+    for (let i = 0; i < firstDay; i++) cells.push({ date: null, day: null })
+    for (let d = 1; d <= daysInMonth; d++) {
+      cells.push({ date: `${year}-${String(month).padStart(2, '0')}-${String(d).padStart(2, '0')}`, day: d })
+    }
+    return cells
+  }, [invBPCalendarMonth])
+
+  const invBPCalendarLabel = useMemo(() => {
+    const { year, month } = parseMonthKey(invBPCalendarMonth)
+    return new Intl.DateTimeFormat('en-AU', { month: 'long', year: 'numeric' }).format(new Date(year, month - 1, 1))
+  }, [invBPCalendarMonth])
+
   const shiftsByDate = useMemo(() => {
     const map = new Map<string, Shift[]>()
     shifts.forEach((shift) => {
@@ -728,6 +758,11 @@ function App() {
   const openClients = () => {
     closeOverlays()
     setActiveView('clients')
+  }
+
+  const openProducts = () => {
+    closeOverlays()
+    setActiveView('products')
   }
 
   const openCalendar = (targetDate?: string) => {
@@ -839,7 +874,7 @@ function App() {
     setIsClientModalOpen(true)
   }
 
-  const openAddClientFromInvoice = (context: 'invoiceByTime' | 'invoiceByServices' | 'invoiceScreen' | 'shiftForm') => {
+  const openAddClientFromInvoice = (context: 'invoiceByTime' | 'invoiceByServices' | 'invoiceByProducts' | 'invoiceScreen' | 'shiftForm') => {
     if ((billingPlan === 'trial' || billingPlan === 'solo') && clients.length >= 1) {
       setIsUpgradeModalOpen(true)
       return
@@ -849,6 +884,7 @@ function App() {
     setClientReturnContext(context)
     if (context === 'invoiceByTime') setIsInvoiceByTimeOpen(false)
     if (context === 'invoiceByServices') setIsInvoiceByServicesOpen(false)
+    if (context === 'invoiceByProducts') setIsInvoiceByProductsOpen(false)
     if (context === 'invoiceScreen') setIsInvoiceScreenOpen(false)
     if (context === 'shiftForm') setIsAddOpen(false)
     setIsClientModalOpen(true)
@@ -884,6 +920,9 @@ function App() {
         } else if (clientReturnContext === 'invoiceByServices') {
           setInvBSForm(prev => ({ ...prev, clientId: data.id }))
           setIsInvoiceByServicesOpen(true)
+        } else if (clientReturnContext === 'invoiceByProducts') {
+          setInvBPForm(prev => ({ ...prev, clientId: data.id }))
+          setIsInvoiceByProductsOpen(true)
         } else if (clientReturnContext === 'invoiceScreen') {
           setSelectedClientId(data.id)
           setIsInvoiceScreenOpen(true)
@@ -904,6 +943,44 @@ function App() {
     if (!ok) return
     await api.deleteClient(id)
     setClients(prev => prev.filter(c => c.id !== id))
+  }
+
+  const openAddProduct = () => {
+    setEditingProductId(null)
+    setProductDraft({ name: '', price: 0 })
+    setIsProductModalOpen(true)
+  }
+
+  const openEditProduct = (product: Product) => {
+    setEditingProductId(product.id)
+    setProductDraft({ name: product.name, price: product.price })
+    setIsProductModalOpen(true)
+  }
+
+  const closeProductModal = () => {
+    setIsProductModalOpen(false)
+    setEditingProductId(null)
+  }
+
+  const saveProduct = async () => {
+    if (editingProductId !== null) {
+      await api.updateProduct(editingProductId, productDraft)
+      setProducts(prev => prev.map(p => p.id === editingProductId ? { id: editingProductId, ...productDraft } : p))
+      setIsProductModalOpen(false)
+    } else {
+      const data = await api.createProduct(productDraft)
+      if (data.id) {
+        setProducts(prev => [...prev, { id: data.id, ...productDraft }])
+        setIsProductModalOpen(false)
+      }
+    }
+  }
+
+  const handleDeleteProduct = async (id: number) => {
+    const ok = window.confirm('Remove this product? This cannot be undone.')
+    if (!ok) return
+    await api.deleteProduct(id)
+    setProducts(prev => prev.filter(p => p.id !== id))
   }
 
   const goPrevPeriod = () => {
@@ -1195,6 +1272,62 @@ function App() {
     }
   }
 
+  const openInvoiceByProducts = () => {
+    const defaultItem = products.length === 1
+      ? [{ id: 1, productId: products[0].id, description: products[0].name, quantity: '1', unitPrice: String(products[0].price) }]
+      : [{ id: 1, productId: null, description: '', quantity: '1', unitPrice: '0' }]
+    setInvBPForm({
+      number: String(invoiceProfile.nextInvoiceNumber),
+      date: toLocalDateKey(new Date()),
+      clientId: reportClientId ?? soloClientId,
+    })
+    setInvBPItems(defaultItem)
+    setInvBPCalendarMonth(toMonthKey(new Date()))
+    setInvBPCalendarOpen(false)
+    setIsFabOpen(false)
+    setFabInvoiceOpen(false)
+    setIsInvoiceByProductsOpen(true)
+  }
+
+  const generateInvoiceByProducts = async () => {
+    const items = invBPItems.map(i => ({
+      description: i.description,
+      unitPrice: parseFloat(i.unitPrice) || 0,
+      quantity: parseFloat(i.quantity) || 0,
+      amount: (parseFloat(i.quantity) || 0) * (parseFloat(i.unitPrice) || 0),
+    }))
+    const subtotal = items.reduce((s, i) => s + i.amount, 0)
+    const gst = invoiceProfile.chargeGst ? subtotal * 0.1 : 0
+    const total = subtotal + gst
+    const invNum = parseInt(invBPForm.number) || 1
+    const period = reportRange ?? { start: invBPForm.date, end: invBPForm.date }
+    const selectedClient = clients.find(c => c.id === invBPForm.clientId)
+    try {
+      await generateInvoicePdf({
+        profile: invoiceProfile,
+        period,
+        invoiceNumber: invNum,
+        itemLabel: '',
+        unitPrice: 0,
+        quantityMinutes: 0,
+        subtotal,
+        gst,
+        balanceDue: total,
+        billTo: selectedClient ? { name: selectedClient.name, address: selectedClient.address, abn: selectedClient.abn } : undefined,
+        productLineItems: items,
+      })
+      const nextNumber = invNum >= invoiceProfile.nextInvoiceNumber ? invNum + 1 : invoiceProfile.nextInvoiceNumber + 1
+      const updated: InvoiceProfile = { ...invoiceProfile, nextInvoiceNumber: nextNumber }
+      setInvoiceProfile(updated)
+      setInvoiceDraft(updated)
+      await api.saveInvoiceProfile(updated)
+      setIsInvoiceByProductsOpen(false)
+    } catch (error) {
+      console.error('Failed to generate invoice', error)
+      alert('Failed to generate invoice.')
+    }
+  }
+
   const openEmailDraft = () => {
     if (!reportRange) {
       alert('Select a reporting period first.')
@@ -1255,6 +1388,7 @@ function App() {
             </div>
             <div className="menu-panel-items">
               <button className="menu-panel-item" onClick={openClients}>Clients</button>
+              <button className="menu-panel-item" onClick={openProducts}>Products</button>
               <button className="menu-panel-item" onClick={openSettings}>Settings</button>
               <button className="menu-panel-item" onClick={openInvoiceModal}>Invoice details</button>
               <button className="menu-panel-item" onClick={exportData}>Export data</button>
@@ -1964,6 +2098,33 @@ function App() {
               ))
             )}
           </section>
+        ) : activeView === 'products' ? (
+          <section className="clients-section">
+            <div className="modal-header" style={{ marginBottom: '12px' }}>
+              <div className="modal-title">Products</div>
+              <button className="add-action-btn" onClick={openAddProduct}>+ Add Product</button>
+            </div>
+            {products.length === 0 ? (
+              <div className="report-row empty">No products yet. Add your first product.</div>
+            ) : (
+              products.map(product => (
+                <div key={product.id} className="shift-card" style={{ cursor: 'pointer' }} onClick={() => openEditProduct(product)}>
+                  <div className="shift-card__header">
+                    <div>
+                      <div className="shift-date">{product.name}</div>
+                      <div className="label" style={{ marginTop: 2 }}>${product.price.toFixed(2)}</div>
+                    </div>
+                    <button
+                      className="ghost-button danger"
+                      onClick={e => { e.stopPropagation(); handleDeleteProduct(product.id) }}
+                    >
+                      Delete
+                    </button>
+                  </div>
+                </div>
+              ))
+            )}
+          </section>
         ) : (
           <>
             <section className="calendar-card">
@@ -2057,7 +2218,7 @@ function App() {
       </main>
 
       {/* FAB (circular, expandable) */}
-      {activeView === 'reports' || activeView === 'calendar' || activeView === 'clients' ? (
+      {activeView === 'reports' || activeView === 'calendar' || activeView === 'clients' || activeView === 'products' ? (
         <button className="floating-btn" onClick={goHome}>
           <Home size={24} />
         </button>
@@ -2075,6 +2236,10 @@ function App() {
                   <button className="fab-menu-item" onClick={openInvoiceByServices}>
                     <Wrench size={20} />
                     Invoice by Services
+                  </button>
+                  <button className="fab-menu-item" onClick={openInvoiceByProducts}>
+                    <Package size={20} />
+                    Invoice by Products
                   </button>
                 </>
               ) : (
@@ -2338,6 +2503,252 @@ function App() {
               </label>
             </div>
             <button className="primary-btn" style={{ marginTop: '16px' }} onClick={saveClient}>Save</button>
+          </div>
+        </div>
+      )}
+
+      {/* PRODUCT MODAL */}
+      {isProductModalOpen && (
+        <div className="modal-backdrop" onClick={closeProductModal}>
+          <div className="modal" onClick={e => e.stopPropagation()}>
+            <div className="modal-header-dark">
+              <div className="modal-title-dark">{editingProductId !== null ? 'Edit Product' : 'Add Product'}</div>
+              <button className="modal-close-btn" onClick={closeProductModal}><X size={18} /></button>
+            </div>
+            <div className="form-grid" style={{ marginTop: '12px' }}>
+              <label className="field">
+                <span className="label">Product Name</span>
+                <input
+                  className="input"
+                  type="text"
+                  value={productDraft.name}
+                  onChange={e => setProductDraft(prev => ({ ...prev, name: e.target.value }))}
+                  autoFocus
+                />
+              </label>
+              <label className="field">
+                <span className="label">Price</span>
+                <input
+                  className="input"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={productDraft.price}
+                  onChange={e => setProductDraft(prev => ({ ...prev, price: parseFloat(e.target.value) || 0 }))}
+                />
+              </label>
+            </div>
+            <button className="primary-btn" style={{ marginTop: '16px' }} onClick={saveProduct}>Save</button>
+          </div>
+        </div>
+      )}
+
+      {/* INVOICE BY PRODUCTS MODAL */}
+      {isInvoiceByProductsOpen && (
+        <div className="modal-backdrop" onClick={() => setIsInvoiceByProductsOpen(false)}>
+          <div className="modal" onClick={e => e.stopPropagation()}>
+            <div className="inv-header">
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <Package size={20} color="#fff" />
+                <span className="inv-header-title">Create Invoice</span>
+              </div>
+              <button className="inv-close-btn" onClick={() => setIsInvoiceByProductsOpen(false)}><X size={18} /></button>
+            </div>
+
+            <div style={{ padding: '0 0 8px' }}>
+              <div className="inv-row">
+                <div className="inv-field">
+                  <span className="label">Invoice #</span>
+                  <input
+                    type="text"
+                    className="input"
+                    value={`INV-${String(invBPForm.number).padStart(3, '0')}`}
+                    onChange={e => {
+                      const raw = e.target.value.replace(/^INV-0*/, '').replace(/\D/g, '')
+                      setInvBPForm(prev => ({ ...prev, number: raw || '1' }))
+                    }}
+                  />
+                </div>
+                <div className="inv-field">
+                  <span className="label">Date</span>
+                  <button
+                    type="button"
+                    className="form-field-btn"
+                    onClick={() => setInvBPCalendarOpen(prev => !prev)}
+                  >
+                    {formatDate(invBPForm.date)}
+                  </button>
+                  {invBPCalendarOpen && (
+                    <div className="form-calendar">
+                      <div className="form-calendar-header">
+                        <button type="button" className="nav-btn" onClick={() => setInvBPCalendarMonth(prev => shiftMonthKey(prev, -1))}><ChevronLeft size={16} /></button>
+                        <span className="form-calendar-title">{invBPCalendarLabel}</span>
+                        <button type="button" className="nav-btn" onClick={() => setInvBPCalendarMonth(prev => shiftMonthKey(prev, 1))}><ChevronRight size={16} /></button>
+                      </div>
+                      <div className="calendar-weekdays">
+                        {calendarWeekLabels.map(l => <div key={l} className="calendar-weekday">{l}</div>)}
+                      </div>
+                      <div className="calendar-grid">
+                        {invBPCalendarCells.map((cell, idx) => {
+                          if (!cell.date || !cell.day) return <div key={`invbp-${idx}`} className="calendar-day-empty" />
+                          const isSelected = cell.date === invBPForm.date
+                          const isToday = cell.date === todayIso
+                          return (
+                            <button
+                              key={cell.date}
+                              type="button"
+                              className={`calendar-day${isSelected ? ' is-selected' : ''}${isToday ? ' is-today' : ''}`}
+                              onClick={() => { setInvBPForm(prev => ({ ...prev, date: cell.date! })); setInvBPCalendarOpen(false) }}
+                            >
+                              <span className="calendar-day-number">{cell.day}</span>
+                            </button>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="inv-field" style={{ marginTop: 12 }}>
+                <span className="label">Bill To</span>
+                <select
+                  value={invBPForm.clientId ?? ''}
+                  onChange={e => setInvBPForm(prev => ({ ...prev, clientId: e.target.value ? Number(e.target.value) : null }))}
+                >
+                  <option value="">— Select client —</option>
+                  {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+                <button
+                  type="button"
+                  className="add-action-btn"
+                  style={{ marginTop: 6 }}
+                  onClick={() => openAddClientFromInvoice('invoiceByProducts')}
+                >
+                  + Add Client
+                </button>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 16 }}>
+                <span className="label">Items</span>
+                <button
+                  type="button"
+                  className="add-action-btn"
+                  onClick={() => {
+                    const newId = invBPItems.length > 0 ? Math.max(...invBPItems.map(i => i.id)) + 1 : 1
+                    setInvBPItems(prev => [...prev, { id: newId, productId: null, description: '', quantity: '1', unitPrice: '0' }])
+                  }}
+                >
+                  + Add Item
+                </button>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 14 }}>
+                {invBPItems.map((item, idx) => (
+                  <div key={item.id} className="inv-line-item-card">
+                    <div className="inv-item-title-row">
+                      <div className="inv-item-title">Item {idx + 1}</div>
+                      {invBPItems.length > 1 && (
+                        <button
+                          type="button"
+                          className="ghost-button danger"
+                          style={{ padding: '2px 8px', fontSize: 12 }}
+                          onClick={() => setInvBPItems(prev => prev.filter(i => i.id !== item.id))}
+                        >
+                          Remove
+                        </button>
+                      )}
+                    </div>
+                    <label className="field">
+                      <span className="label">Product</span>
+                      <select
+                        value={item.productId ?? ''}
+                        onChange={e => {
+                          const pid = e.target.value ? Number(e.target.value) : null
+                          const found = products.find(p => p.id === pid)
+                          setInvBPItems(prev => prev.map(i => i.id === item.id
+                            ? { ...i, productId: pid, description: found ? found.name : i.description, unitPrice: found ? String(found.price) : i.unitPrice }
+                            : i
+                          ))
+                        }}
+                      >
+                        <option value="">{products.length === 0 ? 'No products' : '— Select product —'}</option>
+                        {products.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                      </select>
+                    </label>
+                    <label className="field">
+                      <span className="label">Description</span>
+                      <input
+                        className="input"
+                        type="text"
+                        value={item.description}
+                        onChange={e => setInvBPItems(prev => prev.map(i => i.id === item.id ? { ...i, description: e.target.value } : i))}
+                      />
+                    </label>
+                    <div style={{ display: 'flex', gap: 10 }}>
+                      <label className="field" style={{ flex: 1 }}>
+                        <span className="label">Quantity</span>
+                        <input
+                          className="input"
+                          type="number"
+                          min="0"
+                          step="1"
+                          value={item.quantity}
+                          onChange={e => setInvBPItems(prev => prev.map(i => i.id === item.id ? { ...i, quantity: e.target.value } : i))}
+                        />
+                      </label>
+                      <label className="field" style={{ flex: 1 }}>
+                        <span className="label">Unit Price</span>
+                        <input
+                          className="input"
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={item.unitPrice}
+                          onChange={e => setInvBPItems(prev => prev.map(i => i.id === item.id ? { ...i, unitPrice: e.target.value } : i))}
+                        />
+                      </label>
+                    </div>
+                    <div className="inv-item-amount">
+                      <span>Amount</span>
+                      <strong>${money((parseFloat(item.quantity) || 0) * (parseFloat(item.unitPrice) || 0))}</strong>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {(() => {
+                const subtotal = invBPItems.reduce((s, i) => s + (parseFloat(i.quantity) || 0) * (parseFloat(i.unitPrice) || 0), 0)
+                const gst = invoiceProfile.chargeGst ? subtotal * 0.1 : 0
+                const total = subtotal + gst
+                return (
+                  <div className="inv-summary-card">
+                    <div className="inv-summary-row">
+                      <span>Subtotal</span>
+                      <span>${money(subtotal)}</span>
+                    </div>
+                    {invoiceProfile.chargeGst && (
+                      <div className="inv-summary-row">
+                        <span>GST (10%)</span>
+                        <span>${money(gst)}</span>
+                      </div>
+                    )}
+                    <div className="inv-summary-divider" />
+                    <div className="inv-summary-row inv-summary-total">
+                      <strong>Total</strong>
+                      <strong>${money(total)}</strong>
+                    </div>
+                  </div>
+                )
+              })()}
+            </div>
+
+            <div className="inv-footer">
+              <button className="ghost-button" onClick={() => setIsInvoiceByProductsOpen(false)}>Cancel</button>
+              <button className="primary-btn" style={{ flex: 1 }} onClick={generateInvoiceByProducts} disabled={invBPForm.clientId === null}>
+                Save
+              </button>
+            </div>
           </div>
         </div>
       )}

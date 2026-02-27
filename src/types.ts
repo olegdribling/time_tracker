@@ -36,6 +36,14 @@ export type Client = {
 
 export type ClientDraft = Omit<Client, 'id'>
 
+export type Product = {
+  id: number
+  name: string
+  price: number
+}
+
+export type ProductDraft = Omit<Product, 'id'>
+
 export type InvoiceProfile = {
   fullName: string
   address: string

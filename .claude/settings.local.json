@@ -8,7 +8,9 @@
       "Bash(npm run build:*)",
       "Bash(git add:*)",
       "Bash(git commit:*)",
-      "Bash(git push:*)"
+      "Bash(git push:*)",
+      "Bash(ssh -i ~/.ssh/hostinger_deploy -p 65002 -o StrictHostKeyChecking=no u673267555@153.92.9.238 \"cd /home/u673267555/domains/invairo.com.au/nodejs && node my-saas/server/src/app.js 2>&1 | head -20 &sleep 3 && kill %1 2>/dev/null; true\")",
+      "Bash(ssh -i ~/.ssh/hostinger_deploy -p 65002 -o StrictHostKeyChecking=no u673267555@153.92.9.238 \"/opt/alt/alt-nodejs22/root/bin/node my-saas/server/src/app.js 2>&1 &:*)"
     ]
   }
 }

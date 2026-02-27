@@ -1,4 +1,4 @@
-import type { Client, ClientDraft, InvoiceProfile, Settings, Shift } from './types'
+import type { Client, ClientDraft, InvoiceProfile, Product, ProductDraft, Settings, Shift } from './types'
 
 const API_URL = import.meta.env.VITE_API_URL || ''
 
@@ -193,6 +193,33 @@ export const api = {
 
   async deleteClient(id: number): Promise<void> {
     await fetchAuth(`${API_URL}/api/clients/${id}`, {
+      method: 'DELETE',
+    })
+  },
+
+  // Products
+  async getProducts(): Promise<Product[]> {
+    const res = await fetchAuth(`${API_URL}/api/products`)
+    return res.json()
+  },
+
+  async createProduct(draft: ProductDraft): Promise<{ id: number }> {
+    const res = await fetchAuth(`${API_URL}/api/products`, {
+      method: 'POST',
+      body: JSON.stringify(draft),
+    })
+    return res.json()
+  },
+
+  async updateProduct(id: number, draft: ProductDraft): Promise<void> {
+    await fetchAuth(`${API_URL}/api/products/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(draft),
+    })
+  },
+
+  async deleteProduct(id: number): Promise<void> {
+    await fetchAuth(`${API_URL}/api/products/${id}`, {
       method: 'DELETE',
     })
   },
