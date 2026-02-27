@@ -39,7 +39,9 @@ const emptyForm = (): ShiftForm => {
 }
 
 function formatShortDate(value: string) {
+  if (!value) return ''
   const date = new Date(`${value}T00:00:00`)
+  if (isNaN(date.getTime())) return value
   const todayKey = toLocalDateKey(new Date())
   const yesterdayKey = toLocalDateKey(new Date(Date.now() - 86400000))
   if (value === todayKey) return 'Today'
@@ -81,7 +83,9 @@ const DEFAULT_INVOICE_PROFILE: InvoiceProfile = {
 }
 
 function formatDate(value: string) {
+  if (!value) return ''
   const date = new Date(`${value}T00:00:00`)
+  if (isNaN(date.getTime())) return value
   return new Intl.DateTimeFormat('en-AU', {
     day: 'numeric',
     month: 'long',
