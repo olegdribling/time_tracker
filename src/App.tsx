@@ -946,6 +946,10 @@ function App() {
   }
 
   const openAddProduct = () => {
+    if ((billingPlan === 'trial' || billingPlan === 'solo') && products.length >= 1) {
+      setIsUpgradeModalOpen(true)
+      return
+    }
     setEditingProductId(null)
     setProductDraft({ name: '', price: 0 })
     setIsProductModalOpen(true)
