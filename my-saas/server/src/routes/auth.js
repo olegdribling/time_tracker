@@ -6,7 +6,7 @@ const { Resend } = require('resend')
 const pool = require('../db')
 require('dotenv').config()
 
-const resend = new Resend(process.env.RESEND_API_KEY)
+const getResend = () => new Resend(process.env.RESEND_API_KEY)
 
 const router = express.Router()
 
@@ -138,7 +138,7 @@ router.post('/forgot-password', async (req, res) => {
     const appUrl = process.env.APP_URL || 'https://invairo.com.au'
     const resetLink = `${appUrl}/reset-password?token=${token}`
 
-    await resend.emails.send({
+    await getResend().emails.send({
       from: 'noreply@invairo.com.au',
       to: email,
       subject: 'Reset your password — Invairo',
