@@ -1,6 +1,6 @@
 const express = require('express')
 const router = express.Router()
-const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY)
+const stripe = process.env.STRIPE_SECRET_KEY ? require('stripe')(process.env.STRIPE_SECRET_KEY) : null
 const pool = require('../db')
 const authMiddleware = require('../middleware/auth')
 

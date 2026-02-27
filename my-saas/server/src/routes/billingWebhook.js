@@ -1,4 +1,4 @@
-const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY)
+const stripe = process.env.STRIPE_SECRET_KEY ? require('stripe')(process.env.STRIPE_SECRET_KEY) : null
 const pool = require('../db')
 
 // Stripe 2026-01-28.clover API returns timestamps as ISO strings; older versions use Unix ints
@@ -9,6 +9,7 @@ function toDate(value) {
 }
 
 module.exports = async (req, res) => {
+  if (!stripe) return res.status(503).json({ error: 'Billing not configured' })
   const sig = req.headers['stripe-signature']
 
   console.log('[Webhook] Request received')
