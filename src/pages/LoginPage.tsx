@@ -1,9 +1,10 @@
 import { useState } from 'react'
-import { useNavigate, Link } from 'react-router-dom'
+import { useNavigate, Link, useSearchParams } from 'react-router-dom'
 import { api } from '../api'
 
 export function LoginPage() {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
@@ -32,6 +33,10 @@ export function LoginPage() {
         <h1 className="auth-title">Welcome back</h1>
         <p className="auth-subtitle">Sign in to your account</p>
 
+        {searchParams.get('reset') === '1' && (
+          <p className="auth-success">Password updated! You can now sign in.</p>
+        )}
+
         <div className="auth-field">
           <label className="auth-label">Email</label>
           <input
@@ -58,6 +63,10 @@ export function LoginPage() {
         {error && <p className="auth-error">{error}</p>}
 
         <button className="auth-btn" onClick={handleLogin}>Sign in</button>
+
+        <p className="auth-footer">
+          <Link to="/forgot-password">Forgot password?</Link>
+        </p>
 
         <p className="auth-footer">
           Don't have an account? <Link to="/register">Create one</Link>

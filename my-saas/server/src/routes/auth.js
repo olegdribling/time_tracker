@@ -2,8 +2,11 @@ const express = require('express')
 const bcrypt = require('bcryptjs')
 const jwt = require('jsonwebtoken')
 const crypto = require('crypto')
+const { Resend } = require('resend')
 const pool = require('../db')
 require('dotenv').config()
+
+const resend = new Resend(process.env.RESEND_API_KEY)
 
 const router = express.Router()
 
@@ -106,6 +109,79 @@ router.post('/logout', async (req, res) => {
       const hash = hashToken(refreshToken)
       await pool.query('DELETE FROM refresh_tokens WHERE token_hash=$1', [hash])
     }
+    res.json({ ok: true })
+  } catch (err) {
+    console.error(err)
+    res.status(500).json({ error: 'Ошибка сервера' })
+  }
+})
+
+// Запрос сброса пароля
+router.post('/forgot-password', async (req, res) => {
+  const { email } = req.body
+  if (!email) return res.status(400).json({ error: 'Email required' })
+  try {
+    const result = await pool.query('SELECT id FROM users WHERE email = $1', [email])
+    // Не раскрываем существование email — всегда OK
+    if (result.rows.length === 0) return res.json({ ok: true })
+
+    const userId = result.rows[0].id
+    const token = crypto.randomBytes(32).toString('hex')
+    const hash = crypto.createHash('sha256').update(token).digest('hex')
+
+    await pool.query(
+      `INSERT INTO password_reset_tokens (user_id, token_hash, expires_at)
+       VALUES ($1, $2, NOW() + INTERVAL '1 hour')`,
+      [userId, hash]
+    )
+
+    const appUrl = process.env.APP_URL || 'https://invairo.com.au'
+    const resetLink = `${appUrl}/reset-password?token=${token}`
+
+    await resend.emails.send({
+      from: 'noreply@invairo.com.au',
+      to: email,
+      subject: 'Reset your password — Invairo',
+      html: `
+        <div style="font-family:sans-serif;max-width:480px;margin:0 auto">
+          <h2 style="color:#1a2b42">Reset your password</h2>
+          <p>We received a request to reset the password for your Invairo account.</p>
+          <p>Click the button below to set a new password. This link expires in <strong>1 hour</strong>.</p>
+          <a href="${resetLink}" style="display:inline-block;margin:16px 0;padding:12px 24px;background:#1a2b42;color:#fff;border-radius:8px;text-decoration:none;font-weight:600">
+            Reset Password
+          </a>
+          <p style="color:#666;font-size:13px">If you didn't request this, you can safely ignore this email.</p>
+          <hr style="border:none;border-top:1px solid #eee;margin:24px 0"/>
+          <p style="color:#aaa;font-size:12px">Invairo · invairo.com.au</p>
+        </div>
+      `,
+    })
+
+    res.json({ ok: true })
+  } catch (err) {
+    console.error(err)
+    res.status(500).json({ error: 'Ошибка сервера' })
+  }
+})
+
+// Сброс пароля по токену
+router.post('/reset-password', async (req, res) => {
+  const { token, password } = req.body
+  if (!token || !password) return res.status(400).json({ error: 'Token and password required' })
+  if (password.length < 6) return res.status(400).json({ error: 'Password must be at least 6 characters' })
+  try {
+    const hash = crypto.createHash('sha256').update(token).digest('hex')
+    const result = await pool.query(
+      `SELECT * FROM password_reset_tokens WHERE token_hash=$1 AND expires_at > NOW()`,
+      [hash]
+    )
+    if (!result.rows[0]) return res.status(400).json({ error: 'Invalid or expired reset link' })
+
+    const { user_id } = result.rows[0]
+    const passwordHash = await bcrypt.hash(password, 10)
+    await pool.query('UPDATE users SET password_hash=$1 WHERE id=$2', [passwordHash, user_id])
+    await pool.query('DELETE FROM password_reset_tokens WHERE token_hash=$1', [hash])
+
     res.json({ ok: true })
   } catch (err) {
     console.error(err)
