@@ -334,19 +334,27 @@ function App() {
   useEffect(() => {
     let cancelled = false
     ;(async () => {
+      const [shiftsRes, settingsRes, invoiceRes, meRes, clientsRes, billingRes] = await Promise.allSettled([
+        api.getShifts(),
+        api.getSettings(),
+        api.getInvoiceProfile(),
+        api.me(),
+        api.getClients(),
+        api.getBillingStatus(),
+      ])
+
+      if (cancelled) return
+
+      const shiftRows  = shiftsRes.status  === 'fulfilled' ? shiftsRes.value  : []
+      const settingsRow = settingsRes.status === 'fulfilled' ? settingsRes.value : null
+      const invoiceRow  = invoiceRes.status  === 'fulfilled' ? invoiceRes.value  : null
+      const meRow       = meRes.status       === 'fulfilled' ? meRes.value       : null
+      const clientRows  = clientsRes.status  === 'fulfilled' ? clientsRes.value  : []
+      const billingRow  = billingRes.status  === 'fulfilled' ? billingRes.value  : null
+
+      if (meRow?.email) setUserEmail(meRow.email)
+
       try {
-        const [shiftRows, settingsRow, invoiceRow, meRow, clientRows, billingRow] = await Promise.all([
-          api.getShifts(),
-          api.getSettings(),
-          api.getInvoiceProfile(),
-          api.me(),
-          api.getClients(),
-          api.getBillingStatus(),
-        ])
-        if (meRow?.email) setUserEmail(meRow.email)
-
-        if (cancelled) return
-
         if (settingsRow) {
           const merged = {
             ...DEFAULT_SETTINGS,
