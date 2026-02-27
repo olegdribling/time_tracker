@@ -8,6 +8,7 @@
     "build": "tsc -b && vite build",
     "postinstall": "npm run build && cd my-saas/server && npm install",
     "start": "node my-saas/server/src/app.js",
+    "deploy": "npm run build && git add -A && git commit -m \"Deploy $(date +'%Y-%m-%d %H:%M')\" && git push",
     "lint": "eslint .",
     "test": "vitest",
     "preview": "vite preview"

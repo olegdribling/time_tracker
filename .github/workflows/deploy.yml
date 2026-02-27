@@ -1,0 +1,23 @@
+name: Deploy to Hostinger
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: SSH deploy
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: 153.92.9.238
+          port: 65002
+          username: u673267555
+          key: ${{ secrets.HOSTINGER_SSH_KEY }}
+          script: |
+            cd ~/domains/invairo.com.au/nodejs
+            git pull
+            rm -rf dist
+            git checkout HEAD -- dist
+            touch tmp/restart.txt
