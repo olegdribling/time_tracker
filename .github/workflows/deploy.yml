@@ -20,4 +20,7 @@ jobs:
             git pull
             rm -rf dist
             git checkout HEAD -- dist
+            cp /home/u673267555/domains/invairo.com.au/public_html/.builds/config/.env .env.hostinger
+            grep -v '^PORT=' .env.hostinger | grep -v '^VITE_API_URL=' > .env
+            rm .env.hostinger
             touch tmp/restart.txt
