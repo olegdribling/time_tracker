@@ -2,6 +2,10 @@ const express = require('express')
 const cors = require('cors')
 const path = require('path')
 require('dotenv').config()
+// Fallback: load env from Hostinger build config if DATABASE_URL not set (survives git clean -fdx)
+if (!process.env.DATABASE_URL) {
+  require('dotenv').config({ path: '/home/u673267555/domains/invairo.com.au/public_html/.builds/config/.env' })
+}
 
 const app = express()
 
