@@ -2608,7 +2608,7 @@ function App() {
                   type="number"
                   min="0"
                   step="0.01"
-                  value={productDraft.price}
+                  value={productDraft.price || ''}
                   onChange={e => setProductDraft(prev => ({ ...prev, price: parseFloat(e.target.value) || 0 }))}
                 />
               </label>
@@ -2748,7 +2748,7 @@ function App() {
                         </select>
                       </div>
                       <div style={{ display: 'flex', gap: 10 }}>
-                        <div className="field" style={{ flex: 1 }}>
+                        <div className="field" style={{ flex: 1, minWidth: 0 }}>
                           <span className="label">Quantity</span>
                           <input
                             type="number"
@@ -2758,7 +2758,7 @@ function App() {
                             onChange={e => setInvBPItems(prev => prev.map(i => i.id === item.id ? { ...i, quantity: e.target.value } : i))}
                           />
                         </div>
-                        <div className="field" style={{ flex: 1 }}>
+                        <div className="field" style={{ flex: 1, minWidth: 0 }}>
                           <span className="label">Unit Price</span>
                           <input
                             type="number"
