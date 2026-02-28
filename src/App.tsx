@@ -936,6 +936,7 @@ function App() {
   }
 
   const saveClient = async () => {
+    if (!clientDraft.name.trim()) { alert('Client name is required.'); return }
     try {
       let newClientId: number | null = null
       if (editingClientId !== null) {
@@ -1008,6 +1009,7 @@ function App() {
   }
 
   const saveProduct = async () => {
+    if (!productDraft.name.trim()) { alert('Product name is required.'); return }
     try {
       if (editingProductId !== null) {
         await api.updateProduct(editingProductId, productDraft)
@@ -1199,8 +1201,10 @@ function App() {
   }
 
   const generateInvoiceByTime = async () => {
-    const hours = parseFloat(invBTForm.hours) || 0
-    const rate = parseFloat(invBTForm.rate) || 0
+    const hours = parseFloat(invBTForm.hours)
+    const rate = parseFloat(invBTForm.rate)
+    if (!hours || hours <= 0) { alert('Please enter a valid number of hours.'); return }
+    if (!rate || rate <= 0) { alert('Please enter a valid rate.'); return }
     const subtotal = hours * rate
     const gst = invoiceProfile.chargeGst ? subtotal * 0.1 : 0
     const total = subtotal + gst

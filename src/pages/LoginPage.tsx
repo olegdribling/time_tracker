@@ -11,6 +11,8 @@ export function LoginPage() {
 
   const handleLogin = async () => {
     setError('')
+    if (!email.trim()) return setError('Please enter your email.')
+    if (!password) return setError('Please enter your password.')
     const data = await api.login(email, password)
     if (data.error) return setError(data.error)
     localStorage.setItem('tt_token', data.token)

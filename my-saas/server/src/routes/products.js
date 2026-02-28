@@ -39,11 +39,13 @@ router.post('/', async (req, res) => {
 })
 
 router.put('/:id', async (req, res) => {
+  const id = parseInt(req.params.id, 10)
+  if (!id) return res.status(400).json({ error: 'Invalid id' })
   const { name, price } = req.body
   try {
     await pool.query(
       `UPDATE products SET name=$1, price=$2, updated_at=NOW() WHERE id=$3 AND user_id=$4`,
-      [name || '', parseFloat(price) || 0, req.params.id, req.userId]
+      [name || '', parseFloat(price) || 0, id, req.userId]
     )
     res.json({ ok: true })
   } catch (err) {
@@ -53,8 +55,10 @@ router.put('/:id', async (req, res) => {
 })
 
 router.delete('/:id', async (req, res) => {
+  const id = parseInt(req.params.id, 10)
+  if (!id) return res.status(400).json({ error: 'Invalid id' })
   try {
-    await pool.query('DELETE FROM products WHERE id=$1 AND user_id=$2', [req.params.id, req.userId])
+    await pool.query('DELETE FROM products WHERE id=$1 AND user_id=$2', [id, req.userId])
     res.json({ ok: true })
   } catch (err) {
     console.error(err)

@@ -10,6 +10,8 @@ export function RegisterPage() {
 
   const handleRegister = async () => {
     setError('')
+    if (!email.trim()) return setError('Please enter your email.')
+    if (password.length < 6) return setError('Password must be at least 6 characters.')
     const data = await api.register(email, password)
     if (data.error) return setError(data.error)
     localStorage.setItem('tt_token', data.token)

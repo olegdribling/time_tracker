@@ -42,12 +42,14 @@ router.post('/', async (req, res) => {
 })
 
 router.put('/:id', async (req, res) => {
+  const id = parseInt(req.params.id, 10)
+  if (!id) return res.status(400).json({ error: 'Invalid id' })
   const { name, address, abn, email } = req.body
   try {
     await pool.query(
       `UPDATE clients SET full_name=$1, address=$2, abn=$3, email=$4, updated_at=NOW()
        WHERE id=$5 AND user_id=$6`,
-      [name || '', address || '', abn || '', email || '', req.params.id, req.userId]
+      [name || '', address || '', abn || '', email || '', id, req.userId]
     )
     res.json({ ok: true })
   } catch (err) {
@@ -57,8 +59,10 @@ router.put('/:id', async (req, res) => {
 })
 
 router.delete('/:id', async (req, res) => {
+  const id = parseInt(req.params.id, 10)
+  if (!id) return res.status(400).json({ error: 'Invalid id' })
   try {
-    await pool.query('DELETE FROM clients WHERE id=$1 AND user_id=$2', [req.params.id, req.userId])
+    await pool.query('DELETE FROM clients WHERE id=$1 AND user_id=$2', [id, req.userId])
     res.json({ ok: true })
   } catch (err) {
     console.error(err)
