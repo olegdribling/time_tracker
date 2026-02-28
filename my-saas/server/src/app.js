@@ -35,9 +35,17 @@ app.get('/api/health', (_req, res) => {
 })
 
 // Serve built frontend
+// index.html must never be cached — JS/CSS assets have content hashes so can be cached
 const distPath = path.join(__dirname, '../../../dist')
-app.use(express.static(distPath))
+app.use(express.static(distPath, {
+  setHeaders: (res, filePath) => {
+    if (filePath.endsWith('.html')) {
+      res.set('Cache-Control', 'no-store')
+    }
+  },
+}))
 app.get('/{*path}', (_req, res) => {
+  res.set('Cache-Control', 'no-store')
   res.sendFile(path.join(distPath, 'index.html'))
 })
 
