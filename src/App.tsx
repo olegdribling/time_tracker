@@ -310,6 +310,7 @@ function App() {
   const [calendarMonth, setCalendarMonth] = useState(() => toMonthKey(new Date()))
   const [calendarSelectedDate, setCalendarSelectedDate] = useState(() => toLocalDateKey(new Date()))
   const [openMenuShiftId, setOpenMenuShiftId] = useState<string | null>(null)
+  const [openMenuProductId, setOpenMenuProductId] = useState<number | null>(null)
   const [isFabOpen, setIsFabOpen] = useState(false)
   const [fabInvoiceOpen, setFabInvoiceOpen] = useState(false)
   const [isInvoiceByTimeOpen, setIsInvoiceByTimeOpen] = useState(false)
@@ -2140,18 +2141,26 @@ function App() {
               <div className="report-row empty">No products yet. Add your first product.</div>
             ) : (
               products.map(product => (
-                <div key={product.id} className="shift-card" style={{ cursor: 'pointer' }} onClick={() => openEditProduct(product)}>
+                <div key={product.id} className="shift-card" onClick={() => setOpenMenuProductId(null)}>
                   <div className="shift-card__header">
                     <div>
                       <div className="shift-date">{product.name}</div>
                       <div className="label" style={{ marginTop: 2 }}>${product.price.toFixed(2)}</div>
                     </div>
-                    <button
-                      className="ghost-button danger"
-                      onClick={e => { e.stopPropagation(); handleDeleteProduct(product.id) }}
-                    >
-                      Delete
-                    </button>
+                    <div style={{ position: 'relative' }}>
+                      <button
+                        className="shift-menu-btn"
+                        onClick={e => { e.stopPropagation(); setOpenMenuProductId(openMenuProductId === product.id ? null : product.id) }}
+                      >
+                        <MoreVertical size={16} />
+                      </button>
+                      {openMenuProductId === product.id && (
+                        <div className="shift-context-menu">
+                          <button className="shift-context-item" onClick={() => { openEditProduct(product); setOpenMenuProductId(null) }}>Edit</button>
+                          <button className="shift-context-item danger" onClick={() => { handleDeleteProduct(product.id); setOpenMenuProductId(null) }}>Delete</button>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               ))
