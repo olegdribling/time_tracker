@@ -300,6 +300,7 @@ function App() {
   const [invoiceTotalInput, setInvoiceTotalInput] = useState('0')
   const [nextInvoiceNumberInput, setNextInvoiceNumberInput] = useState('1')
   const importInputRef = useRef<HTMLInputElement | null>(null)
+  const pendingDeleteIds = useRef<Set<string>>(new Set())
   const [userEmail, setUserEmail] = useState<string>('')
   const [editingId, setEditingId] = useState<string | null>(null)
   const [activeView, setActiveView] = useState<'home' | 'reports' | 'calendar' | 'clients' | 'products'>('home')
@@ -422,7 +423,7 @@ function App() {
     const shiftRows = shiftsRes.status === 'fulfilled' && Array.isArray(shiftsRes.value) ? shiftsRes.value : null
     const clientRows = clientsRes.status === 'fulfilled' && Array.isArray(clientsRes.value) ? clientsRes.value : null
     const productRows = productsRes.status === 'fulfilled' && Array.isArray(productsRes.value) ? productsRes.value : null
-    if (shiftRows !== null) setShifts(shiftRows)
+    if (shiftRows !== null) setShifts(shiftRows.filter(s => !pendingDeleteIds.current.has(s.id)))
     if (clientRows !== null) setClients(clientRows)
     if (productRows !== null) setProducts(productRows)
   }, [])
@@ -1044,6 +1045,7 @@ function App() {
     const ok = window.confirm('Delete this shift?')
     if (!ok) return
     const previous = shifts
+    pendingDeleteIds.current.add(id)
     setShifts((prev) => prev.filter((shift) => shift.id !== id))
     try {
       await api.deleteShift(id)
@@ -1051,6 +1053,8 @@ function App() {
       setShifts(previous)
       alert('Failed to delete shift. Please try again.')
       console.error('Failed to delete shift', error)
+    } finally {
+      pendingDeleteIds.current.delete(id)
     }
   }
 

@@ -125,23 +125,26 @@ export const api = {
   },
 
   async createShift(shift: Shift) {
-    await fetchAuth(`${API_URL}/api/shifts`, {
+    const res = await fetchAuth(`${API_URL}/api/shifts`, {
       method: 'POST',
       body: JSON.stringify(shift),
     })
+    if (!res.ok) throw new Error(`Failed to create shift: ${res.status}`)
   },
 
   async updateShift(shift: Shift) {
-    await fetchAuth(`${API_URL}/api/shifts/${shift.id}`, {
+    const res = await fetchAuth(`${API_URL}/api/shifts/${shift.id}`, {
       method: 'PUT',
       body: JSON.stringify(shift),
     })
+    if (!res.ok) throw new Error(`Failed to update shift: ${res.status}`)
   },
 
   async deleteShift(id: string) {
-    await fetchAuth(`${API_URL}/api/shifts/${id}`, {
+    const res = await fetchAuth(`${API_URL}/api/shifts/${id}`, {
       method: 'DELETE',
     })
+    if (!res.ok) throw new Error(`Failed to delete shift: ${res.status}`)
   },
 
   // Settings
