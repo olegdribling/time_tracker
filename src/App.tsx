@@ -3,17 +3,22 @@ import { useNavigate } from 'react-router-dom'
 import './App.css'
 import {
   Banknote,
+  BarChart2,
   ChevronLeft,
   ChevronRight,
-  BarChart2,
   Clock,
   Coffee,
+  Download,
   FileText,
   Home,
+  LogOut,
   MoreVertical,
   Package,
   Plus,
+  Settings as SettingsIcon,
+  Upload,
   User,
+  Users,
   Wrench,
   X,
 } from 'lucide-react'
@@ -1420,15 +1425,15 @@ function App() {
               <button className="menu-panel-close" onClick={() => setIsMenuOpen(false)}><X size={18} /></button>
             </div>
             <div className="menu-panel-items">
-              <button className="menu-panel-item" onClick={openClients}>Clients</button>
-              <button className="menu-panel-item" onClick={openProducts}>Products</button>
-              <button className="menu-panel-item" onClick={openSettings}>Settings</button>
-              <button className="menu-panel-item" onClick={openInvoiceModal}>Invoice details</button>
-              <button className="menu-panel-item" onClick={exportData}>Export data</button>
-              <button className="menu-panel-item" onClick={triggerImport}>Import data</button>
-              <button className="menu-panel-item" onClick={() => { setIsMenuOpen(false); navigate('/app/billing') }}>Subscription</button>
+              <button className="menu-panel-item" onClick={openClients}><Users size={18} />Clients</button>
+              <button className="menu-panel-item" onClick={openProducts}><Package size={18} />Products</button>
+              <button className="menu-panel-item" onClick={openSettings}><SettingsIcon size={18} />Settings</button>
+              <button className="menu-panel-item" onClick={openInvoiceModal}><FileText size={18} />Invoice details</button>
+              <button className="menu-panel-item" onClick={exportData}><Download size={18} />Export data</button>
+              <button className="menu-panel-item" onClick={triggerImport}><Upload size={18} />Import data</button>
+              <button className="menu-panel-item" onClick={() => { setIsMenuOpen(false); navigate('/app/billing') }}><Banknote size={18} />Subscription</button>
               <hr className="menu-panel-divider" />
-              <button className="menu-panel-item danger" onClick={handleLogout}>Log out</button>
+              <button className="menu-panel-item danger" onClick={handleLogout}><LogOut size={18} />Log out</button>
             </div>
           </div>
         </>
