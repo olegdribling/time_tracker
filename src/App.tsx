@@ -359,13 +359,13 @@ function App() {
 
       if (cancelled) return
 
-      const shiftRows   = shiftsRes.status   === 'fulfilled' ? shiftsRes.value   : []
+      const shiftRows   = shiftsRes.status   === 'fulfilled' && Array.isArray(shiftsRes.value)   ? shiftsRes.value   : []
       const settingsRow = settingsRes.status === 'fulfilled' ? settingsRes.value : null
       const invoiceRow  = invoiceRes.status  === 'fulfilled' ? invoiceRes.value  : null
       const meRow       = meRes.status       === 'fulfilled' ? meRes.value       : null
-      const clientRows  = clientsRes.status  === 'fulfilled' ? clientsRes.value  : []
+      const clientRows  = clientsRes.status  === 'fulfilled' && Array.isArray(clientsRes.value) ? clientsRes.value : []
       const billingRow  = billingRes.status  === 'fulfilled' ? billingRes.value  : null
-      const productRows = productsRes.status === 'fulfilled' ? productsRes.value : []
+      const productRows = productsRes.status === 'fulfilled' && Array.isArray(productsRes.value) ? productsRes.value : []
 
       if (meRow?.email) setUserEmail(meRow.email)
 
