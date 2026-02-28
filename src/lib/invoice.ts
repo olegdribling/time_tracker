@@ -3,13 +3,6 @@ import { saveAs } from 'file-saver'
 import type { InvoiceProfile } from '../types'
 import type { PeriodRange } from './calculations'
 
-const formatDate = (value: string) =>
-  new Intl.DateTimeFormat('en-AU', {
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-  }).format(new Date(`${value}T00:00:00`))
-
 const formatShortDate = (value: string) =>
   new Intl.DateTimeFormat('en-AU', {
     day: '2-digit',
@@ -120,7 +113,6 @@ export async function generateInvoicePdf(params: {
   drawText('TAX Invoice', rightX, rightStartY, { bold: true, size: 14  })
   drawText(`Invoice # INV-${String(invoiceNumber).padStart(3, '0')}`, rightX, rightStartY - line * 1.2, { bold: true })
   drawText(`Date  ${formatShortDate(period.end)}`, rightX, rightStartY - line * 2.4, { bold: true })
-  drawText(`Period  ${formatDate(period.start)} — ${formatDate(period.end)}`, rightX, rightStartY - line * 3.6, { size: 10 })
 
   // Bill to
   y -= line * 4
