@@ -2552,173 +2552,159 @@ function App() {
         <div className="modal-backdrop" onClick={() => setIsInvoiceByProductsOpen(false)}>
           <div className="modal" onClick={e => e.stopPropagation()}>
             <div className="inv-header">
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <Package size={20} color="#fff" />
+              <div className="inv-header-left">
+                <Package size={20} />
                 <span className="inv-header-title">Create Invoice</span>
               </div>
               <button className="inv-close-btn" onClick={() => setIsInvoiceByProductsOpen(false)}><X size={18} /></button>
             </div>
 
-            <div style={{ padding: '0 0 8px' }}>
-              <div className="inv-row">
-                <div className="inv-field">
-                  <span className="label">Invoice #</span>
-                  <input
-                    type="text"
-                    className="input"
-                    value={`INV-${String(invBPForm.number).padStart(3, '0')}`}
-                    onChange={e => {
-                      const raw = e.target.value.replace(/^INV-0*/, '').replace(/\D/g, '')
-                      setInvBPForm(prev => ({ ...prev, number: raw || '1' }))
-                    }}
-                  />
+            <div className="form-grid">
+              <div>
+                <div className="inv-section-title">INVOICE DETAILS</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 14, marginTop: 14 }}>
+                  <div className="field">
+                    <span className="label">Invoice Number</span>
+                    <input
+                      type="text"
+                      value={`INV-${String(invBPForm.number).padStart(3, '0')}`}
+                      onChange={e => {
+                        const raw = e.target.value.replace(/^INV-0*/, '').replace(/\D/g, '')
+                        setInvBPForm(prev => ({ ...prev, number: raw || '1' }))
+                      }}
+                    />
+                  </div>
+                  <div className="field">
+                    <span className="label">Date</span>
+                    <button
+                      type="button"
+                      className="form-field-btn"
+                      onClick={() => setInvBPCalendarOpen(prev => !prev)}
+                    >
+                      {formatDate(invBPForm.date)}
+                    </button>
+                    {invBPCalendarOpen && (
+                      <div className="form-calendar">
+                        <div className="form-calendar-header">
+                          <button type="button" className="nav-btn" onClick={() => setInvBPCalendarMonth(prev => shiftMonthKey(prev, -1))}><ChevronLeft size={16} /></button>
+                          <span className="form-calendar-title">{invBPCalendarLabel}</span>
+                          <button type="button" className="nav-btn" onClick={() => setInvBPCalendarMonth(prev => shiftMonthKey(prev, 1))}><ChevronRight size={16} /></button>
+                        </div>
+                        <div className="calendar-weekdays">
+                          {calendarWeekLabels.map(l => <div key={l} className="calendar-weekday">{l}</div>)}
+                        </div>
+                        <div className="calendar-grid">
+                          {invBPCalendarCells.map((cell, idx) => {
+                            if (!cell.date || !cell.day) return <div key={`invbp-${idx}`} className="calendar-day-empty" />
+                            const isSelected = cell.date === invBPForm.date
+                            const isToday = cell.date === todayIso
+                            return (
+                              <button
+                                key={cell.date}
+                                type="button"
+                                className={`calendar-day${isSelected ? ' is-selected' : ''}${isToday ? ' is-today' : ''}`}
+                                onClick={() => { setInvBPForm(prev => ({ ...prev, date: cell.date! })); setInvBPCalendarOpen(false) }}
+                              >
+                                <span className="calendar-day-number">{cell.day}</span>
+                              </button>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  <div className="field">
+                    <div className="field-label-row">
+                      <span className="label">Client</span>
+                      <button type="button" className="add-action-btn" onClick={() => openAddClientFromInvoice('invoiceByProducts')}>+ Add Client</button>
+                    </div>
+                    <select
+                      value={invBPForm.clientId ?? ''}
+                      onChange={e => setInvBPForm(prev => ({ ...prev, clientId: e.target.value ? Number(e.target.value) : null }))}
+                    >
+                      {clients.length === 0 && <option value="" disabled>Add new Client</option>}
+                      {clients.length > 1 && <option value="">Select Client</option>}
+                      {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                    </select>
+                  </div>
                 </div>
-                <div className="inv-field">
-                  <span className="label">Date</span>
+              </div>
+
+              <div>
+                <div className="inv-section-title-row">
+                  <div className="inv-section-title">PRODUCTS</div>
                   <button
                     type="button"
-                    className="form-field-btn"
-                    onClick={() => setInvBPCalendarOpen(prev => !prev)}
+                    className="add-action-btn"
+                    onClick={() => {
+                      const newId = invBPItems.length > 0 ? Math.max(...invBPItems.map(i => i.id)) + 1 : 1
+                      setInvBPItems(prev => [...prev, { id: newId, productId: null, description: '', quantity: '1', unitPrice: '0' }])
+                    }}
                   >
-                    {formatDate(invBPForm.date)}
+                    + Add Item
                   </button>
-                  {invBPCalendarOpen && (
-                    <div className="form-calendar">
-                      <div className="form-calendar-header">
-                        <button type="button" className="nav-btn" onClick={() => setInvBPCalendarMonth(prev => shiftMonthKey(prev, -1))}><ChevronLeft size={16} /></button>
-                        <span className="form-calendar-title">{invBPCalendarLabel}</span>
-                        <button type="button" className="nav-btn" onClick={() => setInvBPCalendarMonth(prev => shiftMonthKey(prev, 1))}><ChevronRight size={16} /></button>
-                      </div>
-                      <div className="calendar-weekdays">
-                        {calendarWeekLabels.map(l => <div key={l} className="calendar-weekday">{l}</div>)}
-                      </div>
-                      <div className="calendar-grid">
-                        {invBPCalendarCells.map((cell, idx) => {
-                          if (!cell.date || !cell.day) return <div key={`invbp-${idx}`} className="calendar-day-empty" />
-                          const isSelected = cell.date === invBPForm.date
-                          const isToday = cell.date === todayIso
-                          return (
-                            <button
-                              key={cell.date}
-                              type="button"
-                              className={`calendar-day${isSelected ? ' is-selected' : ''}${isToday ? ' is-today' : ''}`}
-                              onClick={() => { setInvBPForm(prev => ({ ...prev, date: cell.date! })); setInvBPCalendarOpen(false) }}
-                            >
-                              <span className="calendar-day-number">{cell.day}</span>
-                            </button>
-                          )
-                        })}
-                      </div>
-                    </div>
-                  )}
                 </div>
-              </div>
-
-              <div className="inv-field" style={{ marginTop: 12 }}>
-                <span className="label">Bill To</span>
-                <select
-                  value={invBPForm.clientId ?? ''}
-                  onChange={e => setInvBPForm(prev => ({ ...prev, clientId: e.target.value ? Number(e.target.value) : null }))}
-                >
-                  <option value="">— Select client —</option>
-                  {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                </select>
-                <button
-                  type="button"
-                  className="add-action-btn"
-                  style={{ marginTop: 6 }}
-                  onClick={() => openAddClientFromInvoice('invoiceByProducts')}
-                >
-                  + Add Client
-                </button>
-              </div>
-
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 16 }}>
-                <span className="label">Items</span>
-                <button
-                  type="button"
-                  className="add-action-btn"
-                  onClick={() => {
-                    const newId = invBPItems.length > 0 ? Math.max(...invBPItems.map(i => i.id)) + 1 : 1
-                    setInvBPItems(prev => [...prev, { id: newId, productId: null, description: '', quantity: '1', unitPrice: '0' }])
-                  }}
-                >
-                  + Add Item
-                </button>
-              </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 14 }}>
-                {invBPItems.map((item, idx) => (
-                  <div key={item.id} className="inv-line-item-card">
-                    <div className="inv-item-title-row">
-                      <div className="inv-item-title">Item {idx + 1}</div>
-                      {invBPItems.length > 1 && (
-                        <button
-                          type="button"
-                          className="ghost-button danger"
-                          style={{ padding: '2px 8px', fontSize: 12 }}
-                          onClick={() => setInvBPItems(prev => prev.filter(i => i.id !== item.id))}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 14 }}>
+                  {invBPItems.map((item, idx) => (
+                    <div key={item.id} className="inv-line-item-card">
+                      <div className="inv-item-title-row">
+                        <div className="inv-item-title">Item {idx + 1}</div>
+                        {invBPItems.length > 1 && (
+                          <button
+                            type="button"
+                            className="inv-remove-item-btn"
+                            onClick={() => setInvBPItems(prev => prev.filter(i => i.id !== item.id))}
+                          >
+                            <X size={14} />
+                          </button>
+                        )}
+                      </div>
+                      <div className="field">
+                        <span className="label">Product</span>
+                        <select
+                          value={item.productId ?? ''}
+                          onChange={e => {
+                            const pid = e.target.value ? Number(e.target.value) : null
+                            const found = products.find(p => p.id === pid)
+                            setInvBPItems(prev => prev.map(i => i.id === item.id
+                              ? { ...i, productId: pid, description: found ? found.name : i.description, unitPrice: found ? String(found.price) : i.unitPrice }
+                              : i
+                            ))
+                          }}
                         >
-                          Remove
-                        </button>
-                      )}
+                          <option value="">{products.length === 0 ? 'No products' : '— Select product —'}</option>
+                          {products.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                        </select>
+                      </div>
+                      <div style={{ display: 'flex', gap: 10 }}>
+                        <div className="field" style={{ flex: 1 }}>
+                          <span className="label">Quantity</span>
+                          <input
+                            type="number"
+                            min="0"
+                            step="1"
+                            value={item.quantity}
+                            onChange={e => setInvBPItems(prev => prev.map(i => i.id === item.id ? { ...i, quantity: e.target.value } : i))}
+                          />
+                        </div>
+                        <div className="field" style={{ flex: 1 }}>
+                          <span className="label">Unit Price</span>
+                          <input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={item.unitPrice}
+                            onChange={e => setInvBPItems(prev => prev.map(i => i.id === item.id ? { ...i, unitPrice: e.target.value } : i))}
+                          />
+                        </div>
+                      </div>
+                      <div className="inv-item-amount">
+                        <span>Amount</span>
+                        <strong>${money((parseFloat(item.quantity) || 0) * (parseFloat(item.unitPrice) || 0))}</strong>
+                      </div>
                     </div>
-                    <label className="field">
-                      <span className="label">Product</span>
-                      <select
-                        value={item.productId ?? ''}
-                        onChange={e => {
-                          const pid = e.target.value ? Number(e.target.value) : null
-                          const found = products.find(p => p.id === pid)
-                          setInvBPItems(prev => prev.map(i => i.id === item.id
-                            ? { ...i, productId: pid, description: found ? found.name : i.description, unitPrice: found ? String(found.price) : i.unitPrice }
-                            : i
-                          ))
-                        }}
-                      >
-                        <option value="">{products.length === 0 ? 'No products' : '— Select product —'}</option>
-                        {products.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                      </select>
-                    </label>
-                    <label className="field">
-                      <span className="label">Description</span>
-                      <input
-                        className="input"
-                        type="text"
-                        value={item.description}
-                        onChange={e => setInvBPItems(prev => prev.map(i => i.id === item.id ? { ...i, description: e.target.value } : i))}
-                      />
-                    </label>
-                    <div style={{ display: 'flex', gap: 10 }}>
-                      <label className="field" style={{ flex: 1 }}>
-                        <span className="label">Quantity</span>
-                        <input
-                          className="input"
-                          type="number"
-                          min="0"
-                          step="1"
-                          value={item.quantity}
-                          onChange={e => setInvBPItems(prev => prev.map(i => i.id === item.id ? { ...i, quantity: e.target.value } : i))}
-                        />
-                      </label>
-                      <label className="field" style={{ flex: 1 }}>
-                        <span className="label">Unit Price</span>
-                        <input
-                          className="input"
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          value={item.unitPrice}
-                          onChange={e => setInvBPItems(prev => prev.map(i => i.id === item.id ? { ...i, unitPrice: e.target.value } : i))}
-                        />
-                      </label>
-                    </div>
-                    <div className="inv-item-amount">
-                      <span>Amount</span>
-                      <strong>${money((parseFloat(item.quantity) || 0) * (parseFloat(item.unitPrice) || 0))}</strong>
-                    </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
 
               {(() => {
