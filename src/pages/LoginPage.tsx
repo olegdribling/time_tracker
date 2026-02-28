@@ -27,8 +27,7 @@ export function LoginPage() {
     <div className="auth-page">
       <div className="auth-card">
         <picture className="auth-logo-wrap">
-          <source srcSet="/tt_logo_dark.png" media="(prefers-color-scheme: dark)" />
-          <img src="/tt_logo_light.png" alt="TimeTracker" className="auth-logo-img" />
+          <img src="/invairo_logo_h_dark.png" alt="Invairo" className="auth-logo-img" />
         </picture>
         <h1 className="auth-title">Welcome back</h1>
         <p className="auth-subtitle">Sign in to your account</p>

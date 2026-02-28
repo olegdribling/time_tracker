@@ -12,7 +12,7 @@ export function LandingPage() {
         </a>
         <div className="ld-nav-links">
           <a href="/login" className="ld-nav-link">Log in</a>
-          <a href="/register" className="ld-btn-primary ld-btn-sm">Get started free</a>
+          <a href="/register" className="ld-btn-primary ld-btn-sm">Sign up</a>
         </div>
       </nav>
 
