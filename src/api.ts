@@ -154,10 +154,11 @@ export const api = {
   },
 
   async saveSettings(settings: Settings) {
-    await fetchAuth(`${API_URL}/api/settings`, {
+    const res = await fetchAuth(`${API_URL}/api/settings`, {
       method: 'PUT',
       body: JSON.stringify(settings),
     })
+    if (!res.ok) throw new Error(`Failed to save settings: ${res.status}`)
   },
 
   // Invoice Profile
@@ -167,10 +168,11 @@ export const api = {
   },
 
   async saveInvoiceProfile(profile: InvoiceProfile) {
-    await fetchAuth(`${API_URL}/api/invoice-profile`, {
+    const res = await fetchAuth(`${API_URL}/api/invoice-profile`, {
       method: 'PUT',
       body: JSON.stringify(profile),
     })
+    if (!res.ok) throw new Error(`Failed to save invoice profile: ${res.status}`)
   },
 
   // Clients
@@ -184,20 +186,23 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(draft),
     })
+    if (!res.ok) throw new Error(`Failed to create client: ${res.status}`)
     return res.json()
   },
 
   async updateClient(id: number, draft: ClientDraft): Promise<void> {
-    await fetchAuth(`${API_URL}/api/clients/${id}`, {
+    const res = await fetchAuth(`${API_URL}/api/clients/${id}`, {
       method: 'PUT',
       body: JSON.stringify(draft),
     })
+    if (!res.ok) throw new Error(`Failed to update client: ${res.status}`)
   },
 
   async deleteClient(id: number): Promise<void> {
-    await fetchAuth(`${API_URL}/api/clients/${id}`, {
+    const res = await fetchAuth(`${API_URL}/api/clients/${id}`, {
       method: 'DELETE',
     })
+    if (!res.ok) throw new Error(`Failed to delete client: ${res.status}`)
   },
 
   // Products
@@ -211,20 +216,23 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(draft),
     })
+    if (!res.ok) throw new Error(`Failed to create product: ${res.status}`)
     return res.json()
   },
 
   async updateProduct(id: number, draft: ProductDraft): Promise<void> {
-    await fetchAuth(`${API_URL}/api/products/${id}`, {
+    const res = await fetchAuth(`${API_URL}/api/products/${id}`, {
       method: 'PUT',
       body: JSON.stringify(draft),
     })
+    if (!res.ok) throw new Error(`Failed to update product: ${res.status}`)
   },
 
   async deleteProduct(id: number): Promise<void> {
-    await fetchAuth(`${API_URL}/api/products/${id}`, {
+    const res = await fetchAuth(`${API_URL}/api/products/${id}`, {
       method: 'DELETE',
     })
+    if (!res.ok) throw new Error(`Failed to delete product: ${res.status}`)
   },
 
   // Billing

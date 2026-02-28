@@ -300,7 +300,6 @@ function App() {
   const [invoiceTotalInput, setInvoiceTotalInput] = useState('0')
   const [nextInvoiceNumberInput, setNextInvoiceNumberInput] = useState('1')
   const importInputRef = useRef<HTMLInputElement | null>(null)
-  const pendingDeleteIds = useRef<Set<string>>(new Set())
   const [userEmail, setUserEmail] = useState<string>('')
   const [editingId, setEditingId] = useState<string | null>(null)
   const [activeView, setActiveView] = useState<'home' | 'reports' | 'calendar' | 'clients' | 'products'>('home')
@@ -423,7 +422,7 @@ function App() {
     const shiftRows = shiftsRes.status === 'fulfilled' && Array.isArray(shiftsRes.value) ? shiftsRes.value : null
     const clientRows = clientsRes.status === 'fulfilled' && Array.isArray(clientsRes.value) ? clientsRes.value : null
     const productRows = productsRes.status === 'fulfilled' && Array.isArray(productsRes.value) ? productsRes.value : null
-    if (shiftRows !== null) setShifts(shiftRows.filter(s => !pendingDeleteIds.current.has(s.id)))
+    if (shiftRows !== null) setShifts(shiftRows)
     if (clientRows !== null) setClients(clientRows)
     if (productRows !== null) setProducts(productRows)
   }, [])
@@ -937,47 +936,54 @@ function App() {
   }
 
   const saveClient = async () => {
-    if (editingClientId !== null) {
-      await api.updateClient(editingClientId, clientDraft)
-      setClients(prev => prev.map(c => c.id === editingClientId ? { id: editingClientId, ...clientDraft } : c))
+    try {
+      let newClientId: number | null = null
+      if (editingClientId !== null) {
+        await api.updateClient(editingClientId, clientDraft)
+      } else {
+        const data = await api.createClient(clientDraft)
+        newClientId = data.id
+      }
+      const fresh = await api.getClients()
+      setClients(fresh)
       setIsClientModalOpen(false)
-      setClientReturnContext(null)
-    } else {
-      const data = await api.createClient(clientDraft)
-      if (data.id) {
-        const newClient = { id: data.id, ...clientDraft }
-        setClients(prev => [...prev, newClient])
-        setIsClientModalOpen(false)
+      if (newClientId !== null) {
         // возвращаемся в инвойс-модалку с выбранным клиентом
         if (clientReturnContext === 'invoiceByTime') {
-          setInvBTForm(prev => ({ ...prev, clientId: data.id }))
+          setInvBTForm(prev => ({ ...prev, clientId: newClientId! }))
           setIsInvoiceByTimeOpen(true)
         } else if (clientReturnContext === 'invoiceByServices') {
-          setInvBSForm(prev => ({ ...prev, clientId: data.id }))
+          setInvBSForm(prev => ({ ...prev, clientId: newClientId! }))
           setIsInvoiceByServicesOpen(true)
         } else if (clientReturnContext === 'invoiceByProducts') {
-          setInvBPForm(prev => ({ ...prev, clientId: data.id }))
+          setInvBPForm(prev => ({ ...prev, clientId: newClientId! }))
           setIsInvoiceByProductsOpen(true)
         } else if (clientReturnContext === 'invoiceScreen') {
-          setSelectedClientId(data.id)
+          setSelectedClientId(newClientId)
           setIsInvoiceScreenOpen(true)
         } else if (clientReturnContext === 'shiftForm') {
-          setForm(prev => ({ ...prev, clientId: data.id }))
+          setForm(prev => ({ ...prev, clientId: newClientId! }))
           setIsAddOpen(true)
         }
-        setClientReturnContext(null)
-      } else {
-        setIsClientModalOpen(false)
-        setClientReturnContext(null)
       }
+      setClientReturnContext(null)
+    } catch (error) {
+      alert('Failed to save client. Please try again.')
+      console.error('Failed to save client', error)
     }
   }
 
   const handleDeleteClient = async (id: number) => {
     const ok = window.confirm('Remove this client? This cannot be undone.')
     if (!ok) return
-    await api.deleteClient(id)
-    setClients(prev => prev.filter(c => c.id !== id))
+    try {
+      await api.deleteClient(id)
+      const fresh = await api.getClients()
+      setClients(fresh)
+    } catch (error) {
+      alert('Failed to delete client. Please try again.')
+      console.error('Failed to delete client', error)
+    }
   }
 
   const openAddProduct = () => {
@@ -1002,24 +1008,32 @@ function App() {
   }
 
   const saveProduct = async () => {
-    if (editingProductId !== null) {
-      await api.updateProduct(editingProductId, productDraft)
-      setProducts(prev => prev.map(p => p.id === editingProductId ? { id: editingProductId, ...productDraft } : p))
-      setIsProductModalOpen(false)
-    } else {
-      const data = await api.createProduct(productDraft)
-      if (data.id) {
-        setProducts(prev => [...prev, { id: data.id, ...productDraft }])
-        setIsProductModalOpen(false)
+    try {
+      if (editingProductId !== null) {
+        await api.updateProduct(editingProductId, productDraft)
+      } else {
+        await api.createProduct(productDraft)
       }
+      const fresh = await api.getProducts()
+      setProducts(fresh)
+      setIsProductModalOpen(false)
+    } catch (error) {
+      alert('Failed to save product. Please try again.')
+      console.error('Failed to save product', error)
     }
   }
 
   const handleDeleteProduct = async (id: number) => {
     const ok = window.confirm('Remove this product? This cannot be undone.')
     if (!ok) return
-    await api.deleteProduct(id)
-    setProducts(prev => prev.filter(p => p.id !== id))
+    try {
+      await api.deleteProduct(id)
+      const fresh = await api.getProducts()
+      setProducts(fresh)
+    } catch (error) {
+      alert('Failed to delete product. Please try again.')
+      console.error('Failed to delete product', error)
+    }
   }
 
   const goPrevPeriod = () => {
@@ -1044,17 +1058,13 @@ function App() {
   const handleDelete = async (id: string) => {
     const ok = window.confirm('Delete this shift?')
     if (!ok) return
-    const previous = shifts
-    pendingDeleteIds.current.add(id)
-    setShifts((prev) => prev.filter((shift) => shift.id !== id))
     try {
       await api.deleteShift(id)
+      const fresh = await api.getShifts()
+      setShifts(fresh)
     } catch (error) {
-      setShifts(previous)
       alert('Failed to delete shift. Please try again.')
       console.error('Failed to delete shift', error)
-    } finally {
-      pendingDeleteIds.current.delete(id)
     }
   }
 
@@ -1065,65 +1075,51 @@ function App() {
       return
     }
 
-    if (editingId) {
-      const current = shifts.find((s) => s.id === editingId)
-      const updated: Shift = {
-        ...(current ?? {
-          id: editingId,
+    try {
+      if (editingId) {
+        const current = shifts.find((s) => s.id === editingId)
+        const updated: Shift = {
+          ...(current ?? {
+            id: editingId,
+            date: form.date,
+            start: form.start,
+            end: form.end,
+            lunchMinutes: form.lunchMinutes,
+            comment: form.comment.trim(),
+            hourlyRate: settings.hourlyRate,
+            clientId: form.clientId,
+          }),
           date: form.date,
           start: form.start,
           end: form.end,
           lunchMinutes: form.lunchMinutes,
           comment: form.comment.trim(),
-          hourlyRate: settings.hourlyRate,
           clientId: form.clientId,
-        }),
-        date: form.date,
-        start: form.start,
-        end: form.end,
-        lunchMinutes: form.lunchMinutes,
-        comment: form.comment.trim(),
-        clientId: form.clientId,
-      }
-      const previous = shifts
-      setShifts((prev) =>
-        prev.map((shift) =>
-          shift.id === editingId ? updated : shift,
-        ),
-      )
-      try {
+        }
         await api.updateShift(updated)
-      } catch (error) {
-        setShifts(previous)
-        alert('Failed to save shift. Please try again.')
-        console.error('Failed to update shift', error)
-        return
-      }
-    } else {
-      const dayOfWeek = new Date(`${form.date}T00:00:00`).getDay()
-      const isWeekend = dayOfWeek === 0 || dayOfWeek === 6
-      const rateToUse = settings.weekendRateEnabled && isWeekend ? settings.weekendRate : settings.hourlyRate
-      const newShift: Shift = {
-        id: crypto.randomUUID(),
-        date: form.date,
-        start: form.start,
-        end: form.end,
-        lunchMinutes: form.lunchMinutes,
-        comment: form.comment.trim(),
-        hourlyRate: rateToUse,
-        clientId: form.clientId,
-      }
-      try {
+      } else {
+        const dayOfWeek = new Date(`${form.date}T00:00:00`).getDay()
+        const isWeekend = dayOfWeek === 0 || dayOfWeek === 6
+        const rateToUse = settings.weekendRateEnabled && isWeekend ? settings.weekendRate : settings.hourlyRate
+        const newShift: Shift = {
+          id: crypto.randomUUID(),
+          date: form.date,
+          start: form.start,
+          end: form.end,
+          lunchMinutes: form.lunchMinutes,
+          comment: form.comment.trim(),
+          hourlyRate: rateToUse,
+          clientId: form.clientId,
+        }
         await api.createShift(newShift)
-        setShifts((prev) => [...prev, newShift])
-      } catch (error) {
-        alert('Failed to add shift. Please try again.')
-        console.error('Failed to add shift', error)
-        return
       }
+      const fresh = await api.getShifts()
+      setShifts(fresh)
+      closeModal()
+    } catch (error) {
+      alert('Failed to save shift. Please try again.')
+      console.error('Failed to save shift', error)
     }
-
-    closeModal()
   }
 
   const saveSettings = async () => {
