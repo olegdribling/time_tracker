@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import './App.css'
 import {
@@ -405,6 +405,34 @@ function App() {
       cancelled = true
     }
   }, [])
+
+  // Sync: reload shifts/clients/products from server (called on tab focus + polling)
+  const syncData = useCallback(async () => {
+    const [shiftsRes, clientsRes, productsRes] = await Promise.allSettled([
+      api.getShifts(),
+      api.getClients(),
+      api.getProducts(),
+    ])
+    const shiftRows = shiftsRes.status === 'fulfilled' && Array.isArray(shiftsRes.value) ? shiftsRes.value : null
+    const clientRows = clientsRes.status === 'fulfilled' && Array.isArray(clientsRes.value) ? clientsRes.value : null
+    const productRows = productsRes.status === 'fulfilled' && Array.isArray(productsRes.value) ? productsRes.value : null
+    if (shiftRows !== null) setShifts(shiftRows)
+    if (clientRows !== null) setClients(clientRows)
+    if (productRows !== null) setProducts(productRows)
+  }, [])
+
+  useEffect(() => {
+    const onVisible = () => { if (!document.hidden) syncData() }
+    const onFocus = () => syncData()
+    document.addEventListener('visibilitychange', onVisible)
+    window.addEventListener('focus', onFocus)
+    const timer = setInterval(syncData, 60_000)
+    return () => {
+      document.removeEventListener('visibilitychange', onVisible)
+      window.removeEventListener('focus', onFocus)
+      clearInterval(timer)
+    }
+  }, [syncData])
 
   useEffect(() => {
     try {
