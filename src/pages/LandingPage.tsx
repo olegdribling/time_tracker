@@ -5,7 +5,7 @@ export function LandingPage() {
       {/* ── NAV ── */}
       <nav className="ld-nav">
         <a href="/" className="ld-nav-logo">
-          <img src="/invairo_logo_all_h.png" alt="Invairo" className="ld-nav-logo-img" />
+          <img src="/invairo_logo_h_white.png" alt="Invairo" className="ld-nav-logo-img" />
         </a>
         <div className="ld-nav-links">
           <a href="/login" className="ld-nav-link">Log in</a>
@@ -201,7 +201,7 @@ export function LandingPage() {
       {/* ── FOOTER ── */}
       <footer className="ld-footer">
         <div className="ld-container ld-footer-inner">
-          <img src="/invairo_logo_all_h.png" alt="Invairo" className="ld-footer-logo" />
+          <img src="/invairo_logo_h_white.png" alt="Invairo" className="ld-footer-logo" />
           <div className="ld-footer-links">
             <a href="/login">Log in</a>
             <a href="/register">Sign up</a>
