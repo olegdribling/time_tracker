@@ -1043,10 +1043,13 @@ function App() {
   const handleDelete = async (id: string) => {
     const ok = window.confirm('Delete this shift?')
     if (!ok) return
+    const previous = shifts
     setShifts((prev) => prev.filter((shift) => shift.id !== id))
     try {
       await api.deleteShift(id)
     } catch (error) {
+      setShifts(previous)
+      alert('Failed to delete shift. Please try again.')
       console.error('Failed to delete shift', error)
     }
   }
@@ -1078,6 +1081,7 @@ function App() {
         comment: form.comment.trim(),
         clientId: form.clientId,
       }
+      const previous = shifts
       setShifts((prev) =>
         prev.map((shift) =>
           shift.id === editingId ? updated : shift,
@@ -1086,7 +1090,10 @@ function App() {
       try {
         await api.updateShift(updated)
       } catch (error) {
+        setShifts(previous)
+        alert('Failed to save shift. Please try again.')
         console.error('Failed to update shift', error)
+        return
       }
     } else {
       const dayOfWeek = new Date(`${form.date}T00:00:00`).getDay()
@@ -1102,11 +1109,13 @@ function App() {
         hourlyRate: rateToUse,
         clientId: form.clientId,
       }
-      setShifts((prev) => [...prev, newShift])
       try {
         await api.createShift(newShift)
+        setShifts((prev) => [...prev, newShift])
       } catch (error) {
+        alert('Failed to add shift. Please try again.')
         console.error('Failed to add shift', error)
+        return
       }
     }
 
