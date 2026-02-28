@@ -1207,6 +1207,10 @@ function App() {
     const invNum = parseInt(invBTForm.number) || 1
     const period = reportRange ?? { start: invBTForm.date, end: invBTForm.date }
     const selectedClient = clients.find(c => c.id === invBTForm.clientId)
+    if (!selectedClient) {
+      alert('Selected client not found. Please re-select a client.')
+      return
+    }
     try {
       await generateInvoicePdf({
         profile: invoiceProfile,
@@ -1218,7 +1222,7 @@ function App() {
         subtotal,
         gst,
         balanceDue: total,
-        billTo: selectedClient ? { name: selectedClient.name, address: selectedClient.address, abn: selectedClient.abn } : undefined,
+        billTo: { name: selectedClient.name, address: selectedClient.address, abn: selectedClient.abn },
       })
       const nextNumber = invNum >= invoiceProfile.nextInvoiceNumber ? invNum + 1 : invoiceProfile.nextInvoiceNumber + 1
       const updated: InvoiceProfile = { ...invoiceProfile, nextInvoiceNumber: nextNumber }
@@ -1240,8 +1244,12 @@ function App() {
     const unitPrice = invoiceProfile.chargeGst ? invoiceForm.rate / 1.1 : invoiceForm.rate
     const netSubtotal = invoiceForm.total - gst
     const balanceDue = invoiceForm.total
+    const selectedClient = clients.find(c => c.id === selectedClientId)
+    if (!selectedClient) {
+      alert('Selected client not found. Please re-select a client.')
+      return
+    }
     try {
-      const selectedClient = clients.find(c => c.id === selectedClientId)
       await generateInvoicePdf({
         profile: invoiceProfile,
         period: reportRange,
@@ -1252,7 +1260,7 @@ function App() {
         subtotal: netSubtotal,
         gst,
         balanceDue,
-        billTo: selectedClient ? { name: selectedClient.name, address: selectedClient.address, abn: selectedClient.abn } : undefined,
+        billTo: { name: selectedClient.name, address: selectedClient.address, abn: selectedClient.abn },
       })
       const nextNumber =
         invoiceNumber > invoiceProfile.nextInvoiceNumber
@@ -1293,6 +1301,10 @@ function App() {
     const invNum = parseInt(invBSForm.number) || 1
     const period = reportRange ?? { start: invBSForm.date, end: invBSForm.date }
     const selectedClient = clients.find(c => c.id === invBSForm.clientId)
+    if (!selectedClient) {
+      alert('Selected client not found. Please re-select a client.')
+      return
+    }
     try {
       await generateInvoicePdf({
         profile: invoiceProfile,
@@ -1304,7 +1316,7 @@ function App() {
         subtotal,
         gst,
         balanceDue: total,
-        billTo: selectedClient ? { name: selectedClient.name, address: selectedClient.address, abn: selectedClient.abn } : undefined,
+        billTo: { name: selectedClient.name, address: selectedClient.address, abn: selectedClient.abn },
         lineItems: items,
       })
       const nextNumber = invNum >= invoiceProfile.nextInvoiceNumber ? invNum + 1 : invoiceProfile.nextInvoiceNumber + 1
@@ -1349,6 +1361,10 @@ function App() {
     const invNum = parseInt(invBPForm.number) || 1
     const period = reportRange ?? { start: invBPForm.date, end: invBPForm.date }
     const selectedClient = clients.find(c => c.id === invBPForm.clientId)
+    if (!selectedClient) {
+      alert('Selected client not found. Please re-select a client.')
+      return
+    }
     try {
       await generateInvoicePdf({
         profile: invoiceProfile,
@@ -1360,7 +1376,7 @@ function App() {
         subtotal,
         gst,
         balanceDue: total,
-        billTo: selectedClient ? { name: selectedClient.name, address: selectedClient.address, abn: selectedClient.abn } : undefined,
+        billTo: { name: selectedClient.name, address: selectedClient.address, abn: selectedClient.abn },
         productLineItems: items,
       })
       const nextNumber = invNum >= invoiceProfile.nextInvoiceNumber ? invNum + 1 : invoiceProfile.nextInvoiceNumber + 1
