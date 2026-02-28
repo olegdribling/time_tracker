@@ -11,6 +11,12 @@ const app = express()
 
 app.use(cors())
 
+// Prevent browser from caching authenticated API responses
+app.use('/api', (_req, res, next) => {
+  res.set('Cache-Control', 'no-store')
+  next()
+})
+
 // Webhook MUST be registered before express.json() to get raw Buffer body
 app.post('/api/billing/webhook', express.raw({ type: 'application/json' }), require('./routes/billingWebhook'))
 

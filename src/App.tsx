@@ -300,6 +300,7 @@ function App() {
   const [invoiceTotalInput, setInvoiceTotalInput] = useState('0')
   const [nextInvoiceNumberInput, setNextInvoiceNumberInput] = useState('1')
   const importInputRef = useRef<HTMLInputElement | null>(null)
+  const isMutatingRef = useRef(false)
   const [userEmail, setUserEmail] = useState<string>('')
   const [editingId, setEditingId] = useState<string | null>(null)
   const [activeView, setActiveView] = useState<'home' | 'reports' | 'calendar' | 'clients' | 'products'>('home')
@@ -414,11 +415,13 @@ function App() {
 
   // Sync: reload shifts/clients/products from server (called on tab focus + polling)
   const syncData = useCallback(async () => {
+    if (isMutatingRef.current) return
     const [shiftsRes, clientsRes, productsRes] = await Promise.allSettled([
       api.getShifts(),
       api.getClients(),
       api.getProducts(),
     ])
+    if (isMutatingRef.current) return
     const shiftRows = shiftsRes.status === 'fulfilled' && Array.isArray(shiftsRes.value) ? shiftsRes.value : null
     const clientRows = clientsRes.status === 'fulfilled' && Array.isArray(clientsRes.value) ? clientsRes.value : null
     const productRows = productsRes.status === 'fulfilled' && Array.isArray(productsRes.value) ? productsRes.value : null
@@ -977,12 +980,15 @@ function App() {
   const handleDeleteClient = async (id: number) => {
     const ok = window.confirm('Remove this client? This cannot be undone.')
     if (!ok) return
+    isMutatingRef.current = true
     try {
       await api.deleteClient(id)
       setClients(prev => prev.filter(c => c.id !== id))
     } catch (error) {
       alert('Failed to delete client. Please try again.')
       console.error('Failed to delete client', error)
+    } finally {
+      isMutatingRef.current = false
     }
   }
 
@@ -1027,12 +1033,15 @@ function App() {
   const handleDeleteProduct = async (id: number) => {
     const ok = window.confirm('Remove this product? This cannot be undone.')
     if (!ok) return
+    isMutatingRef.current = true
     try {
       await api.deleteProduct(id)
       setProducts(prev => prev.filter(p => p.id !== id))
     } catch (error) {
       alert('Failed to delete product. Please try again.')
       console.error('Failed to delete product', error)
+    } finally {
+      isMutatingRef.current = false
     }
   }
 
@@ -1058,12 +1067,15 @@ function App() {
   const handleDelete = async (id: string) => {
     const ok = window.confirm('Delete this shift?')
     if (!ok) return
+    isMutatingRef.current = true
     try {
       await api.deleteShift(id)
       setShifts(prev => prev.filter(s => s.id !== id))
     } catch (error) {
       alert('Failed to delete shift. Please try again.')
       console.error('Failed to delete shift', error)
+    } finally {
+      isMutatingRef.current = false
     }
   }
 
