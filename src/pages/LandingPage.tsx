@@ -5,7 +5,10 @@ export function LandingPage() {
       {/* ── NAV ── */}
       <nav className="ld-nav">
         <a href="/" className="ld-nav-logo">
-          <img src="/invairo_logo_h_white.png" alt="Invairo" className="ld-nav-logo-img" />
+          <picture>
+            <source srcSet="/invairo_logo_h_dark.png" media="(prefers-color-scheme: light)" />
+            <img src="/invairo_logo_h_white.png" alt="Invairo" className="ld-nav-logo-img" />
+          </picture>
         </a>
         <div className="ld-nav-links">
           <a href="/login" className="ld-nav-link">Log in</a>
@@ -148,6 +151,7 @@ export function LandingPage() {
               <div className="ld-price-amount"><span className="ld-price-num">$0</span><span className="ld-price-per"> / 30 days</span></div>
               <ul className="ld-price-features">
                 <li>✓ 1 client</li>
+                <li>✓ 1 product</li>
                 <li>✓ Unlimited shifts</li>
                 <li>✓ Invoice generation</li>
                 <li>✓ PDF export</li>
@@ -161,6 +165,7 @@ export function LandingPage() {
               <div className="ld-price-amount"><span className="ld-price-num">$5</span><span className="ld-price-per"> AUD / month (incl. GST)</span></div>
               <ul className="ld-price-features">
                 <li>✓ 1 client / contractor</li>
+                <li>✓ 1 product</li>
                 <li>✓ Unlimited shifts</li>
                 <li>✓ Invoice generation</li>
                 <li>✓ PDF export</li>
@@ -174,6 +179,7 @@ export function LandingPage() {
               <div className="ld-price-amount"><span className="ld-price-num">$10</span><span className="ld-price-per"> AUD / month (incl. GST)</span></div>
               <ul className="ld-price-features">
                 <li>✓ Unlimited clients</li>
+                <li>✓ Unlimited products</li>
                 <li>✓ Unlimited shifts</li>
                 <li>✓ Invoice generation</li>
                 <li>✓ PDF export</li>
@@ -201,7 +207,10 @@ export function LandingPage() {
       {/* ── FOOTER ── */}
       <footer className="ld-footer">
         <div className="ld-container ld-footer-inner">
-          <img src="/invairo_logo_h_white.png" alt="Invairo" className="ld-footer-logo" />
+          <picture>
+            <source srcSet="/invairo_logo_h_dark.png" media="(prefers-color-scheme: light)" />
+            <img src="/invairo_logo_h_white.png" alt="Invairo" className="ld-footer-logo" />
+          </picture>
           <div className="ld-footer-links">
             <a href="/login">Log in</a>
             <a href="/register">Sign up</a>
