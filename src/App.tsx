@@ -979,8 +979,7 @@ function App() {
     if (!ok) return
     try {
       await api.deleteClient(id)
-      const fresh = await api.getClients()
-      setClients(fresh)
+      setClients(prev => prev.filter(c => c.id !== id))
     } catch (error) {
       alert('Failed to delete client. Please try again.')
       console.error('Failed to delete client', error)
@@ -1030,8 +1029,7 @@ function App() {
     if (!ok) return
     try {
       await api.deleteProduct(id)
-      const fresh = await api.getProducts()
-      setProducts(fresh)
+      setProducts(prev => prev.filter(p => p.id !== id))
     } catch (error) {
       alert('Failed to delete product. Please try again.')
       console.error('Failed to delete product', error)
@@ -1062,8 +1060,7 @@ function App() {
     if (!ok) return
     try {
       await api.deleteShift(id)
-      const fresh = await api.getShifts()
-      setShifts(fresh)
+      setShifts(prev => prev.filter(s => s.id !== id))
     } catch (error) {
       alert('Failed to delete shift. Please try again.')
       console.error('Failed to delete shift', error)
