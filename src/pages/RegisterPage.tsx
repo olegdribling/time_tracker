@@ -1,9 +1,8 @@
 import { useState } from 'react'
-import { useNavigate, Link } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import { api } from '../api'
 
 export function RegisterPage() {
-  const navigate = useNavigate()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
@@ -17,7 +16,7 @@ export function RegisterPage() {
     localStorage.setItem('tt_token', data.token)
     localStorage.setItem('tt_refresh_token', data.refreshToken)
     localStorage.setItem('tt_auth', '1')
-    navigate('/app')
+    window.location.href = '/app'
   }
 
   const handleKey = (e: React.KeyboardEvent) => {
