@@ -861,6 +861,7 @@ function App() {
 
   const saveClient = async () => {
     if (!clientDraft.name.trim()) { alert('Client name is required.'); return }
+    isMutatingRef.current = true
     try {
       let newClientId: number | null = null
       if (editingClientId !== null) {
@@ -895,6 +896,8 @@ function App() {
     } catch (error) {
       alert('Failed to save client. Please try again.')
       console.error('Failed to save client', error)
+    } finally {
+      isMutatingRef.current = false
     }
   }
 
@@ -936,6 +939,7 @@ function App() {
 
   const saveProduct = async () => {
     if (!productDraft.name.trim()) { alert('Product name is required.'); return }
+    isMutatingRef.current = true
     try {
       if (editingProductId !== null) {
         await api.updateProduct(editingProductId, productDraft)
@@ -948,6 +952,8 @@ function App() {
     } catch (error) {
       alert('Failed to save product. Please try again.')
       console.error('Failed to save product', error)
+    } finally {
+      isMutatingRef.current = false
     }
   }
 
@@ -1007,6 +1013,7 @@ function App() {
       return
     }
 
+    isMutatingRef.current = true
     try {
       if (editingId) {
         const current = shifts.find((s) => s.id === editingId)
@@ -1051,6 +1058,8 @@ function App() {
     } catch (error) {
       alert('Failed to save shift. Please try again.')
       console.error('Failed to save shift', error)
+    } finally {
+      isMutatingRef.current = false
     }
   }
 
