@@ -8,7 +8,6 @@ import {
   ChevronRight,
   Clock,
   Coffee,
-  Download,
   FileText,
   Home,
   LogOut,
@@ -16,7 +15,6 @@ import {
   Package,
   Plus,
   Settings as SettingsIcon,
-  Upload,
   User,
   Users,
   Wrench,
@@ -26,7 +24,7 @@ import { api } from './api'
 import { calculateTotals, getPeriodByOffset, getPeriodRange, minutesBetween } from './lib/calculations'
 import { generateInvoicePdf } from './lib/invoice'
 import type { Client, ClientDraft, InvoiceProfile, Product, ProductDraft, Settings, Shift, ShiftForm } from './types'
-import { saveAs } from 'file-saver'
+
 
 const INITIAL_HOURLY_RATE = 25
 const MENU_STORAGE_KEY = 'worktracker:menu-open'
@@ -114,7 +112,6 @@ function formatDuration(minutes: number) {
   return `${hours}h ${mins}m`
 }
 
-const nowIso = () => new Date().toISOString()
 
 const parseDecimal = (raw: string) => {
   const normalized = raw.replace(',', '.').trim()
@@ -173,15 +170,6 @@ const shiftMonthKey = (value: string, offset: number) => {
   return toMonthKey(shifted)
 }
 
-type SettingsRowImport = Settings & { key?: string; updatedAt?: string }
-type InvoiceRowImport = InvoiceProfile & { key?: string; updatedAt?: string }
-type BackupPayload = {
-  version: number
-  exportedAt?: string
-  shifts: (Shift & { updatedAt?: string })[]
-  settings: SettingsRowImport[]
-  invoiceProfile: InvoiceRowImport[]
-}
 
 type WheelPickerProps = {
   options: Option[]
@@ -299,7 +287,7 @@ function App() {
   const [invoiceRateInput, setInvoiceRateInput] = useState(() => String(INITIAL_HOURLY_RATE))
   const [invoiceTotalInput, setInvoiceTotalInput] = useState('0')
   const [nextInvoiceNumberInput, setNextInvoiceNumberInput] = useState('1')
-  const importInputRef = useRef<HTMLInputElement | null>(null)
+
   const isMutatingRef = useRef(false)
   const [userEmail, setUserEmail] = useState<string>('')
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -827,74 +815,6 @@ function App() {
     setCalendarMonth((prev) => shiftMonthKey(prev, 1))
   }
 
-  const exportData = async () => {
-    try {
-      const payload = {
-        version: 1,
-        exportedAt: nowIso(),
-        shifts: shifts,
-        settings: [settings],
-        invoiceProfile: [invoiceProfile],
-      }
-      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' })
-      const dateTag = payload.exportedAt.slice(0, 10)
-      saveAs(blob, `worktracker-backup-${dateTag}.json`)
-    } catch (error) {
-      console.error('Failed to export data', error)
-      alert('Failed to export data.')
-    }
-  }
-
-  const triggerImport = () => {
-    importInputRef.current?.click()
-  }
-
-  const handleImportFile = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0]
-    event.target.value = ''
-    if (!file) return
-
-    const confirm = window.confirm('Import will replace current data. Continue?')
-    if (!confirm) return
-
-    try {
-      const text = await file.text()
-      const parsed = JSON.parse(text) as BackupPayload
-      if (!parsed || !Array.isArray(parsed.shifts) || !Array.isArray(parsed.settings)) {
-        throw new Error('Invalid backup format')
-      }
-      const shiftsData: Shift[] = parsed.shifts.map((s) => ({
-        id: s.id,
-        date: s.date,
-        start: s.start,
-        end: s.end,
-        lunchMinutes: s.lunchMinutes,
-        comment: s.comment,
-        hourlyRate: s.hourlyRate,
-      }))
-      const mainSettings: Settings = parsed.settings[0] ?? DEFAULT_SETTINGS
-      const mainInvoice: InvoiceProfile = Array.isArray(parsed.invoiceProfile) && parsed.invoiceProfile[0]
-        ? { ...parsed.invoiceProfile[0], chargeGst: parsed.invoiceProfile[0].chargeGst ?? false }
-        : DEFAULT_INVOICE_PROFILE
-
-      await Promise.all([
-        ...shiftsData.map((s) => api.createShift(s)),
-        api.saveSettings(mainSettings),
-        api.saveInvoiceProfile(mainInvoice),
-      ])
-
-      setShifts(shiftsData)
-      setSettings(mainSettings)
-      setSettingsDraft(mainSettings)
-      setInvoiceProfile(mainInvoice)
-      setInvoiceDraft(mainInvoice)
-      setIsMenuOpen(false)
-      alert('Import completed.')
-    } catch (error) {
-      console.error('Failed to import data', error)
-      alert('Failed to import data.')
-    }
-  }
 
   const goHome = () => {
     closeOverlays()
@@ -1423,13 +1343,7 @@ function App() {
 
   return (
     <div className="app-shell" onClick={() => { if (openMenuShiftId) setOpenMenuShiftId(null) }}>
-      <input
-        type="file"
-        accept="application/json"
-        ref={importInputRef}
-        style={{ display: 'none' }}
-        onChange={handleImportFile}
-      />
+
 
       {/* HEADER */}
       <header className="top-bar">
@@ -1468,8 +1382,7 @@ function App() {
               <button className="menu-panel-item" onClick={openProducts}><Package size={18} />Products</button>
               <button className="menu-panel-item" onClick={openSettings}><SettingsIcon size={18} />Settings</button>
               <button className="menu-panel-item" onClick={openInvoiceModal}><FileText size={18} />Invoice details</button>
-              <button className="menu-panel-item" onClick={exportData}><Download size={18} />Export data</button>
-              <button className="menu-panel-item" onClick={triggerImport}><Upload size={18} />Import data</button>
+
               <button className="menu-panel-item" onClick={() => { setIsMenuOpen(false); navigate('/app/billing') }}><Banknote size={18} />Subscription</button>
               <hr className="menu-panel-divider" />
               <button className="menu-panel-item danger" onClick={handleLogout}><LogOut size={18} />Log out</button>
