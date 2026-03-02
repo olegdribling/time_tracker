@@ -283,6 +283,15 @@
   position: relative;
 }
 
+.shift-card__header > div:first-child {
+  min-width: 0;
+  overflow: hidden;
+}
+
+.shift-card__header > div:last-child {
+  flex-shrink: 0;
+}
+
 .shift-date {
   font-weight: 700;
   font-size: 15px;
@@ -691,6 +700,9 @@
   color: var(--text-muted);
   text-transform: uppercase;
   letter-spacing: 0.08em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .value {
