@@ -317,6 +317,7 @@ function App() {
   const [calendarSelectedDate, setCalendarSelectedDate] = useState(() => toLocalDateKey(new Date()))
   const [openMenuShiftId, setOpenMenuShiftId] = useState<string | null>(null)
   const [openMenuProductId, setOpenMenuProductId] = useState<number | null>(null)
+  const [openMenuClientId, setOpenMenuClientId] = useState<number | null>(null)
   const [isFabOpen, setIsFabOpen] = useState(false)
   const [fabInvoiceOpen, setFabInvoiceOpen] = useState(false)
   const [isInvoiceByTimeOpen, setIsInvoiceByTimeOpen] = useState(false)
@@ -2157,18 +2158,26 @@ function App() {
               <div className="report-row empty">No clients yet. Add your first client.</div>
             ) : (
               clients.map(client => (
-                <div key={client.id} className="shift-card" style={{ cursor: 'pointer' }} onClick={() => openEditClient(client)}>
+                <div key={client.id} className="shift-card" style={{ cursor: 'pointer' }} onClick={() => setOpenMenuClientId(null)}>
                   <div className="shift-card__header">
                     <div>
                       <div className="shift-date">{client.name}</div>
                       {client.email && <div className="label" style={{ marginTop: 2 }}>{client.email}</div>}
                     </div>
-                    <button
-                      className="ghost-button danger"
-                      onClick={e => { e.stopPropagation(); handleDeleteClient(client.id) }}
-                    >
-                      Delete
-                    </button>
+                    <div style={{ position: 'relative' }}>
+                      <button
+                        className="shift-menu-btn"
+                        onClick={e => { e.stopPropagation(); setOpenMenuClientId(openMenuClientId === client.id ? null : client.id) }}
+                      >
+                        <MoreVertical size={16} />
+                      </button>
+                      {openMenuClientId === client.id && (
+                        <div className="shift-context-menu">
+                          <button className="shift-context-item" onClick={() => { openEditClient(client); setOpenMenuClientId(null) }}>Edit</button>
+                          <button className="shift-context-item danger" onClick={() => { handleDeleteClient(client.id); setOpenMenuClientId(null) }}>Delete</button>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               ))
