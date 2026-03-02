@@ -181,6 +181,7 @@ router.post('/reset-password', async (req, res) => {
     const passwordHash = await bcrypt.hash(password, 10)
     await pool.query('UPDATE users SET password_hash=$1 WHERE id=$2', [passwordHash, user_id])
     await pool.query('DELETE FROM password_reset_tokens WHERE token_hash=$1', [hash])
+    await pool.query('DELETE FROM refresh_tokens WHERE user_id=$1', [user_id])
 
     res.json({ ok: true })
   } catch (err) {

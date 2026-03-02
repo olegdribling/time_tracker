@@ -49,6 +49,7 @@ router.get('/status', authMiddleware, async (req, res) => {
 
 // POST /api/billing/checkout — создать Stripe Checkout Session
 router.post('/checkout', authMiddleware, async (req, res) => {
+  if (!stripe) return res.status(503).json({ error: 'Billing is not configured' })
   const { plan } = req.body
   if (!PLANS[plan]) return res.status(400).json({ error: 'Invalid plan' })
 
@@ -114,6 +115,7 @@ router.post('/checkout', authMiddleware, async (req, res) => {
 
 // POST /api/billing/portal — Stripe Customer Portal (управление подпиской)
 router.post('/portal', authMiddleware, async (req, res) => {
+  if (!stripe) return res.status(503).json({ error: 'Billing is not configured' })
   try {
     const { rows } = await pool.query(
       'SELECT stripe_customer_id FROM subscriptions WHERE user_id = $1',

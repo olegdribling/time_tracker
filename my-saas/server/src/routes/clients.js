@@ -29,6 +29,19 @@ router.get('/', async (req, res) => {
 router.post('/', async (req, res) => {
   const { name, address, abn, email } = req.body
   try {
+    const subRes = await pool.query(
+      'SELECT plan, current_period_end FROM subscriptions WHERE user_id=$1',
+      [req.userId]
+    )
+    const sub = subRes.rows[0]
+    const isProActive = sub?.plan === 'pro' && sub?.current_period_end && new Date(sub.current_period_end) > new Date()
+    if (!isProActive) {
+      const countRes = await pool.query('SELECT COUNT(*) FROM clients WHERE user_id=$1', [req.userId])
+      if (parseInt(countRes.rows[0].count) >= 1) {
+        return res.status(403).json({ error: 'Client limit reached. Upgrade to Pro to add more clients.' })
+      }
+    }
+
     const result = await pool.query(
       `INSERT INTO clients (user_id, full_name, address, abn, email)
        VALUES ($1, $2, $3, $4, $5) RETURNING id`,
