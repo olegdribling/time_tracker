@@ -7,7 +7,7 @@ router.use(authMiddleware)
 
 const rowToShift = (row) => ({
   id: row.id,
-  date: row.date instanceof Date ? row.date.toISOString().split('T')[0] : row.date,
+  date: (row.date instanceof Date ? row.date.toISOString() : String(row.date)).split('T')[0],
   start: row.start_time,
   end: row.end_time,
   lunchMinutes: row.lunch_minutes,
