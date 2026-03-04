@@ -193,6 +193,32 @@ export function LandingPage() {
         </div>
       </section>
 
+      {/* ── SECURE PAYMENTS ── */}
+      <section className="ld-section ld-section--alt">
+        <div className="ld-container">
+          <div className="ld-section-label">Payments &amp; Security</div>
+          <h2 className="ld-section-title">Your payment is always safe</h2>
+          <p className="ld-section-sub">We use Stripe — the same payment infrastructure trusted by Amazon, Google, and millions of businesses worldwide.</p>
+          <div className="ld-features-grid">
+            {[
+              { icon: '🔐', title: 'SSL encrypted', desc: 'All data is transmitted over HTTPS. Your payment information is fully encrypted end-to-end.' },
+              { icon: '🏦', title: 'No card data stored', desc: 'Your card details go directly to Stripe. We never see, touch, or store your payment information.' },
+              { icon: '🛡️', title: 'PCI DSS compliant', desc: 'Stripe is certified to PCI Level 1 — the highest global standard for payment security.' },
+            ].map(f => (
+              <div key={f.title} className="ld-feature-card">
+                <div className="ld-feature-icon">{f.icon}</div>
+                <h3 className="ld-feature-title">{f.title}</h3>
+                <p className="ld-feature-desc">{f.desc}</p>
+              </div>
+            ))}
+          </div>
+          <div className="ld-stripe-badge">
+            <span className="ld-stripe-badge-text">Payments secured by</span>
+            <span className="ld-stripe-badge-logo">stripe</span>
+          </div>
+        </div>
+      </section>
+
       {/* ── BOTTOM CTA ── */}
       <section className="ld-cta-bottom">
         <div className="ld-cta-glow" />
