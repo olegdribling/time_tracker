@@ -298,7 +298,9 @@ function App() {
   const [clientDraft, setClientDraft] = useState<ClientDraft>({ name: '', address: '', abn: '', email: '' })
   const [clientReturnContext, setClientReturnContext] = useState<'invoiceByTime' | 'invoiceByServices' | 'invoiceByProducts' | 'invoiceScreen' | 'shiftForm' | null>(null)
   const [billingPlan, setBillingPlan] = useState<string>('trial')
+  const [billingActive, setBillingActive] = useState<boolean>(true)
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false)
+  const [isExpiredModalOpen, setIsExpiredModalOpen] = useState(false)
   const [periodOffset, setPeriodOffset] = useState(0)
   const [reportClientId, setReportClientId] = useState<number | null>(null)
   const [calendarMonth, setCalendarMonth] = useState(() => toMonthKey(new Date()))
@@ -391,7 +393,10 @@ function App() {
         setShifts(shiftRows)
         setClients(clientRows)
         setProducts(productRows)
-        if (billingRow?.plan) setBillingPlan(billingRow.plan)
+        if (billingRow) {
+          if (billingRow.plan) setBillingPlan(billingRow.plan)
+          setBillingActive(billingRow.active)
+        }
       } catch (error) {
         console.error('Failed to load data', error)
       }
@@ -736,7 +741,16 @@ function App() {
     setShowEmailPrompt(false)
   }
 
+  const requireActive = (): boolean => {
+    if (!billingActive) {
+      setIsExpiredModalOpen(true)
+      return false
+    }
+    return true
+  }
+
   const openCreate = () => {
+    if (!requireActive()) return
     closeOverlays()
     setEditingId(null)
     const f = { ...emptyForm(), clientId: soloClientId }
@@ -822,6 +836,7 @@ function App() {
   }
 
   const openAddClient = () => {
+    if (!requireActive()) return
     if ((billingPlan === 'trial' || billingPlan === 'solo') && clients.length >= 1) {
       setIsUpgradeModalOpen(true)
       return
@@ -833,6 +848,7 @@ function App() {
   }
 
   const openAddClientFromInvoice = (context: 'invoiceByTime' | 'invoiceByServices' | 'invoiceByProducts' | 'invoiceScreen' | 'shiftForm') => {
+    if (!requireActive()) return
     if ((billingPlan === 'trial' || billingPlan === 'solo') && clients.length >= 1) {
       setIsUpgradeModalOpen(true)
       return
@@ -849,6 +865,7 @@ function App() {
   }
 
   const openEditClient = (client: Client) => {
+    if (!requireActive()) return
     setEditingClientId(client.id)
     setClientDraft({ name: client.name, address: client.address, abn: client.abn, email: client.email })
     setIsClientModalOpen(true)
@@ -917,6 +934,7 @@ function App() {
   }
 
   const openAddProduct = () => {
+    if (!requireActive()) return
     if ((billingPlan === 'trial' || billingPlan === 'solo') && products.length >= 1) {
       setIsUpgradeModalOpen(true)
       return
@@ -927,6 +945,7 @@ function App() {
   }
 
   const openEditProduct = (product: Product) => {
+    if (!requireActive()) return
     setEditingProductId(product.id)
     setProductDraft({ name: product.name, price: product.price })
     setIsProductModalOpen(true)
@@ -1103,6 +1122,7 @@ function App() {
   }
 
   const openInvoiceByTime = (manual = false) => {
+    if (!requireActive()) return
     const hours = manual ? 1 : Math.max(reportTotals.durationMinutes, 0) / 60
     const today = toLocalDateKey(new Date())
     setInvBTForm({
@@ -1223,6 +1243,7 @@ function App() {
   }
 
   const openInvoiceByServices = () => {
+    if (!requireActive()) return
     setInvBSForm({
       number: String(invoiceProfile.nextInvoiceNumber),
       date: toLocalDateKey(new Date()),
@@ -1275,6 +1296,7 @@ function App() {
   }
 
   const openInvoiceByProducts = () => {
+    if (!requireActive()) return
     const defaultItem = products.length === 1
       ? [{ id: 1, productId: products[0].id, description: products[0].name, quantity: '1', unitPrice: String(products[0].price) }]
       : [{ id: 1, productId: null, description: '', quantity: '1', unitPrice: '0' }]
@@ -2772,6 +2794,30 @@ function App() {
                 onClick={() => { setIsUpgradeModalOpen(false); navigate('/app/billing') }}
               >
                 Upgrade to Pro →
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* TRIAL EXPIRED MODAL */}
+      {isExpiredModalOpen && (
+        <div className="modal-backdrop" onClick={() => setIsExpiredModalOpen(false)}>
+          <div className="modal" onClick={e => e.stopPropagation()}>
+            <div className="modal-header-dark">
+              <div className="modal-title-dark">Free Trial Ended</div>
+              <button className="modal-close-btn" onClick={() => setIsExpiredModalOpen(false)}><X size={18} /></button>
+            </div>
+            <div style={{ padding: '8px 0 4px', textAlign: 'center' }}>
+              <p style={{ marginBottom: '6px' }}>Your free trial has ended.</p>
+              <p style={{ marginBottom: '24px', color: 'var(--text-secondary)', fontSize: '14px' }}>
+                Subscribe to continue adding shifts, creating invoices, and managing clients.
+              </p>
+              <button
+                className="primary-btn"
+                onClick={() => { setIsExpiredModalOpen(false); navigate('/app/billing') }}
+              >
+                View Plans →
               </button>
             </div>
           </div>
