@@ -2086,7 +2086,7 @@ function App() {
                       <div className="shift-date">{client.name}</div>
                       {client.email && <div className="label" style={{ marginTop: 2 }}>{client.email}</div>}
                     </div>
-                    <div style={{ position: 'relative' }}>
+                    <div style={{ position: 'relative', alignSelf: 'flex-start' }}>
                       <button
                         className="shift-menu-btn"
                         onClick={e => { e.stopPropagation(); setOpenMenuClientId(openMenuClientId === client.id ? null : client.id) }}
@@ -2121,7 +2121,7 @@ function App() {
                       <div className="shift-date">{product.name}</div>
                       <div className="label" style={{ marginTop: 2 }}>${product.price.toFixed(2)}</div>
                     </div>
-                    <div style={{ position: 'relative' }}>
+                    <div style={{ position: 'relative', alignSelf: 'flex-start' }}>
                       <button
                         className="shift-menu-btn"
                         onClick={e => { e.stopPropagation(); setOpenMenuProductId(openMenuProductId === product.id ? null : product.id) }}
