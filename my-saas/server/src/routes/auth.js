@@ -2,6 +2,7 @@ const express = require('express')
 const bcrypt = require('bcryptjs')
 const jwt = require('jsonwebtoken')
 const crypto = require('crypto')
+const rateLimit = require('express-rate-limit')
 const { Resend } = require('resend')
 const pool = require('../db')
 require('dotenv').config()
@@ -9,6 +10,22 @@ require('dotenv').config()
 const getResend = () => new Resend(process.env.RESEND_API_KEY)
 
 const router = express.Router()
+
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 минут
+  max: 10,                   // max 10 попыток с одного IP
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many attempts. Please try again later.' },
+})
+
+const forgotLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 час
+  max: 5,                    // max 5 запросов сброса пароля
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many password reset requests. Please try again later.' },
+})
 
 const hashToken = (t) => crypto.createHash('sha256').update(t).digest('hex')
 
@@ -26,7 +43,7 @@ const storeRefreshToken = async (userId, hash) => {
 }
 
 // Регистрация
-router.post('/register', async (req, res) => {
+router.post('/register', authLimiter, async (req, res) => {
   const { email, password } = req.body
   try {
     const existing = await pool.query('SELECT id FROM users WHERE email = $1', [email])
@@ -57,7 +74,7 @@ router.post('/register', async (req, res) => {
 })
 
 // Логин
-router.post('/login', async (req, res) => {
+router.post('/login', authLimiter, async (req, res) => {
   const { email, password } = req.body
   try {
     const result = await pool.query('SELECT * FROM users WHERE email = $1', [email])
@@ -117,7 +134,7 @@ router.post('/logout', async (req, res) => {
 })
 
 // Запрос сброса пароля
-router.post('/forgot-password', async (req, res) => {
+router.post('/forgot-password', forgotLimiter, async (req, res) => {
   const { email } = req.body
   if (!email) return res.status(400).json({ error: 'Email required' })
   try {

@@ -85,9 +85,11 @@ module.exports = async (req, res) => {
       if (priceId === process.env.STRIPE_PRICE_SOLO) plan = 'solo'
       else if (priceId === process.env.STRIPE_PRICE_PRO) plan = 'pro'
 
-      if (stripeSub.status === 'canceled' || stripeSub.cancel_at_period_end) {
+      if (stripeSub.status === 'canceled') {
         plan = 'cancelled'
       }
+      // cancel_at_period_end means user cancelled but period isn't over yet —
+      // keep current plan active until subscription.deleted fires
 
       console.log('[Webhook] subscription.updated:', stripeSub.id, '->', plan)
       await pool.query(
