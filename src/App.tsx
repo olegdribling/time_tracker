@@ -1006,6 +1006,7 @@ function App() {
   }
 
   const handleLogout = async () => {
+    setIsMenuOpen(false)
     await api.logout()
     navigate('/login')
   }
