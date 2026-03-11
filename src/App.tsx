@@ -302,6 +302,7 @@ function App() {
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false)
   const [isExpiredModalOpen, setIsExpiredModalOpen] = useState(false)
   const [periodOffset, setPeriodOffset] = useState(0)
+  const [weeksVisible, setWeeksVisible] = useState(2)
   const [reportClientId, setReportClientId] = useState<number | null>(null)
   const [calendarMonth, setCalendarMonth] = useState(() => toMonthKey(new Date()))
   const [calendarSelectedDate, setCalendarSelectedDate] = useState(() => toLocalDateKey(new Date()))
@@ -429,11 +430,9 @@ function App() {
     const onFocus = () => syncData()
     document.addEventListener('visibilitychange', onVisible)
     window.addEventListener('focus', onFocus)
-    const timer = setInterval(syncData, 60_000)
     return () => {
       document.removeEventListener('visibilitychange', onVisible)
       window.removeEventListener('focus', onFocus)
-      clearInterval(timer)
     }
   }, [syncData])
 
@@ -551,6 +550,12 @@ function App() {
     }
     return labelOrder.map(label => ({ label, shifts: groupMap.get(label)! }))
   }, [sortedShifts, settings.weekStart])
+
+  const visibleGroups = useMemo(
+    () => shiftGroups.slice(0, weeksVisible),
+    [shiftGroups, weeksVisible]
+  )
+  const hasMoreGroups = shiftGroups.length > weeksVisible
 
   const periodRange = useMemo(() => getPeriodRange(settings), [settings])
 
@@ -1034,6 +1039,7 @@ function App() {
     }
 
     isMutatingRef.current = true
+    const previousShifts = shifts
     try {
       if (editingId) {
         const current = shifts.find((s) => s.id === editingId)
@@ -1055,6 +1061,8 @@ function App() {
           comment: form.comment.trim(),
           clientId: form.clientId,
         }
+        setShifts(prev => prev.map(s => s.id === editingId ? updated : s))
+        closeModal()
         await api.updateShift(updated)
       } else {
         const dayOfWeek = new Date(`${form.date}T00:00:00`).getDay()
@@ -1070,12 +1078,12 @@ function App() {
           hourlyRate: rateToUse,
           clientId: form.clientId,
         }
+        setShifts(prev => [...prev, newShift])
+        closeModal()
         await api.createShift(newShift)
       }
-      const fresh = await api.getShifts()
-      setShifts(fresh)
-      closeModal()
     } catch (error) {
+      setShifts(previousShifts)
       alert('Failed to save shift. Please try again.')
       console.error('Failed to save shift', error)
     } finally {
@@ -1927,7 +1935,7 @@ function App() {
               {shiftGroups.length === 0 && (
                 <div className="report-row empty">No shifts yet. Add your first shift.</div>
               )}
-              {shiftGroups.map((group) => (
+              {visibleGroups.map((group) => (
                 <div key={group.label}>
                   <div className="section-header">{group.label}</div>
                   {group.shifts.map((shift) => {
@@ -1974,6 +1982,11 @@ function App() {
                   })}
                 </div>
               ))}
+              {hasMoreGroups && (
+                <button className="show-more-btn" onClick={() => setWeeksVisible(w => w + 2)}>
+                  Show more
+                </button>
+              )}
             </div>
           </>
         ) : activeView === 'reports' ? (
