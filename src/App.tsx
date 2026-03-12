@@ -324,6 +324,7 @@ function App() {
     hours: '0',
     rate: '0',
     clientId: null as number | null,
+    exactSubtotal: null as number | null,
   })
   const [invBTCalendarOpen, setInvBTCalendarOpen] = useState(false)
   const [invBTCalendarMonth, setInvBTCalendarMonth] = useState(() => toMonthKey(new Date()))
@@ -1141,6 +1142,7 @@ function App() {
       hours: String(manual ? 1 : Math.round(hours * 100) / 100),
       rate: String(settings.hourlyRate),
       clientId: manual ? soloClientId : (reportClientId ?? soloClientId),
+      exactSubtotal: manual ? null : reportTotals.pay,
     })
     setInvBTCalendarMonth(toMonthKey(new Date()))
     setInvBTCalendarOpen(false)
@@ -1160,6 +1162,7 @@ function App() {
       hours: String(Math.round(hours * 100) / 100),
       rate: String(shift.hourlyRate),
       clientId: shift.clientId ?? soloClientId,
+      exactSubtotal: null,
     })
     setInvBTCalendarMonth(toMonthKey(new Date()))
     setInvBTCalendarOpen(false)
@@ -1173,7 +1176,7 @@ function App() {
     const rate = parseFloat(invBTForm.rate)
     if (!hours || hours <= 0) { alert('Please enter a valid number of hours.'); return }
     if (!rate || rate <= 0) { alert('Please enter a valid rate.'); return }
-    const subtotal = hours * rate
+    const subtotal = invBTForm.exactSubtotal ?? hours * rate
     const gst = invoiceProfile.chargeGst ? subtotal * 0.1 : 0
     const total = subtotal + gst
     const invNum = parseInt(invBTForm.number) || 1
@@ -1664,7 +1667,7 @@ function App() {
                       <input
                         type="text"
                         value={invBTForm.hours}
-                        onChange={e => setInvBTForm(prev => ({ ...prev, hours: e.target.value }))}
+                        onChange={e => setInvBTForm(prev => ({ ...prev, hours: e.target.value, exactSubtotal: null }))}
                       />
                     </div>
                     <div className="field">
@@ -1672,13 +1675,13 @@ function App() {
                       <input
                         type="text"
                         value={invBTForm.rate}
-                        onChange={e => setInvBTForm(prev => ({ ...prev, rate: e.target.value }))}
+                        onChange={e => setInvBTForm(prev => ({ ...prev, rate: e.target.value, exactSubtotal: null }))}
                       />
                     </div>
                   </div>
                   <div className="inv-item-amount">
                     <span>Amount</span>
-                    <strong>${money((parseFloat(invBTForm.hours) || 0) * (parseFloat(invBTForm.rate) || 0))}</strong>
+                    <strong>${money(invBTForm.exactSubtotal ?? (parseFloat(invBTForm.hours) || 0) * (parseFloat(invBTForm.rate) || 0))}</strong>
                   </div>
                 </div>
               </div>
