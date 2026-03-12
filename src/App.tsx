@@ -327,6 +327,7 @@ function App() {
     exactSubtotal: null as number | null,
   })
   const [invBTCalendarOpen, setInvBTCalendarOpen] = useState(false)
+  const [invBTJustSaved, setInvBTJustSaved] = useState(false)
   const [invBTCalendarMonth, setInvBTCalendarMonth] = useState(() => toMonthKey(new Date()))
   const [isInvoiceByProductsOpen, setIsInvoiceByProductsOpen] = useState(false)
   const [invBPForm, setInvBPForm] = useState({ number: '1', date: toLocalDateKey(new Date()), clientId: null as number | null })
@@ -1146,6 +1147,7 @@ function App() {
     })
     setInvBTCalendarMonth(toMonthKey(new Date()))
     setInvBTCalendarOpen(false)
+    setInvBTJustSaved(false)
     setIsFabOpen(false)
     setFabInvoiceOpen(false)
     setIsInvoiceByTimeOpen(true)
@@ -1166,6 +1168,7 @@ function App() {
     })
     setInvBTCalendarMonth(toMonthKey(new Date()))
     setInvBTCalendarOpen(false)
+    setInvBTJustSaved(false)
     setIsFabOpen(false)
     setFabInvoiceOpen(false)
     setIsInvoiceByTimeOpen(true)
@@ -1204,7 +1207,7 @@ function App() {
       setInvoiceProfile(updated)
       setInvoiceDraft(updated)
       await api.saveInvoiceProfile(updated)
-      setIsInvoiceByTimeOpen(false)
+      setInvBTJustSaved(true)
     } catch (error) {
       console.error('Failed to generate invoice', error)
       alert('Failed to generate invoice.')
@@ -1713,10 +1716,31 @@ function App() {
             </div>
 
             <div className="inv-footer">
-              <button className="ghost-button" onClick={() => setIsInvoiceByTimeOpen(false)}>Cancel</button>
-              <button className="primary-btn" style={{ flex: 1 }} onClick={generateInvoiceByTime} disabled={invBTForm.clientId === null}>
-                Save
-              </button>
+              {invBTJustSaved ? (
+                <>
+                  <button className="ghost-button" onClick={() => setIsInvoiceByTimeOpen(false)}>Close</button>
+                  <button
+                    className="primary-btn"
+                    style={{ flex: 1 }}
+                    onClick={() => {
+                      const client = clients.find(c => c.id === invBTForm.clientId)
+                      const invNum = String(parseInt(invBTForm.number) || 1).padStart(3, '0')
+                      const subject = `Invoice #${invNum} – ${invoiceProfile.fullName || ''} – ${formatDate(invBTForm.date)}`
+                      const mailto = `mailto:${encodeURIComponent(client?.email ?? '')}?subject=${encodeURIComponent(subject)}`
+                      window.location.href = mailto
+                    }}
+                  >
+                    Send by Email
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button className="ghost-button" onClick={() => setIsInvoiceByTimeOpen(false)}>Cancel</button>
+                  <button className="primary-btn" style={{ flex: 1 }} onClick={generateInvoiceByTime} disabled={invBTForm.clientId === null}>
+                    Save
+                  </button>
+                </>
+              )}
             </div>
           </div>
         </div>
