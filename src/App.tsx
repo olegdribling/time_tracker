@@ -1687,7 +1687,7 @@ function App() {
               </div>
 
               {(() => {
-                const subtotal = (parseFloat(invBTForm.hours) || 0) * (parseFloat(invBTForm.rate) || 0)
+                const subtotal = invBTForm.exactSubtotal ?? (parseFloat(invBTForm.hours) || 0) * (parseFloat(invBTForm.rate) || 0)
                 const gst = invoiceProfile.chargeGst ? subtotal * 0.1 : 0
                 const total = subtotal + gst
                 return (
