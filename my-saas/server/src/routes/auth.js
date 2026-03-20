@@ -155,7 +155,7 @@ router.post('/forgot-password', forgotLimiter, async (req, res) => {
     const appUrl = process.env.APP_URL || 'https://invairo.com.au'
     const resetLink = `${appUrl}/reset-password?token=${token}`
 
-    const resendResult = await getResend().emails.send({
+    await getResend().emails.send({
       from: 'noreply@invairo.com.au',
       to: email,
       subject: 'Reset your password — Invairo',
@@ -173,7 +173,6 @@ router.post('/forgot-password', forgotLimiter, async (req, res) => {
         </div>
       `,
     })
-    console.log('Resend result:', JSON.stringify(resendResult))
 
     res.json({ ok: true })
   } catch (err) {
