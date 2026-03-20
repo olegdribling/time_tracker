@@ -9,6 +9,9 @@ if (!process.env.DATABASE_URL) {
 
 const app = express()
 
+// Trust LiteSpeed/Hostinger reverse proxy (needed for express-rate-limit)
+app.set('trust proxy', 1)
+
 app.use(cors())
 
 // Prevent browser from caching authenticated API responses

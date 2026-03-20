@@ -45,8 +45,8 @@ export function ResetPasswordPage() {
     <div className="auth-page">
       <div className="auth-card">
         <picture className="auth-logo-wrap">
-          <source srcSet="/tt_logo_dark.png" media="(prefers-color-scheme: dark)" />
-          <img src="/tt_logo_light.png" alt="TimeTracker" className="auth-logo-img" />
+          <source srcSet="/invairo_logo_h_white.png" media="(prefers-color-scheme: dark)" />
+          <img src="/invairo_logo_h_dark.png" alt="Invairo" className="auth-logo-img" />
         </picture>
         <h1 className="auth-title">Set new password</h1>
         <p className="auth-subtitle">Choose a strong password for your account</p>
