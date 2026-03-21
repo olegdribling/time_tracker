@@ -591,7 +591,6 @@ function App() {
     [reportShifts],
   )
 
-  const totalPay = totals.pay
   const totalDurationMinutes = totals.durationMinutes
 
   const periodLabel = useMemo(() => {
@@ -1952,11 +1951,9 @@ function App() {
         {activeView === 'home' ? (
           <>
             <section className="overview">
-              <div className="overview-label">Total payout</div>
+              <div className="overview-label">Total duration</div>
               <div className="overview-period">{periodLabel}</div>
-              <div className="overview-value">${money(totalPay)} AUD</div>
-              <div className="overview-sub">Duration: {formatDuration(totalDurationMinutes)}</div>
-              <div className="overview-sub">Rate: {settings.hourlyRate} AUD/hr</div>
+              <div className="overview-value">{formatDuration(totalDurationMinutes)}</div>
             </section>
 
             <div className="shift-list">
