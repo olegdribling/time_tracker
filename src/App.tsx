@@ -322,8 +322,8 @@ function App() {
     number: '1',
     date: toLocalDateKey(new Date()),
     description: '',
-    durationHours: 0,
-    durationMinutes: 0,
+    durationHours: '0',
+    durationMinutes: '0',
     rate: '0',
     clientId: null as number | null,
     exactSubtotal: null as number | null,
@@ -1141,8 +1141,8 @@ function App() {
       number: String(invoiceProfile.nextInvoiceNumber),
       date: today,
       description: invoiceProfile.speciality || 'Work shift',
-      durationHours: Math.floor(totalMinutes / 60),
-      durationMinutes: Math.round(totalMinutes % 60),
+      durationHours: String(Math.floor(totalMinutes / 60)),
+      durationMinutes: String(Math.round(totalMinutes % 60)),
       rate: String(settings.hourlyRate),
       clientId: manual ? soloClientId : (reportClientId ?? soloClientId),
       exactSubtotal: manual ? null : reportTotals.pay,
@@ -1163,8 +1163,8 @@ function App() {
       number: String(invoiceProfile.nextInvoiceNumber),
       date: today,
       description: invoiceProfile.speciality || 'Work shift',
-      durationHours: Math.floor(workMinutes / 60),
-      durationMinutes: Math.round(workMinutes % 60),
+      durationHours: String(Math.floor(workMinutes / 60)),
+      durationMinutes: String(Math.round(workMinutes % 60)),
       rate: String(shift.hourlyRate),
       clientId: shift.clientId ?? soloClientId,
       exactSubtotal: hours * shift.hourlyRate,
@@ -1178,7 +1178,7 @@ function App() {
   }
 
   const generateInvoiceByTime = async () => {
-    const totalMinutes = invBTForm.durationHours * 60 + invBTForm.durationMinutes
+    const totalMinutes = (parseInt(invBTForm.durationHours) || 0) * 60 + (parseInt(invBTForm.durationMinutes) || 0)
     const hours = totalMinutes / 60
     const rate = parseFloat(invBTForm.rate)
     if (totalMinutes <= 0) { alert('Please enter a valid duration.'); return }
@@ -1673,26 +1673,32 @@ function App() {
                       <span className="label">Duration</span>
                       <div className="duration-input">
                         <input
-                          type="number"
-                          min="0"
+                          type="text"
+                          inputMode="numeric"
                           value={invBTForm.durationHours}
-                          onChange={e => setInvBTForm(prev => ({ ...prev, durationHours: Math.max(0, parseInt(e.target.value) || 0), exactSubtotal: null }))}
+                          onChange={e => {
+                            const v = e.target.value.replace(/\D/g, '')
+                            setInvBTForm(prev => ({ ...prev, durationHours: v, exactSubtotal: null }))
+                          }}
                         />
                         <span className="duration-sep">h</span>
                         <input
-                          type="number"
-                          min="0"
-                          max="59"
+                          type="text"
+                          inputMode="numeric"
                           value={invBTForm.durationMinutes}
-                          onChange={e => setInvBTForm(prev => ({ ...prev, durationMinutes: Math.min(59, Math.max(0, parseInt(e.target.value) || 0)), exactSubtotal: null }))}
+                          onChange={e => {
+                            const v = e.target.value.replace(/\D/g, '')
+                            setInvBTForm(prev => ({ ...prev, durationMinutes: v, exactSubtotal: null }))
+                          }}
                         />
                         <span className="duration-sep">m</span>
                       </div>
                     </div>
-                    <div className="field">
+                    <div className="field" style={{ alignItems: 'flex-end' }}>
                       <span className="label">Rate ($/hr)</span>
                       <input
                         type="text"
+                        style={{ width: 60 }}
                         value={invBTForm.rate}
                         onChange={e => setInvBTForm(prev => ({ ...prev, rate: e.target.value, exactSubtotal: null }))}
                       />
@@ -1700,13 +1706,13 @@ function App() {
                   </div>
                   <div className="inv-item-amount">
                     <span>Amount</span>
-                    <strong>${money(invBTForm.exactSubtotal ?? ((invBTForm.durationHours * 60 + invBTForm.durationMinutes) / 60) * (parseFloat(invBTForm.rate) || 0))}</strong>
+                    <strong>${money(invBTForm.exactSubtotal ?? (((parseInt(invBTForm.durationHours) || 0) * 60 + (parseInt(invBTForm.durationMinutes) || 0)) / 60) * (parseFloat(invBTForm.rate) || 0))}</strong>
                   </div>
                 </div>
               </div>
 
               {(() => {
-                const subtotal = invBTForm.exactSubtotal ?? ((invBTForm.durationHours * 60 + invBTForm.durationMinutes) / 60) * (parseFloat(invBTForm.rate) || 0)
+                const subtotal = invBTForm.exactSubtotal ?? (((parseInt(invBTForm.durationHours) || 0) * 60 + (parseInt(invBTForm.durationMinutes) || 0)) / 60) * (parseFloat(invBTForm.rate) || 0)
                 const gst = invoiceProfile.chargeGst ? subtotal * 0.1 : 0
                 const total = subtotal + gst
                 return (
