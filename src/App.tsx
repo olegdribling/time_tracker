@@ -1164,7 +1164,7 @@ function App() {
       hours: String(Math.round(hours * 100) / 100),
       rate: String(shift.hourlyRate),
       clientId: shift.clientId ?? soloClientId,
-      exactSubtotal: null,
+      exactSubtotal: hours * shift.hourlyRate,
     })
     setInvBTCalendarMonth(toMonthKey(new Date()))
     setInvBTCalendarOpen(false)
