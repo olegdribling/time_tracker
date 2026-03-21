@@ -15,6 +15,7 @@ import {
   Package,
   Plus,
   Settings as SettingsIcon,
+  Timer,
   User,
   Users,
   Wrench,
@@ -1967,8 +1968,6 @@ function App() {
                   <div className="section-header">{group.label}</div>
                   {group.shifts.map((shift) => {
                     const workedMinutes = minutesBetween(shift.start, shift.end) - shift.lunchMinutes
-                    const hours = Math.max(workedMinutes, 0) / 60
-                    const salary = hours * shift.hourlyRate
                     return (
                       <article key={shift.id} className="shift-card">
                         <div className="shift-card__header">
@@ -1999,8 +1998,8 @@ function App() {
                             {formatLunch(shift.lunchMinutes)}
                           </div>
                           <div className="shift-icon-item">
-                            <div className="shift-icon-badge money"><Banknote size={16} /></div>
-                            <span className="shift-pay">${money(salary)}</span>
+                            <div className="shift-icon-badge clock"><Timer size={16} /></div>
+                            <span>{formatDuration(workedMinutes)}</span>
                           </div>
                         </div>
                         {shift.comment && <div className="comment">"{shift.comment}"</div>}
@@ -2247,8 +2246,6 @@ function App() {
               {selectedDayShifts.length > 0 ? (
                 selectedDayShifts.map((shift) => {
                   const workedMinutes = minutesBetween(shift.start, shift.end) - shift.lunchMinutes
-                  const hours = Math.max(workedMinutes, 0) / 60
-                  const salary = hours * shift.hourlyRate
                   return (
                     <article key={shift.id} className="shift-card">
                       <div className="shift-card__header">
@@ -2279,8 +2276,8 @@ function App() {
                           {formatLunch(shift.lunchMinutes)}
                         </div>
                         <div className="shift-icon-item">
-                          <div className="shift-icon-badge money"><Banknote size={16} /></div>
-                          <span className="shift-pay">${money(salary)}</span>
+                          <div className="shift-icon-badge clock"><Timer size={16} /></div>
+                          <span>{formatDuration(workedMinutes)}</span>
                         </div>
                       </div>
                       {shift.comment && <div className="comment">"{shift.comment}"</div>}
