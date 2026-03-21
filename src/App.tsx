@@ -322,7 +322,8 @@ function App() {
     number: '1',
     date: toLocalDateKey(new Date()),
     description: '',
-    hours: '0',
+    durationHours: 0,
+    durationMinutes: 0,
     rate: '0',
     clientId: null as number | null,
     exactSubtotal: null as number | null,
@@ -1134,13 +1135,14 @@ function App() {
 
   const openInvoiceByTime = (manual = false) => {
     if (!requireActive()) return
-    const hours = manual ? 1 : Math.max(reportTotals.durationMinutes, 0) / 60
     const today = toLocalDateKey(new Date())
+    const totalMinutes = manual ? 60 : Math.max(reportTotals.durationMinutes, 0)
     setInvBTForm({
       number: String(invoiceProfile.nextInvoiceNumber),
       date: today,
       description: invoiceProfile.speciality || 'Work shift',
-      hours: String(manual ? 1 : Math.round(hours * 100) / 100),
+      durationHours: Math.floor(totalMinutes / 60),
+      durationMinutes: Math.round(totalMinutes % 60),
       rate: String(settings.hourlyRate),
       clientId: manual ? soloClientId : (reportClientId ?? soloClientId),
       exactSubtotal: manual ? null : reportTotals.pay,
@@ -1161,7 +1163,8 @@ function App() {
       number: String(invoiceProfile.nextInvoiceNumber),
       date: today,
       description: invoiceProfile.speciality || 'Work shift',
-      hours: String(Math.round(hours * 100) / 100),
+      durationHours: Math.floor(workMinutes / 60),
+      durationMinutes: Math.round(workMinutes % 60),
       rate: String(shift.hourlyRate),
       clientId: shift.clientId ?? soloClientId,
       exactSubtotal: hours * shift.hourlyRate,
@@ -1175,9 +1178,10 @@ function App() {
   }
 
   const generateInvoiceByTime = async () => {
-    const hours = parseFloat(invBTForm.hours)
+    const totalMinutes = invBTForm.durationHours * 60 + invBTForm.durationMinutes
+    const hours = totalMinutes / 60
     const rate = parseFloat(invBTForm.rate)
-    if (!hours || hours <= 0) { alert('Please enter a valid number of hours.'); return }
+    if (totalMinutes <= 0) { alert('Please enter a valid duration.'); return }
     if (!rate || rate <= 0) { alert('Please enter a valid rate.'); return }
     const subtotal = invBTForm.exactSubtotal ?? hours * rate
     const gst = invoiceProfile.chargeGst ? subtotal * 0.1 : 0
@@ -1196,7 +1200,7 @@ function App() {
         invoiceNumber: invNum,
         itemLabel: invBTForm.description,
         unitPrice: rate,
-        quantityMinutes: hours * 60,
+        quantityMinutes: totalMinutes,
         subtotal,
         gst,
         balanceDue: total,
@@ -1666,12 +1670,24 @@ function App() {
                   </div>
                   <div className="double">
                     <div className="field">
-                      <span className="label">Hours</span>
-                      <input
-                        type="text"
-                        value={invBTForm.hours}
-                        onChange={e => setInvBTForm(prev => ({ ...prev, hours: e.target.value, exactSubtotal: null }))}
-                      />
+                      <span className="label">Duration</span>
+                      <div className="duration-input">
+                        <input
+                          type="number"
+                          min="0"
+                          value={invBTForm.durationHours}
+                          onChange={e => setInvBTForm(prev => ({ ...prev, durationHours: Math.max(0, parseInt(e.target.value) || 0), exactSubtotal: null }))}
+                        />
+                        <span className="duration-sep">h</span>
+                        <input
+                          type="number"
+                          min="0"
+                          max="59"
+                          value={invBTForm.durationMinutes}
+                          onChange={e => setInvBTForm(prev => ({ ...prev, durationMinutes: Math.min(59, Math.max(0, parseInt(e.target.value) || 0)), exactSubtotal: null }))}
+                        />
+                        <span className="duration-sep">m</span>
+                      </div>
                     </div>
                     <div className="field">
                       <span className="label">Rate ($/hr)</span>
@@ -1684,13 +1700,13 @@ function App() {
                   </div>
                   <div className="inv-item-amount">
                     <span>Amount</span>
-                    <strong>${money(invBTForm.exactSubtotal ?? (parseFloat(invBTForm.hours) || 0) * (parseFloat(invBTForm.rate) || 0))}</strong>
+                    <strong>${money(invBTForm.exactSubtotal ?? ((invBTForm.durationHours * 60 + invBTForm.durationMinutes) / 60) * (parseFloat(invBTForm.rate) || 0))}</strong>
                   </div>
                 </div>
               </div>
 
               {(() => {
-                const subtotal = invBTForm.exactSubtotal ?? (parseFloat(invBTForm.hours) || 0) * (parseFloat(invBTForm.rate) || 0)
+                const subtotal = invBTForm.exactSubtotal ?? ((invBTForm.durationHours * 60 + invBTForm.durationMinutes) / 60) * (parseFloat(invBTForm.rate) || 0)
                 const gst = invoiceProfile.chargeGst ? subtotal * 0.1 : 0
                 const total = subtotal + gst
                 return (

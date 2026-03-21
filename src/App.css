@@ -1628,6 +1628,37 @@
   color: var(--text-primary);
 }
 
+.duration-input {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.duration-input input {
+  width: 60px;
+  text-align: center;
+  padding: 13px 8px;
+  border: 1.5px solid var(--border);
+  border-radius: 14px;
+  background: var(--input-bg);
+  color: var(--text-primary);
+  font-size: 15px;
+  font-weight: 500;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.duration-input input:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(26, 43, 66, 0.08);
+}
+
+.duration-sep {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
 .inv-summary-card {
   background: var(--header-bg);
   border-radius: 14px;
