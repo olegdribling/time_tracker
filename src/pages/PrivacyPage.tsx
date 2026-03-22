@@ -8,7 +8,7 @@ export function PrivacyPage() {
 
         <div className="legal-body">
           <p>
-            TimeTracker ("we", "us", "our") is committed to protecting your personal information in
+            INVAIRO ("we", "us", "our") is committed to protecting your personal information in
             accordance with the <em>Privacy Act 1988</em> (Cth) and the Australian Privacy Principles (APPs).
             This Privacy Policy explains what information we collect, how we use it, and your rights.
           </p>
@@ -43,16 +43,21 @@ export function PrivacyPage() {
               <a href="https://stripe.com/au/privacy" target="_blank" rel="noreferrer">Privacy Policy</a>.
             </li>
             <li>
-              <strong>Render</strong> — cloud hosting and database. Your data is stored on Render's
-              infrastructure in the United States. Render maintains appropriate data protection safeguards.
+              <strong>Hostinger</strong> — cloud hosting. The application is hosted on Hostinger's
+              infrastructure. Hostinger maintains appropriate data protection safeguards.
+            </li>
+            <li>
+              <strong>Neon</strong> — database hosting. Your data is stored in a PostgreSQL database
+              hosted by Neon on AWS infrastructure in Sydney, Australia.
             </li>
           </ul>
 
           <h2>4. Overseas Disclosure</h2>
           <p>
-            Your data is stored on servers located in the United States (Render). Before disclosing
-            personal information overseas, we take reasonable steps to ensure overseas recipients handle
-            it consistently with the APPs. By using the Service, you consent to this transfer.
+            Your data is stored on servers located in Australia (Neon / AWS Sydney) and processed by
+            Hostinger. Before disclosing personal information overseas, we take reasonable steps to ensure
+            overseas recipients handle it consistently with the APPs. By using the Service, you consent
+            to this transfer.
           </p>
 
           <h2>5. Data Security</h2>
@@ -72,7 +77,7 @@ export function PrivacyPage() {
           </ul>
           <p>
             To exercise these rights, email us at{' '}
-            <a href="mailto:privacy@timetracker.app">privacy@timetracker.app</a>. We will respond within
+            <a href="mailto:privacy@invairo.com.au">privacy@invairo.com.au</a>. We will respond within
             30 days.
           </p>
 
@@ -91,7 +96,7 @@ export function PrivacyPage() {
           <h2>9. Complaints</h2>
           <p>
             If you believe we have mishandled your personal information, please contact us first at{' '}
-            <a href="mailto:privacy@timetracker.app">privacy@timetracker.app</a>. If you are not satisfied
+            <a href="mailto:privacy@invairo.com.au">privacy@invairo.com.au</a>. If you are not satisfied
             with our response, you may lodge a complaint with the{' '}
             <a href="https://www.oaic.gov.au/privacy/privacy-complaints" target="_blank" rel="noreferrer">
               Office of the Australian Information Commissioner (OAIC)
@@ -107,7 +112,7 @@ export function PrivacyPage() {
           <h2>11. Contact</h2>
           <p>
             Privacy enquiries:{' '}
-            <a href="mailto:privacy@timetracker.app">privacy@timetracker.app</a>
+            <a href="mailto:privacy@invairo.com.au">privacy@invairo.com.au</a>
           </p>
         </div>
       </div>

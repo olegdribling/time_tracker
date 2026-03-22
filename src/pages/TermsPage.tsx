@@ -8,8 +8,8 @@ export function TermsPage() {
 
         <div className="legal-body">
           <p>
-            These Terms of Service ("Terms") govern your use of the TimeTracker service ("Service"),
-            operated by TimeTracker ("we", "us", "our"). By creating an account you agree to these Terms.
+            These Terms of Service ("Terms") govern your use of the INVAIRO service ("Service"),
+            operated by INVAIRO ("we", "us", "our"). By creating an account you agree to these Terms.
             If you do not agree, do not use the Service.
           </p>
 
@@ -23,7 +23,7 @@ export function TermsPage() {
           <p>
             You are responsible for maintaining the confidentiality of your login credentials and
             for all activity under your account. Notify us immediately at{' '}
-            <a href="mailto:support@timetracker.app">support@timetracker.app</a> if you suspect
+            <a href="mailto:support@invairo.com.au">support@invairo.com.au</a> if you suspect
             unauthorised access.
           </p>
 
@@ -106,7 +106,7 @@ export function TermsPage() {
           <h2>12. Contact</h2>
           <p>
             Questions about these Terms? Email us at{' '}
-            <a href="mailto:support@timetracker.app">support@timetracker.app</a>.
+            <a href="mailto:support@invairo.com.au">support@invairo.com.au</a>.
           </p>
         </div>
       </div>

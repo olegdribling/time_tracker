@@ -8,7 +8,7 @@ export function RefundPage() {
 
         <div className="legal-body">
           <p>
-            This Refund Policy applies to all paid subscriptions for TimeTracker ("Service").
+            This Refund Policy applies to all paid subscriptions for INVAIRO ("Service").
             Your rights under the <em>Australian Consumer Law</em> (ACL) are not affected by this policy.
           </p>
 
@@ -57,7 +57,7 @@ export function RefundPage() {
 
           <h2>6. How to Request a Refund</h2>
           <p>
-            Email <a href="mailto:support@timetracker.app">support@timetracker.app</a> with:
+            Email <a href="mailto:support@invairo.com.au">support@invairo.com.au</a> with:
           </p>
           <ul>
             <li>Your account email address</li>
@@ -72,7 +72,7 @@ export function RefundPage() {
           <h2>7. Contact</h2>
           <p>
             Refund enquiries:{' '}
-            <a href="mailto:support@timetracker.app">support@timetracker.app</a>
+            <a href="mailto:support@invairo.com.au">support@invairo.com.au</a>
           </p>
         </div>
       </div>
