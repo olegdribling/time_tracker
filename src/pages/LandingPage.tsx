@@ -94,7 +94,7 @@ export function LandingPage() {
       {/* ── FEATURES ── */}
       <section className="ld-section" id="features">
         <div className="ld-container">
-          <div className="ld-section-label">Why TimeTracker</div>
+          <div className="ld-section-label">Why INVAIRO</div>
           <h2 className="ld-section-title">Everything you need. Nothing you don't.</h2>
           <div className="ld-features-grid">
             {[
@@ -224,7 +224,7 @@ export function LandingPage() {
         <div className="ld-cta-glow" />
         <div className="ld-container ld-cta-inner">
           <h2 className="ld-cta-title">Ready to get paid on time?</h2>
-          <p className="ld-cta-sub">Join freelancers who use TimeTracker to stay organised and invoice like a pro.</p>
+          <p className="ld-cta-sub">Join freelancers who use INVAIRO to stay organised and invoice like a pro.</p>
           <a href="/register" className="ld-btn-primary ld-btn-lg">Create free account →</a>
           <p className="ld-cta-hint">30-day free trial · Cancel anytime · No credit card</p>
         </div>
