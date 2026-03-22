@@ -23,7 +23,7 @@ export function TermsPage() {
           <p>
             You are responsible for maintaining the confidentiality of your login credentials and
             for all activity under your account. Notify us immediately at{' '}
-            <a href="mailto:support@invairo.com.au">support@invairo.com.au</a> if you suspect
+            <a href="mailto:info@invairo.com.au">info@invairo.com.au</a> if you suspect
             unauthorised access.
           </p>
 
@@ -106,7 +106,7 @@ export function TermsPage() {
           <h2>12. Contact</h2>
           <p>
             Questions about these Terms? Email us at{' '}
-            <a href="mailto:support@invairo.com.au">support@invairo.com.au</a>.
+            <a href="mailto:info@invairo.com.au">info@invairo.com.au</a>.
           </p>
         </div>
       </div>

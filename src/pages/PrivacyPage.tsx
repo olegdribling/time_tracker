@@ -77,7 +77,7 @@ export function PrivacyPage() {
           </ul>
           <p>
             To exercise these rights, email us at{' '}
-            <a href="mailto:privacy@invairo.com.au">privacy@invairo.com.au</a>. We will respond within
+            <a href="mailto:info@invairo.com.au">info@invairo.com.au</a>. We will respond within
             30 days.
           </p>
 
@@ -96,7 +96,7 @@ export function PrivacyPage() {
           <h2>9. Complaints</h2>
           <p>
             If you believe we have mishandled your personal information, please contact us first at{' '}
-            <a href="mailto:privacy@invairo.com.au">privacy@invairo.com.au</a>. If you are not satisfied
+            <a href="mailto:info@invairo.com.au">info@invairo.com.au</a>. If you are not satisfied
             with our response, you may lodge a complaint with the{' '}
             <a href="https://www.oaic.gov.au/privacy/privacy-complaints" target="_blank" rel="noreferrer">
               Office of the Australian Information Commissioner (OAIC)
@@ -112,7 +112,7 @@ export function PrivacyPage() {
           <h2>11. Contact</h2>
           <p>
             Privacy enquiries:{' '}
-            <a href="mailto:privacy@invairo.com.au">privacy@invairo.com.au</a>
+            <a href="mailto:info@invairo.com.au">info@invairo.com.au</a>
           </p>
         </div>
       </div>

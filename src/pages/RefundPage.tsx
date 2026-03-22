@@ -57,7 +57,7 @@ export function RefundPage() {
 
           <h2>6. How to Request a Refund</h2>
           <p>
-            Email <a href="mailto:support@invairo.com.au">support@invairo.com.au</a> with:
+            Email <a href="mailto:info@invairo.com.au">info@invairo.com.au</a> with:
           </p>
           <ul>
             <li>Your account email address</li>
@@ -72,7 +72,7 @@ export function RefundPage() {
           <h2>7. Contact</h2>
           <p>
             Refund enquiries:{' '}
-            <a href="mailto:support@invairo.com.au">support@invairo.com.au</a>
+            <a href="mailto:info@invairo.com.au">info@invairo.com.au</a>
           </p>
         </div>
       </div>
