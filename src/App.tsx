@@ -113,6 +113,13 @@ function formatDuration(minutes: number) {
   return `${hours}h ${mins}m`
 }
 
+function formatDurationPadded(minutes: number) {
+  const safe = Math.max(minutes, 0)
+  const hours = Math.floor(safe / 60)
+  const mins = safe % 60
+  return `${hours}h ${String(mins).padStart(2, '0')}m`
+}
+
 
 const parseDecimal = (raw: string) => {
   const normalized = raw.replace(',', '.').trim()
@@ -1975,7 +1982,7 @@ function App() {
             <section className="overview">
               <div className="overview-label">Total duration</div>
               <div className="overview-period">{periodLabel}</div>
-              <div className="overview-value">{formatDuration(totalDurationMinutes)}</div>
+              <div className="overview-value">{formatDurationPadded(totalDurationMinutes)}</div>
             </section>
 
             <div className="shift-list">
