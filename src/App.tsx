@@ -2040,7 +2040,7 @@ function App() {
                           </div>
                           <div className="shift-icon-item">
                             <div className="shift-icon-badge clock"><Timer size={16} /></div>
-                            <span>{formatDuration(workedMinutes)}</span>
+                            <span>{formatDurationPadded(workedMinutes)}</span>
                           </div>
                         </div>
                         {shift.comment && <div className="comment">"{shift.comment}"</div>}
@@ -2318,7 +2318,7 @@ function App() {
                         </div>
                         <div className="shift-icon-item">
                           <div className="shift-icon-badge clock"><Timer size={16} /></div>
-                          <span>{formatDuration(workedMinutes)}</span>
+                          <span>{formatDurationPadded(workedMinutes)}</span>
                         </div>
                       </div>
                       {shift.comment && <div className="comment">"{shift.comment}"</div>}
