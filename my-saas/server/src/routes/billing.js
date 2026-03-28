@@ -30,9 +30,11 @@ router.get('/status', authMiddleware, async (req, res) => {
 
     let active = false
     if (sub.plan === 'trial') {
-      active = new Date(sub.trial_ends_at) > now
+      // trial_ends_at null = trial hasn't been limited yet → active
+      active = sub.trial_ends_at ? new Date(sub.trial_ends_at) > now : true
     } else if (sub.plan === 'solo' || sub.plan === 'pro') {
-      active = sub.current_period_end ? new Date(sub.current_period_end) > now : false
+      // current_period_end null = webhook stored plan but not period end → treat as active
+      active = sub.current_period_end ? new Date(sub.current_period_end) > now : true
     }
 
     res.json({
