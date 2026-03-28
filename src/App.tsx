@@ -766,7 +766,6 @@ function App() {
   }
 
   const openCreate = () => {
-    if (!requireActive()) return
     closeOverlays()
     setEditingId(null)
     const f = { ...emptyForm(), clientId: soloClientId }
@@ -2910,7 +2909,7 @@ function App() {
             <div style={{ padding: '8px 0 4px', textAlign: 'center' }}>
               <p style={{ marginBottom: '6px' }}>Your free trial has ended.</p>
               <p style={{ marginBottom: '24px', color: 'var(--text-secondary)', fontSize: '14px' }}>
-                Subscribe to continue adding shifts, creating invoices, and managing clients.
+                Subscribe to continue using invoices, clients, and products. Time tracking is always free.
               </p>
               <button
                 className="primary-btn"
