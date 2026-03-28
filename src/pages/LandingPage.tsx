@@ -143,20 +143,21 @@ export function LandingPage() {
         <div className="ld-container">
           <div className="ld-section-label">Pricing</div>
           <h2 className="ld-section-title">Simple, honest pricing</h2>
-          <p className="ld-section-sub">Start free for 30 days. No credit card required.</p>
+          <p className="ld-section-sub">30-day full trial, no card required. Time tracking is free forever.</p>
           <div className="ld-pricing-grid">
 
             <div className="ld-price-card">
               <div className="ld-price-plan">Free Trial</div>
               <div className="ld-price-amount"><span className="ld-price-num">$0</span><span className="ld-price-per"> / 30 days</span></div>
               <ul className="ld-price-features">
+                <li>✓ Unlimited shifts <span style={{ fontSize: 11, color: 'var(--text-secondary, #888)' }}>(always free)</span></li>
                 <li>✓ 1 client</li>
                 <li>✓ 1 product</li>
-                <li>✓ Unlimited shifts</li>
                 <li>✓ Invoice generation</li>
                 <li>✓ PDF export</li>
               </ul>
               <a href="/register" className="ld-btn-ghost ld-btn-full">Start free trial</a>
+              <p className="ld-price-renewal">After 30 days: time tracking stays free. Upgrade for invoices &amp; clients.</p>
             </div>
 
             <div className="ld-price-card ld-price-card--featured">
@@ -226,7 +227,7 @@ export function LandingPage() {
           <h2 className="ld-cta-title">Ready to get paid on time?</h2>
           <p className="ld-cta-sub">Join freelancers who use INVAIRO to stay organised and invoice like a pro.</p>
           <a href="/register" className="ld-btn-primary ld-btn-lg">Create free account →</a>
-          <p className="ld-cta-hint">30-day free trial · Cancel anytime · No credit card</p>
+          <p className="ld-cta-hint">Free time tracking forever · 30-day trial for invoices &amp; clients · No credit card</p>
         </div>
       </section>
 
