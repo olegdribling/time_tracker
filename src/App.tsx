@@ -1154,7 +1154,7 @@ function App() {
       rate: String(settings.hourlyRate),
       clientId: manual ? soloClientId : (reportClientId ?? soloClientId),
       exactSubtotal: manual ? null : reportTotals.pay,
-      comments: manual ? '' : reportShifts.map(s => s.comment).filter(Boolean).join('\n'),
+      comments: manual ? '' : [...reportShifts].reverse().map(s => s.comment).filter(Boolean).join('\n'),
     })
     setInvBTCalendarMonth(toMonthKey(new Date()))
     setInvBTCalendarOpen(false)
