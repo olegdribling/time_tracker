@@ -337,7 +337,7 @@ function App() {
     comments: '',
   })
   const [invBTCalendarOpen, setInvBTCalendarOpen] = useState(false)
-  const [invBTJustSaved, setInvBTJustSaved] = useState(false)
+  const [invBTSuccessData, setInvBTSuccessData] = useState<{ clientEmail: string; invNum: string; date: string } | null>(null)
   const [invBTCalendarMonth, setInvBTCalendarMonth] = useState(() => toMonthKey(new Date()))
   const [isInvoiceByProductsOpen, setIsInvoiceByProductsOpen] = useState(false)
   const [invBPForm, setInvBPForm] = useState({ number: '1', date: toLocalDateKey(new Date()), clientId: null as number | null })
@@ -1158,7 +1158,7 @@ function App() {
     })
     setInvBTCalendarMonth(toMonthKey(new Date()))
     setInvBTCalendarOpen(false)
-    setInvBTJustSaved(false)
+    setInvBTSuccessData(null)
     setIsFabOpen(false)
     setFabInvoiceOpen(false)
     setIsInvoiceByTimeOpen(true)
@@ -1181,7 +1181,7 @@ function App() {
     })
     setInvBTCalendarMonth(toMonthKey(new Date()))
     setInvBTCalendarOpen(false)
-    setInvBTJustSaved(false)
+    setInvBTSuccessData(null)
     setIsFabOpen(false)
     setFabInvoiceOpen(false)
     setIsInvoiceByTimeOpen(true)
@@ -1222,7 +1222,12 @@ function App() {
       setInvoiceProfile(updated)
       setInvoiceDraft(updated)
       await api.saveInvoiceProfile(updated)
-      setInvBTJustSaved(true)
+      setIsInvoiceByTimeOpen(false)
+      setInvBTSuccessData({
+        clientEmail: selectedClient.email ?? '',
+        invNum: String(invNum).padStart(3, '0'),
+        date: invBTForm.date,
+      })
     } catch (error) {
       console.error('Failed to generate invoice', error)
       alert('Failed to generate invoice.')
@@ -1760,31 +1765,46 @@ function App() {
             </div>
 
             <div className="inv-footer">
-              {invBTJustSaved ? (
-                <>
-                  <button className="ghost-button" onClick={() => setIsInvoiceByTimeOpen(false)}>Close</button>
-                  <button
-                    className="primary-btn"
-                    style={{ flex: 1 }}
-                    onClick={() => {
-                      const client = clients.find(c => c.id === invBTForm.clientId)
-                      const invNum = String(parseInt(invBTForm.number) || 1).padStart(3, '0')
-                      const subject = `Invoice #${invNum} – ${invoiceProfile.fullName || ''} – ${formatDate(invBTForm.date)}`
-                      const mailto = `mailto:${encodeURIComponent(client?.email ?? '')}?subject=${encodeURIComponent(subject)}`
-                      window.location.href = mailto
-                    }}
-                  >
-                    Send by Email
-                  </button>
-                </>
-              ) : (
-                <>
-                  <button className="ghost-button" onClick={() => setIsInvoiceByTimeOpen(false)}>Cancel</button>
-                  <button className="primary-btn" style={{ flex: 1 }} onClick={generateInvoiceByTime} disabled={invBTForm.clientId === null}>
-                    Save
-                  </button>
-                </>
-              )}
+              <button className="ghost-button" onClick={() => setIsInvoiceByTimeOpen(false)}>Cancel</button>
+              <button className="primary-btn" style={{ flex: 1 }} onClick={generateInvoiceByTime} disabled={invBTForm.clientId === null}>
+                Create PDF
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* INVOICE PDF SUCCESS MODAL */}
+      {invBTSuccessData && (
+        <div className="modal-backdrop" onClick={() => setInvBTSuccessData(null)}>
+          <div className="modal" style={{ maxWidth: 360 }} onClick={e => e.stopPropagation()}>
+            <div className="inv-header">
+              <div className="inv-header-left">
+                <FileText size={20} />
+                <span className="inv-header-title">Invoice Created</span>
+              </div>
+              <button className="inv-close-btn" onClick={() => setInvBTSuccessData(null)}><X size={18} /></button>
+            </div>
+            <div style={{ padding: '24px 20px 8px', textAlign: 'center' }}>
+              <div style={{ fontSize: 40, marginBottom: 12 }}>✓</div>
+              <p style={{ margin: '0 0 6px', fontWeight: 600 }}>INV-{invBTSuccessData.invNum} saved as PDF</p>
+              <p style={{ margin: 0, fontSize: 13, color: 'var(--text-secondary, #666)' }}>
+                The file was saved to your Downloads folder.
+              </p>
+            </div>
+            <div className="inv-footer">
+              <button className="ghost-button" onClick={() => setInvBTSuccessData(null)}>Close</button>
+              <button
+                className="primary-btn"
+                style={{ flex: 1 }}
+                onClick={() => {
+                  const subject = `Invoice #INV-${invBTSuccessData.invNum} – ${invoiceProfile.fullName || ''} – ${formatDate(invBTSuccessData.date)}`
+                  const mailto = `mailto:${encodeURIComponent(invBTSuccessData.clientEmail)}?subject=${encodeURIComponent(subject)}`
+                  window.location.href = mailto
+                }}
+              >
+                Send by Email
+              </button>
             </div>
           </div>
         </div>
