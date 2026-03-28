@@ -53,6 +53,7 @@ export async function generateInvoicePdf(params: {
   billTo?: { name: string; address: string; abn: string }
   lineItems?: { description: string; amount: number }[]
   productLineItems?: { description: string; unitPrice: number; quantity: number; amount: number }[]
+  comments?: string
 }) {
   const {
     profile,
@@ -67,6 +68,7 @@ export async function generateInvoicePdf(params: {
     billTo,
     lineItems,
     productLineItems,
+    comments,
   } = params
 
   const pdfDoc = await PDFDocument.create()
@@ -206,6 +208,18 @@ export async function generateInvoicePdf(params: {
   drawText(`BSB:            ${profile.bsb || '—'}`, margin, afterTableY)
   afterTableY -= line * 1.2
   drawText(`ACCOUNT:   ${profile.accountNumber || '—'}`, margin, afterTableY)
+
+  // Comments
+  if (comments && comments.trim()) {
+    afterTableY -= line * 2.5
+    drawText('Comments:', margin, afterTableY, { bold: true })
+    afterTableY -= line * 1.2
+    const commentLines = comments.split('\n').flatMap(l => wrapText(l, 80))
+    commentLines.forEach(l => {
+      drawText(l, margin, afterTableY)
+      afterTableY -= line
+    })
+  }
 
   const pdfBytes = await pdfDoc.save()
   const arrayBuffer = pdfBytes.buffer.slice(pdfBytes.byteOffset, pdfBytes.byteOffset + pdfBytes.byteLength) as ArrayBuffer

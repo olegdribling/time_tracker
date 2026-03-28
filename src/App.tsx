@@ -334,6 +334,7 @@ function App() {
     rate: '0',
     clientId: null as number | null,
     exactSubtotal: null as number | null,
+    comments: '',
   })
   const [invBTCalendarOpen, setInvBTCalendarOpen] = useState(false)
   const [invBTJustSaved, setInvBTJustSaved] = useState(false)
@@ -1153,6 +1154,7 @@ function App() {
       rate: String(settings.hourlyRate),
       clientId: manual ? soloClientId : (reportClientId ?? soloClientId),
       exactSubtotal: manual ? null : reportTotals.pay,
+      comments: manual ? '' : reportShifts.map(s => s.comment).filter(Boolean).join('\n'),
     })
     setInvBTCalendarMonth(toMonthKey(new Date()))
     setInvBTCalendarOpen(false)
@@ -1175,6 +1177,7 @@ function App() {
       rate: String(shift.hourlyRate),
       clientId: shift.clientId ?? soloClientId,
       exactSubtotal: hours * shift.hourlyRate,
+      comments: shift.comment || '',
     })
     setInvBTCalendarMonth(toMonthKey(new Date()))
     setInvBTCalendarOpen(false)
@@ -1212,6 +1215,7 @@ function App() {
         gst,
         balanceDue: total,
         billTo: { name: selectedClient.name, address: selectedClient.address, abn: selectedClient.abn },
+        comments: invBTForm.comments || undefined,
       })
       const nextNumber = invNum >= invoiceProfile.nextInvoiceNumber ? invNum + 1 : invoiceProfile.nextInvoiceNumber + 1
       const updated: InvoiceProfile = { ...invoiceProfile, nextInvoiceNumber: nextNumber }
@@ -1742,6 +1746,17 @@ function App() {
                   </div>
                 )
               })()}
+
+              <div className="field" style={{ marginTop: 14 }}>
+                <span className="label">COMMENTS</span>
+                <textarea
+                  rows={3}
+                  style={{ resize: 'vertical', fontFamily: 'inherit', fontSize: 14 }}
+                  placeholder="Comments will appear on the invoice"
+                  value={invBTForm.comments}
+                  onChange={e => setInvBTForm(prev => ({ ...prev, comments: e.target.value }))}
+                />
+              </div>
             </div>
 
             <div className="inv-footer">
