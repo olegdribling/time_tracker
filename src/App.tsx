@@ -261,6 +261,7 @@ const WheelPicker = ({ options, value, onChange, itemHeight = 44 }: WheelPickerP
 
 function App() {
   const navigate = useNavigate()
+  const [appReady, setAppReady] = useState(false)
   const [shifts, setShifts] = useState<Shift[]>([])
   const [isAddOpen, setIsAddOpen] = useState(false)
   const [isMenuOpen, setIsMenuOpen] = useState(() => {
@@ -413,6 +414,7 @@ function App() {
       } catch (error) {
         console.error('Failed to load data', error)
       }
+      if (!cancelled) setAppReady(true)
     })()
 
     return () => {
@@ -1405,6 +1407,13 @@ function App() {
     const mailto = `mailto:${encodeURIComponent(selectedClient.email)}?subject=${encodeURIComponent(subject)}`
     window.location.href = mailto
   }
+
+  if (!appReady) return (
+    <div className="splash-screen">
+      <img src="/invairo_logo_h_white.png" alt="Invairo" className="splash-logo" />
+      <div className="splash-dots"><span /><span /><span /></div>
+    </div>
+  )
 
   return (
     <div className="app-shell" onClick={() => { if (openMenuShiftId) setOpenMenuShiftId(null) }}>
