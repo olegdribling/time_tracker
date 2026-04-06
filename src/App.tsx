@@ -1360,6 +1360,11 @@ function App() {
       setInvoiceDraft(updated)
       await api.saveInvoiceProfile(updated)
       setIsInvoiceByServicesOpen(false)
+      setInvBTSuccessData({
+        clientEmail: selectedClient.email ?? '',
+        invNum: String(invNum).padStart(3, '0'),
+        date: invBSForm.date,
+      })
     } catch (error) {
       console.error('Failed to generate invoice', error)
       alert('Failed to generate invoice.')
@@ -1418,6 +1423,11 @@ function App() {
       setInvoiceDraft(updated)
       await api.saveInvoiceProfile(updated)
       setIsInvoiceByProductsOpen(false)
+      setInvBTSuccessData({
+        clientEmail: selectedClient.email ?? '',
+        invNum: String(invNum).padStart(3, '0'),
+        date: invBPForm.date,
+      })
     } catch (error) {
       console.error('Failed to generate invoice', error)
       alert('Failed to generate invoice.')
