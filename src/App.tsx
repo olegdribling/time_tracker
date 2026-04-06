@@ -1662,7 +1662,7 @@ function App() {
                             </div>
                             <div className="field" style={{ alignItems: 'flex-end' }}>
                               <span className="label">Rate ($/hr)</span>
-                              <input type="text" style={{ width: 60 }} value={item.rate} onChange={e => setInvLineItems(prev => prev.map(i => i.id === item.id ? { ...i, rate: e.target.value, exactAmount: undefined } as InvoiceLineItem : i))} />
+                              <input type="text" style={{ width: 60 }} value={item.rate} onChange={e => setInvLineItems(prev => prev.map(i => i.id === item.id ? { ...i, rate: e.target.value, exactAmount: undefined } as InvoiceLineItem : i))} onBlur={e => { const v = e.target.value.replace(',', '.'); setInvLineItems(prev => prev.map(i => i.id === item.id ? { ...i, rate: v, exactAmount: undefined } as InvoiceLineItem : i)) }} />
                             </div>
                           </div>
                         </>
@@ -1842,7 +1842,7 @@ function App() {
                             </div>
                             <div className="field" style={{ alignItems: 'flex-end' }}>
                               <span className="label">Rate ($/hr)</span>
-                              <input type="text" style={{ width: 60 }} value={item.rate} onChange={e => setInvLineItems(prev => prev.map(i => i.id === item.id ? { ...i, rate: e.target.value, exactAmount: undefined } as InvoiceLineItem : i))} />
+                              <input type="text" style={{ width: 60 }} value={item.rate} onChange={e => setInvLineItems(prev => prev.map(i => i.id === item.id ? { ...i, rate: e.target.value, exactAmount: undefined } as InvoiceLineItem : i))} onBlur={e => { const v = e.target.value.replace(',', '.'); setInvLineItems(prev => prev.map(i => i.id === item.id ? { ...i, rate: v, exactAmount: undefined } as InvoiceLineItem : i)) }} />
                             </div>
                           </div>
                           <div className="inv-item-amount"><span>Amount</span><strong>${money(calcLineItemAmount(item))}</strong></div>
@@ -2093,7 +2093,7 @@ function App() {
                             </div>
                             <div className="field" style={{ alignItems: 'flex-end' }}>
                               <span className="label">Rate ($/hr)</span>
-                              <input type="text" style={{ width: 60 }} value={item.rate} onChange={e => setInvLineItems(prev => prev.map(i => i.id === item.id ? { ...i, rate: e.target.value, exactAmount: undefined } as InvoiceLineItem : i))} />
+                              <input type="text" style={{ width: 60 }} value={item.rate} onChange={e => setInvLineItems(prev => prev.map(i => i.id === item.id ? { ...i, rate: e.target.value, exactAmount: undefined } as InvoiceLineItem : i))} onBlur={e => { const v = e.target.value.replace(',', '.'); setInvLineItems(prev => prev.map(i => i.id === item.id ? { ...i, rate: v, exactAmount: undefined } as InvoiceLineItem : i)) }} />
                             </div>
                           </div>
                           <div className="inv-item-amount"><span>Amount</span><strong>${money(calcLineItemAmount(item))}</strong></div>
@@ -2989,7 +2989,7 @@ function App() {
                             </div>
                             <div className="field" style={{ alignItems: 'flex-end' }}>
                               <span className="label">Rate ($/hr)</span>
-                              <input type="text" style={{ width: 60 }} value={item.rate} onChange={e => setInvLineItems(prev => prev.map(i => i.id === item.id ? { ...i, rate: e.target.value, exactAmount: undefined } as InvoiceLineItem : i))} />
+                              <input type="text" style={{ width: 60 }} value={item.rate} onChange={e => setInvLineItems(prev => prev.map(i => i.id === item.id ? { ...i, rate: e.target.value, exactAmount: undefined } as InvoiceLineItem : i))} onBlur={e => { const v = e.target.value.replace(',', '.'); setInvLineItems(prev => prev.map(i => i.id === item.id ? { ...i, rate: v, exactAmount: undefined } as InvoiceLineItem : i)) }} />
                             </div>
                           </div>
                           <div className="inv-item-amount"><span>Amount</span><strong>${money(calcLineItemAmount(item))}</strong></div>
