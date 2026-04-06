@@ -259,6 +259,11 @@ const WheelPicker = ({ options, value, onChange, itemHeight = 44 }: WheelPickerP
   )
 }
 
+type InvoiceLineItem =
+  | { id: number; type: 'time'; description: string; durationHours: string; durationMinutes: string; rate: string; exactAmount?: number }
+  | { id: number; type: 'service'; description: string; amount: string }
+  | { id: number; type: 'product'; description: string; quantity: string; unitPrice: string }
+
 function App() {
   const navigate = useNavigate()
   const [appReady, setAppReady] = useState(false)
@@ -323,18 +328,12 @@ function App() {
   const [isInvoiceByTimeOpen, setIsInvoiceByTimeOpen] = useState(false)
   const [isInvoiceByServicesOpen, setIsInvoiceByServicesOpen] = useState(false)
   const [invBSForm, setInvBSForm] = useState({ number: '1', date: toLocalDateKey(new Date()), clientId: null as number | null })
-  const [invBSItems, setInvBSItems] = useState<{ id: number; description: string; amount: string }[]>([])
   const [invBSCalendarOpen, setInvBSCalendarOpen] = useState(false)
   const [invBSCalendarMonth, setInvBSCalendarMonth] = useState(() => toMonthKey(new Date()))
   const [invBTForm, setInvBTForm] = useState({
     number: '1',
     date: toLocalDateKey(new Date()),
-    description: '',
-    durationHours: '0',
-    durationMinutes: '0',
-    rate: '0',
     clientId: null as number | null,
-    exactSubtotal: null as number | null,
     comments: '',
   })
   const [invBTCalendarOpen, setInvBTCalendarOpen] = useState(false)
@@ -342,9 +341,10 @@ function App() {
   const [invBTCalendarMonth, setInvBTCalendarMonth] = useState(() => toMonthKey(new Date()))
   const [isInvoiceByProductsOpen, setIsInvoiceByProductsOpen] = useState(false)
   const [invBPForm, setInvBPForm] = useState({ number: '1', date: toLocalDateKey(new Date()), clientId: null as number | null })
-  const [invBPItems, setInvBPItems] = useState<{ id: number; productId: number | null; description: string; quantity: string; unitPrice: string }[]>([])
   const [invBPCalendarOpen, setInvBPCalendarOpen] = useState(false)
   const [invBPCalendarMonth, setInvBPCalendarMonth] = useState(() => toMonthKey(new Date()))
+  const [invLineItems, setInvLineItems] = useState<InvoiceLineItem[]>([])
+  const [invAddMenuOpen, setInvAddMenuOpen] = useState(false)
   const [products, setProducts] = useState<Product[]>([])
   const [isProductModalOpen, setIsProductModalOpen] = useState(false)
   const [editingProductId, setEditingProductId] = useState<number | null>(null)
@@ -1142,6 +1142,27 @@ function App() {
     setShowEmailPrompt(false)
   }
 
+  const calcLineItemAmount = (item: InvoiceLineItem): number => {
+    if (item.type === 'time') {
+      if (item.exactAmount !== undefined) return item.exactAmount
+      return ((parseInt(item.durationHours) || 0) * 60 + (parseInt(item.durationMinutes) || 0)) / 60 * (parseFloat(item.rate) || 0)
+    }
+    if (item.type === 'service') return parseFloat(item.amount) || 0
+    return (parseFloat(item.quantity) || 0) * (parseFloat(item.unitPrice) || 0)
+  }
+
+  const addLineItem = (type: InvoiceLineItem['type']) => {
+    const newId = invLineItems.length > 0 ? Math.max(...invLineItems.map(i => i.id)) + 1 : 1
+    const item: InvoiceLineItem =
+      type === 'time'
+        ? { id: newId, type: 'time', description: '', durationHours: '0', durationMinutes: '0', rate: String(settings.hourlyRate) }
+        : type === 'service'
+        ? { id: newId, type: 'service', description: '', amount: '0' }
+        : { id: newId, type: 'product', description: '', quantity: '1', unitPrice: '0' }
+    setInvLineItems(prev => [...prev, item])
+    setInvAddMenuOpen(false)
+  }
+
   const openInvoiceByTime = (manual = false) => {
     if (!requireActive()) return
     const today = toLocalDateKey(new Date())
@@ -1149,14 +1170,19 @@ function App() {
     setInvBTForm({
       number: String(invoiceProfile.nextInvoiceNumber),
       date: today,
+      clientId: manual ? soloClientId : (reportClientId ?? soloClientId),
+      comments: manual ? '' : [...reportShifts].reverse().map(s => s.comment).filter(Boolean).join('\n'),
+    })
+    setInvLineItems([{
+      id: 1,
+      type: 'time',
       description: invoiceProfile.speciality || 'Work shift',
       durationHours: String(Math.floor(totalMinutes / 60)),
       durationMinutes: String(Math.round(totalMinutes % 60)),
       rate: String(settings.hourlyRate),
-      clientId: manual ? soloClientId : (reportClientId ?? soloClientId),
-      exactSubtotal: manual ? null : reportTotals.pay,
-      comments: manual ? '' : [...reportShifts].reverse().map(s => s.comment).filter(Boolean).join('\n'),
-    })
+      exactAmount: manual ? undefined : reportTotals.pay,
+    }])
+    setInvAddMenuOpen(false)
     setInvBTCalendarMonth(toMonthKey(new Date()))
     setInvBTCalendarOpen(false)
     setInvBTSuccessData(null)
@@ -1172,14 +1198,19 @@ function App() {
     setInvBTForm({
       number: String(invoiceProfile.nextInvoiceNumber),
       date: today,
+      clientId: shift.clientId ?? soloClientId,
+      comments: shift.comment || '',
+    })
+    setInvLineItems([{
+      id: 1,
+      type: 'time',
       description: invoiceProfile.speciality || 'Work shift',
       durationHours: String(Math.floor(workMinutes / 60)),
       durationMinutes: String(Math.round(workMinutes % 60)),
       rate: String(shift.hourlyRate),
-      clientId: shift.clientId ?? soloClientId,
-      exactSubtotal: hours * shift.hourlyRate,
-      comments: shift.comment || '',
-    })
+      exactAmount: hours * shift.hourlyRate,
+    }])
+    setInvAddMenuOpen(false)
     setInvBTCalendarMonth(toMonthKey(new Date()))
     setInvBTCalendarOpen(false)
     setInvBTSuccessData(null)
@@ -1189,12 +1220,9 @@ function App() {
   }
 
   const generateInvoiceByTime = async () => {
-    const totalMinutes = (parseInt(invBTForm.durationHours) || 0) * 60 + (parseInt(invBTForm.durationMinutes) || 0)
-    const hours = totalMinutes / 60
-    const rate = parseFloat(invBTForm.rate)
-    if (totalMinutes <= 0) { alert('Please enter a valid duration.'); return }
-    if (!rate || rate <= 0) { alert('Please enter a valid rate.'); return }
-    const subtotal = invBTForm.exactSubtotal ?? hours * rate
+    if (invLineItems.length === 0) { alert('Please add at least one item.'); return }
+    const lineItems = invLineItems.map(item => ({ description: item.type === 'time' ? item.description : item.type === 'service' ? item.description : item.description, amount: calcLineItemAmount(item) }))
+    const subtotal = lineItems.reduce((s, i) => s + i.amount, 0)
     const gst = invoiceProfile.chargeGst ? subtotal * 0.1 : 0
     const total = subtotal + gst
     const invNum = parseInt(invBTForm.number) || 1
@@ -1209,13 +1237,14 @@ function App() {
         profile: invoiceProfile,
         period,
         invoiceNumber: invNum,
-        itemLabel: invBTForm.description,
-        unitPrice: rate,
-        quantityMinutes: totalMinutes,
+        itemLabel: '',
+        unitPrice: 0,
+        quantityMinutes: 0,
         subtotal,
         gst,
         balanceDue: total,
         billTo: { name: selectedClient.name, address: selectedClient.address, abn: selectedClient.abn },
+        lineItems,
         comments: invBTForm.comments || undefined,
       })
       const nextNumber = invNum >= invoiceProfile.nextInvoiceNumber ? invNum + 1 : invoiceProfile.nextInvoiceNumber + 1
@@ -1242,12 +1271,15 @@ function App() {
     const gst = invoiceProfile.chargeGst ? invoiceForm.total / 11 : 0
     const unitPrice = invoiceProfile.chargeGst ? invoiceForm.rate / 1.1 : invoiceForm.rate
     const netSubtotal = invoiceForm.total - gst
-    const balanceDue = invoiceForm.total
+    const balanceDue = invoiceForm.total + invLineItems.reduce((s, item) => s + calcLineItemAmount(item), 0)
     const selectedClient = clients.find(c => c.id === selectedClientId)
     if (!selectedClient) {
       alert('Selected client not found. Please re-select a client.')
       return
     }
+    const extraItems = invLineItems.length > 0
+      ? invLineItems.map(item => ({ description: item.description, amount: calcLineItemAmount(item) }))
+      : undefined
     try {
       await generateInvoicePdf({
         profile: invoiceProfile,
@@ -1260,6 +1292,7 @@ function App() {
         gst,
         balanceDue,
         billTo: { name: selectedClient.name, address: selectedClient.address, abn: selectedClient.abn },
+        lineItems: extraItems,
       })
       const nextNumber =
         invoiceNumber > invoiceProfile.nextInvoiceNumber
@@ -1285,7 +1318,8 @@ function App() {
       date: toLocalDateKey(new Date()),
       clientId: reportClientId ?? soloClientId,
     })
-    setInvBSItems([{ id: 1, description: 'Services', amount: '0' }])
+    setInvLineItems([{ id: 1, type: 'service', description: 'Services', amount: '0' }])
+    setInvAddMenuOpen(false)
     setInvBSCalendarMonth(toMonthKey(new Date()))
     setInvBSCalendarOpen(false)
     setIsFabOpen(false)
@@ -1294,8 +1328,9 @@ function App() {
   }
 
   const generateInvoiceByServices = async () => {
-    const items = invBSItems.map(i => ({ description: i.description, amount: parseFloat(i.amount) || 0 }))
-    const subtotal = items.reduce((s, i) => s + i.amount, 0)
+    if (invLineItems.length === 0) { alert('Please add at least one item.'); return }
+    const lineItems = invLineItems.map(item => ({ description: item.description, amount: calcLineItemAmount(item) }))
+    const subtotal = lineItems.reduce((s, i) => s + i.amount, 0)
     const gst = invoiceProfile.chargeGst ? subtotal * 0.1 : 0
     const total = subtotal + gst
     const invNum = parseInt(invBSForm.number) || 1
@@ -1317,7 +1352,7 @@ function App() {
         gst,
         balanceDue: total,
         billTo: { name: selectedClient.name, address: selectedClient.address, abn: selectedClient.abn },
-        lineItems: items,
+        lineItems,
       })
       const nextNumber = invNum >= invoiceProfile.nextInvoiceNumber ? invNum + 1 : invoiceProfile.nextInvoiceNumber + 1
       const updated: InvoiceProfile = { ...invoiceProfile, nextInvoiceNumber: nextNumber }
@@ -1333,15 +1368,16 @@ function App() {
 
   const openInvoiceByProducts = () => {
     if (!requireActive()) return
-    const defaultItem = products.length === 1
-      ? [{ id: 1, productId: products[0].id, description: products[0].name, quantity: '1', unitPrice: String(products[0].price) }]
-      : [{ id: 1, productId: null, description: '', quantity: '1', unitPrice: '0' }]
+    const defaultItem: InvoiceLineItem = products.length === 1
+      ? { id: 1, type: 'product', description: products[0].name, quantity: '1', unitPrice: String(products[0].price) }
+      : { id: 1, type: 'product', description: '', quantity: '1', unitPrice: '0' }
     setInvBPForm({
       number: String(invoiceProfile.nextInvoiceNumber),
       date: toLocalDateKey(new Date()),
       clientId: reportClientId ?? soloClientId,
     })
-    setInvBPItems(defaultItem)
+    setInvLineItems([defaultItem])
+    setInvAddMenuOpen(false)
     setInvBPCalendarMonth(toMonthKey(new Date()))
     setInvBPCalendarOpen(false)
     setIsFabOpen(false)
@@ -1350,13 +1386,9 @@ function App() {
   }
 
   const generateInvoiceByProducts = async () => {
-    const items = invBPItems.map(i => ({
-      description: i.description,
-      unitPrice: parseFloat(i.unitPrice) || 0,
-      quantity: parseFloat(i.quantity) || 0,
-      amount: (parseFloat(i.quantity) || 0) * (parseFloat(i.unitPrice) || 0),
-    }))
-    const subtotal = items.reduce((s, i) => s + i.amount, 0)
+    if (invLineItems.length === 0) { alert('Please add at least one item.'); return }
+    const lineItems = invLineItems.map(item => ({ description: item.description, amount: calcLineItemAmount(item) }))
+    const subtotal = lineItems.reduce((s, i) => s + i.amount, 0)
     const gst = invoiceProfile.chargeGst ? subtotal * 0.1 : 0
     const total = subtotal + gst
     const invNum = parseInt(invBPForm.number) || 1
@@ -1378,7 +1410,7 @@ function App() {
         gst,
         balanceDue: total,
         billTo: { name: selectedClient.name, address: selectedClient.address, abn: selectedClient.abn },
-        productLineItems: items,
+        lineItems,
       })
       const nextNumber = invNum >= invoiceProfile.nextInvoiceNumber ? invNum + 1 : invoiceProfile.nextInvoiceNumber + 1
       const updated: InvoiceProfile = { ...invoiceProfile, nextInvoiceNumber: nextNumber }
@@ -1587,8 +1619,81 @@ function App() {
               </label>
             </div>
 
-            <button className="primary-btn" onClick={saveInvoicePdf} disabled={selectedClientId === null}>
-              Save
+            <div style={{ position: 'relative', marginTop: 8 }}>
+              {invAddMenuOpen && (
+                <div
+                  style={{ position: 'absolute', inset: 0, zIndex: 98, backdropFilter: 'blur(2px)', borderRadius: 'inherit' }}
+                  onClick={() => setInvAddMenuOpen(false)}
+                />
+              )}
+              {invLineItems.length > 0 && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 10 }}>
+                  {invLineItems.map((item, idx) => (
+                    <div key={item.id} className="inv-line-item-card">
+                      <div className="inv-item-title-row">
+                        <div className="inv-item-title">Extra {idx + 1} <span style={{ fontSize: 11, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>{item.type}</span></div>
+                        <button type="button" className="inv-remove-item-btn" onClick={() => setInvLineItems(prev => prev.filter(i => i.id !== item.id))}><X size={14} /></button>
+                      </div>
+                      <div className="field">
+                        <span className="label">Description</span>
+                        <input type="text" value={item.description} onChange={e => setInvLineItems(prev => prev.map(i => i.id === item.id ? { ...i, description: e.target.value } as InvoiceLineItem : i))} />
+                      </div>
+                      {item.type === 'time' && (
+                        <>
+                          <div className="double">
+                            <div className="field">
+                              <span className="label">Duration</span>
+                              <div className="duration-input">
+                                <input type="text" inputMode="numeric" value={item.durationHours} onChange={e => { const v = e.target.value.replace(/\D/g, ''); setInvLineItems(prev => prev.map(i => i.id === item.id ? { ...i, durationHours: v, exactAmount: undefined } as InvoiceLineItem : i)) }} />
+                                <span className="duration-sep">h</span>
+                                <input type="text" inputMode="numeric" value={item.durationMinutes} onChange={e => { const v = e.target.value.replace(/\D/g, ''); setInvLineItems(prev => prev.map(i => i.id === item.id ? { ...i, durationMinutes: v, exactAmount: undefined } as InvoiceLineItem : i)) }} />
+                                <span className="duration-sep">m</span>
+                              </div>
+                            </div>
+                            <div className="field" style={{ alignItems: 'flex-end' }}>
+                              <span className="label">Rate ($/hr)</span>
+                              <input type="text" style={{ width: 60 }} value={item.rate} onChange={e => setInvLineItems(prev => prev.map(i => i.id === item.id ? { ...i, rate: e.target.value, exactAmount: undefined } as InvoiceLineItem : i))} />
+                            </div>
+                          </div>
+                        </>
+                      )}
+                      {item.type === 'service' && (
+                        <div className="field">
+                          <span className="label">Amount ($)</span>
+                          <input type="number" min="0" step="0.01" value={item.amount} onChange={e => setInvLineItems(prev => prev.map(i => i.id === item.id ? { ...i, amount: e.target.value } as InvoiceLineItem : i))} />
+                        </div>
+                      )}
+                      {item.type === 'product' && (
+                        <div style={{ display: 'flex', gap: 10 }}>
+                          <div className="field" style={{ flex: 1, minWidth: 0 }}>
+                            <span className="label">Quantity</span>
+                            <input type="number" min="0" step="1" value={item.quantity} onChange={e => setInvLineItems(prev => prev.map(i => i.id === item.id ? { ...i, quantity: e.target.value } as InvoiceLineItem : i))} />
+                          </div>
+                          <div className="field" style={{ flex: 1, minWidth: 0 }}>
+                            <span className="label">Unit Price</span>
+                            <input type="number" min="0" step="0.01" value={item.unitPrice} onChange={e => setInvLineItems(prev => prev.map(i => i.id === item.id ? { ...i, unitPrice: e.target.value } as InvoiceLineItem : i))} />
+                          </div>
+                        </div>
+                      )}
+                      <div className="inv-item-amount"><span>Amount</span><strong>${money(calcLineItemAmount(item))}</strong></div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <div style={{ position: 'relative', zIndex: invAddMenuOpen ? 99 : 'auto' }}>
+                <button type="button" className="add-action-btn" onClick={() => setInvAddMenuOpen(p => !p)}>+ Add Item</button>
+                {invAddMenuOpen && (
+                  <div className="inv-add-menu">
+                    <button onClick={() => addLineItem('time')}>+ Add Time</button>
+                    <button onClick={() => addLineItem('service')}>+ Add Service</button>
+                    <button onClick={() => addLineItem('product')}>+ Add Product</button>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <button className="primary-btn" style={{ marginTop: 12 }} onClick={saveInvoicePdf} disabled={selectedClientId === null}>
+              Create PDF
             </button>
           </div>
         </div>
@@ -1680,63 +1785,90 @@ function App() {
                 </div>
               </div>
 
-              <div>
-                <div className="inv-section-title">LINE ITEMS</div>
-                <div className="inv-line-item-card" style={{ marginTop: 14 }}>
-                  <div className="inv-item-title">Item 1</div>
-                  <div className="field">
-                    <span className="label">Description</span>
-                    <input
-                      type="text"
-                      value={invBTForm.description}
-                      onChange={e => setInvBTForm(prev => ({ ...prev, description: e.target.value }))}
-                    />
-                  </div>
-                  <div className="double">
-                    <div className="field">
-                      <span className="label">Duration</span>
-                      <div className="duration-input">
-                        <input
-                          type="text"
-                          inputMode="numeric"
-                          value={invBTForm.durationHours}
-                          onChange={e => {
-                            const v = e.target.value.replace(/\D/g, '')
-                            setInvBTForm(prev => ({ ...prev, durationHours: v, exactSubtotal: null }))
-                          }}
-                        />
-                        <span className="duration-sep">h</span>
-                        <input
-                          type="text"
-                          inputMode="numeric"
-                          value={invBTForm.durationMinutes}
-                          onChange={e => {
-                            const v = e.target.value.replace(/\D/g, '')
-                            setInvBTForm(prev => ({ ...prev, durationMinutes: v, exactSubtotal: null }))
-                          }}
-                        />
-                        <span className="duration-sep">m</span>
+              <div style={{ position: 'relative' }}>
+                {invAddMenuOpen && (
+                  <div
+                    style={{ position: 'absolute', inset: 0, zIndex: 98, backdropFilter: 'blur(2px)', borderRadius: 'inherit' }}
+                    onClick={() => setInvAddMenuOpen(false)}
+                  />
+                )}
+                <div className="inv-section-title-row">
+                  <div className="inv-section-title">LINE ITEMS</div>
+                  <div style={{ position: 'relative', zIndex: invAddMenuOpen ? 99 : 'auto' }}>
+                    <button type="button" className="add-action-btn" onClick={() => setInvAddMenuOpen(p => !p)}>+ Add Item</button>
+                    {invAddMenuOpen && (
+                      <div className="inv-add-menu">
+                        <button onClick={() => addLineItem('time')}>+ Add Time</button>
+                        <button onClick={() => addLineItem('service')}>+ Add Service</button>
+                        <button onClick={() => addLineItem('product')}>+ Add Product</button>
                       </div>
-                    </div>
-                    <div className="field" style={{ alignItems: 'flex-end' }}>
-                      <span className="label">Rate ($/hr)</span>
-                      <input
-                        type="text"
-                        style={{ width: 60 }}
-                        value={invBTForm.rate}
-                        onChange={e => setInvBTForm(prev => ({ ...prev, rate: e.target.value, exactSubtotal: null }))}
-                      />
-                    </div>
+                    )}
                   </div>
-                  <div className="inv-item-amount">
-                    <span>Amount</span>
-                    <strong>${money(invBTForm.exactSubtotal ?? (((parseInt(invBTForm.durationHours) || 0) * 60 + (parseInt(invBTForm.durationMinutes) || 0)) / 60) * (parseFloat(invBTForm.rate) || 0))}</strong>
-                  </div>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 14 }}>
+                  {invLineItems.map((item, idx) => (
+                    <div key={item.id} className="inv-line-item-card">
+                      <div className="inv-item-title-row">
+                        <div className="inv-item-title">Item {idx + 1} <span style={{ fontSize: 11, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>{item.type}</span></div>
+                        {invLineItems.length > 1 && (
+                          <button type="button" className="inv-remove-item-btn" onClick={() => setInvLineItems(prev => prev.filter(i => i.id !== item.id))}><X size={14} /></button>
+                        )}
+                      </div>
+                      <div className="field">
+                        <span className="label">Description</span>
+                        <input type="text" value={item.description} onChange={e => setInvLineItems(prev => prev.map(i => i.id === item.id ? { ...i, description: e.target.value } as InvoiceLineItem : i))} />
+                      </div>
+                      {item.type === 'time' && (
+                        <>
+                          <div className="double">
+                            <div className="field">
+                              <span className="label">Duration</span>
+                              <div className="duration-input">
+                                <input type="text" inputMode="numeric" value={item.durationHours} onChange={e => { const v = e.target.value.replace(/\D/g, ''); setInvLineItems(prev => prev.map(i => i.id === item.id ? { ...i, durationHours: v, exactAmount: undefined } as InvoiceLineItem : i)) }} />
+                                <span className="duration-sep">h</span>
+                                <input type="text" inputMode="numeric" value={item.durationMinutes} onChange={e => { const v = e.target.value.replace(/\D/g, ''); setInvLineItems(prev => prev.map(i => i.id === item.id ? { ...i, durationMinutes: v, exactAmount: undefined } as InvoiceLineItem : i)) }} />
+                                <span className="duration-sep">m</span>
+                              </div>
+                            </div>
+                            <div className="field" style={{ alignItems: 'flex-end' }}>
+                              <span className="label">Rate ($/hr)</span>
+                              <input type="text" style={{ width: 60 }} value={item.rate} onChange={e => setInvLineItems(prev => prev.map(i => i.id === item.id ? { ...i, rate: e.target.value, exactAmount: undefined } as InvoiceLineItem : i))} />
+                            </div>
+                          </div>
+                          <div className="inv-item-amount"><span>Amount</span><strong>${money(calcLineItemAmount(item))}</strong></div>
+                        </>
+                      )}
+                      {item.type === 'service' && (
+                        <>
+                          <div className="field">
+                            <span className="label">Amount ($)</span>
+                            <input type="number" min="0" step="0.01" value={item.amount} onChange={e => setInvLineItems(prev => prev.map(i => i.id === item.id ? { ...i, amount: e.target.value } as InvoiceLineItem : i))} />
+                          </div>
+                          <div className="inv-item-amount"><span>Amount</span><strong>${money(calcLineItemAmount(item))}</strong></div>
+                        </>
+                      )}
+                      {item.type === 'product' && (
+                        <>
+                          <div style={{ display: 'flex', gap: 10 }}>
+                            <div className="field" style={{ flex: 1, minWidth: 0 }}>
+                              <span className="label">Quantity</span>
+                              <input type="number" min="0" step="1" value={item.quantity} onChange={e => setInvLineItems(prev => prev.map(i => i.id === item.id ? { ...i, quantity: e.target.value } as InvoiceLineItem : i))} />
+                            </div>
+                            <div className="field" style={{ flex: 1, minWidth: 0 }}>
+                              <span className="label">Unit Price</span>
+                              <input type="number" min="0" step="0.01" value={item.unitPrice} onChange={e => setInvLineItems(prev => prev.map(i => i.id === item.id ? { ...i, unitPrice: e.target.value } as InvoiceLineItem : i))} />
+                            </div>
+                          </div>
+                          <div className="inv-item-amount"><span>Amount</span><strong>${money(calcLineItemAmount(item))}</strong></div>
+                        </>
+                      )}
+                    </div>
+                  ))}
                 </div>
               </div>
 
               {(() => {
-                const subtotal = invBTForm.exactSubtotal ?? (((parseInt(invBTForm.durationHours) || 0) * 60 + (parseInt(invBTForm.durationMinutes) || 0)) / 60) * (parseFloat(invBTForm.rate) || 0)
+                const subtotal = invLineItems.reduce((s, item) => s + calcLineItemAmount(item), 0)
                 const gst = invoiceProfile.chargeGst ? subtotal * 0.1 : 0
                 const total = subtotal + gst
                 return (
@@ -1904,60 +2036,90 @@ function App() {
                 </div>
               </div>
 
-              <div>
+              <div style={{ position: 'relative' }}>
+                {invAddMenuOpen && (
+                  <div
+                    style={{ position: 'absolute', inset: 0, zIndex: 98, backdropFilter: 'blur(2px)', borderRadius: 'inherit' }}
+                    onClick={() => setInvAddMenuOpen(false)}
+                  />
+                )}
                 <div className="inv-section-title-row">
                   <div className="inv-section-title">LINE ITEMS</div>
-                  <button
-                    type="button"
-                    className="add-action-btn"
-                    onClick={() => {
-                      const newId = invBSItems.length > 0 ? Math.max(...invBSItems.map(i => i.id)) + 1 : 1
-                      setInvBSItems(prev => [...prev, { id: newId, description: '', amount: '0' }])
-                    }}
-                  >
-                    + Add Item
-                  </button>
+                  <div style={{ position: 'relative', zIndex: invAddMenuOpen ? 99 : 'auto' }}>
+                    <button type="button" className="add-action-btn" onClick={() => setInvAddMenuOpen(p => !p)}>+ Add Item</button>
+                    {invAddMenuOpen && (
+                      <div className="inv-add-menu">
+                        <button onClick={() => addLineItem('time')}>+ Add Time</button>
+                        <button onClick={() => addLineItem('service')}>+ Add Service</button>
+                        <button onClick={() => addLineItem('product')}>+ Add Product</button>
+                      </div>
+                    )}
+                  </div>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 14 }}>
-                  {invBSItems.map((item, idx) => (
+                  {invLineItems.map((item, idx) => (
                     <div key={item.id} className="inv-line-item-card">
                       <div className="inv-item-title-row">
-                        <div className="inv-item-title">Item {idx + 1}</div>
-                        {invBSItems.length > 1 && (
-                          <button
-                            type="button"
-                            className="inv-remove-item-btn"
-                            onClick={() => setInvBSItems(prev => prev.filter(i => i.id !== item.id))}
-                          >
-                            <X size={14} />
-                          </button>
+                        <div className="inv-item-title">Item {idx + 1} <span style={{ fontSize: 11, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>{item.type}</span></div>
+                        {invLineItems.length > 1 && (
+                          <button type="button" className="inv-remove-item-btn" onClick={() => setInvLineItems(prev => prev.filter(i => i.id !== item.id))}><X size={14} /></button>
                         )}
                       </div>
                       <div className="field">
                         <span className="label">Description</span>
-                        <input
-                          type="text"
-                          value={item.description}
-                          onChange={e => setInvBSItems(prev => prev.map(i => i.id === item.id ? { ...i, description: e.target.value } : i))}
-                        />
+                        <input type="text" value={item.description} onChange={e => setInvLineItems(prev => prev.map(i => i.id === item.id ? { ...i, description: e.target.value } as InvoiceLineItem : i))} />
                       </div>
-                      <div className="field">
-                        <span className="label">Amount ($)</span>
-                        <input
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          value={item.amount}
-                          onChange={e => setInvBSItems(prev => prev.map(i => i.id === item.id ? { ...i, amount: e.target.value } : i))}
-                        />
-                      </div>
+                      {item.type === 'time' && (
+                        <>
+                          <div className="double">
+                            <div className="field">
+                              <span className="label">Duration</span>
+                              <div className="duration-input">
+                                <input type="text" inputMode="numeric" value={item.durationHours} onChange={e => { const v = e.target.value.replace(/\D/g, ''); setInvLineItems(prev => prev.map(i => i.id === item.id ? { ...i, durationHours: v, exactAmount: undefined } as InvoiceLineItem : i)) }} />
+                                <span className="duration-sep">h</span>
+                                <input type="text" inputMode="numeric" value={item.durationMinutes} onChange={e => { const v = e.target.value.replace(/\D/g, ''); setInvLineItems(prev => prev.map(i => i.id === item.id ? { ...i, durationMinutes: v, exactAmount: undefined } as InvoiceLineItem : i)) }} />
+                                <span className="duration-sep">m</span>
+                              </div>
+                            </div>
+                            <div className="field" style={{ alignItems: 'flex-end' }}>
+                              <span className="label">Rate ($/hr)</span>
+                              <input type="text" style={{ width: 60 }} value={item.rate} onChange={e => setInvLineItems(prev => prev.map(i => i.id === item.id ? { ...i, rate: e.target.value, exactAmount: undefined } as InvoiceLineItem : i))} />
+                            </div>
+                          </div>
+                          <div className="inv-item-amount"><span>Amount</span><strong>${money(calcLineItemAmount(item))}</strong></div>
+                        </>
+                      )}
+                      {item.type === 'service' && (
+                        <>
+                          <div className="field">
+                            <span className="label">Amount ($)</span>
+                            <input type="number" min="0" step="0.01" value={item.amount} onChange={e => setInvLineItems(prev => prev.map(i => i.id === item.id ? { ...i, amount: e.target.value } as InvoiceLineItem : i))} />
+                          </div>
+                          <div className="inv-item-amount"><span>Amount</span><strong>${money(calcLineItemAmount(item))}</strong></div>
+                        </>
+                      )}
+                      {item.type === 'product' && (
+                        <>
+                          <div style={{ display: 'flex', gap: 10 }}>
+                            <div className="field" style={{ flex: 1, minWidth: 0 }}>
+                              <span className="label">Quantity</span>
+                              <input type="number" min="0" step="1" value={item.quantity} onChange={e => setInvLineItems(prev => prev.map(i => i.id === item.id ? { ...i, quantity: e.target.value } as InvoiceLineItem : i))} />
+                            </div>
+                            <div className="field" style={{ flex: 1, minWidth: 0 }}>
+                              <span className="label">Unit Price</span>
+                              <input type="number" min="0" step="0.01" value={item.unitPrice} onChange={e => setInvLineItems(prev => prev.map(i => i.id === item.id ? { ...i, unitPrice: e.target.value } as InvoiceLineItem : i))} />
+                            </div>
+                          </div>
+                          <div className="inv-item-amount"><span>Amount</span><strong>${money(calcLineItemAmount(item))}</strong></div>
+                        </>
+                      )}
                     </div>
                   ))}
                 </div>
               </div>
 
               {(() => {
-                const subtotal = invBSItems.reduce((s, i) => s + (parseFloat(i.amount) || 0), 0)
+                const subtotal = invLineItems.reduce((s, item) => s + calcLineItemAmount(item), 0)
                 const gst = invoiceProfile.chargeGst ? subtotal * 0.1 : 0
                 const total = subtotal + gst
                 return (
@@ -1985,7 +2147,7 @@ function App() {
             <div className="inv-footer">
               <button className="ghost-button" onClick={() => setIsInvoiceByServicesOpen(false)}>Cancel</button>
               <button className="primary-btn" style={{ flex: 1 }} onClick={generateInvoiceByServices} disabled={invBSForm.clientId === null}>
-                Save
+                Create PDF
               </button>
             </div>
           </div>
@@ -2770,85 +2932,90 @@ function App() {
                 </div>
               </div>
 
-              <div>
+              <div style={{ position: 'relative' }}>
+                {invAddMenuOpen && (
+                  <div
+                    style={{ position: 'absolute', inset: 0, zIndex: 98, backdropFilter: 'blur(2px)', borderRadius: 'inherit' }}
+                    onClick={() => setInvAddMenuOpen(false)}
+                  />
+                )}
                 <div className="inv-section-title-row">
-                  <div className="inv-section-title">PRODUCTS</div>
-                  <button
-                    type="button"
-                    className="add-action-btn"
-                    onClick={() => {
-                      const newId = invBPItems.length > 0 ? Math.max(...invBPItems.map(i => i.id)) + 1 : 1
-                      setInvBPItems(prev => [...prev, { id: newId, productId: null, description: '', quantity: '1', unitPrice: '0' }])
-                    }}
-                  >
-                    + Add Item
-                  </button>
+                  <div className="inv-section-title">LINE ITEMS</div>
+                  <div style={{ position: 'relative', zIndex: invAddMenuOpen ? 99 : 'auto' }}>
+                    <button type="button" className="add-action-btn" onClick={() => setInvAddMenuOpen(p => !p)}>+ Add Item</button>
+                    {invAddMenuOpen && (
+                      <div className="inv-add-menu">
+                        <button onClick={() => addLineItem('time')}>+ Add Time</button>
+                        <button onClick={() => addLineItem('service')}>+ Add Service</button>
+                        <button onClick={() => addLineItem('product')}>+ Add Product</button>
+                      </div>
+                    )}
+                  </div>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 14 }}>
-                  {invBPItems.map((item, idx) => (
+                  {invLineItems.map((item, idx) => (
                     <div key={item.id} className="inv-line-item-card">
                       <div className="inv-item-title-row">
-                        <div className="inv-item-title">Item {idx + 1}</div>
-                        {invBPItems.length > 1 && (
-                          <button
-                            type="button"
-                            className="inv-remove-item-btn"
-                            onClick={() => setInvBPItems(prev => prev.filter(i => i.id !== item.id))}
-                          >
-                            <X size={14} />
-                          </button>
+                        <div className="inv-item-title">Item {idx + 1} <span style={{ fontSize: 11, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>{item.type}</span></div>
+                        {invLineItems.length > 1 && (
+                          <button type="button" className="inv-remove-item-btn" onClick={() => setInvLineItems(prev => prev.filter(i => i.id !== item.id))}><X size={14} /></button>
                         )}
                       </div>
                       <div className="field">
-                        <span className="label">Product</span>
-                        <select
-                          value={item.productId ?? ''}
-                          onChange={e => {
-                            const pid = e.target.value ? Number(e.target.value) : null
-                            const found = products.find(p => p.id === pid)
-                            setInvBPItems(prev => prev.map(i => i.id === item.id
-                              ? { ...i, productId: pid, description: found ? found.name : i.description, unitPrice: found ? String(found.price) : i.unitPrice }
-                              : i
-                            ))
-                          }}
-                        >
-                          <option value="">{products.length === 0 ? 'No products' : '— Select product —'}</option>
-                          {products.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                        </select>
+                        <span className="label">Description</span>
+                        <input type="text" value={item.description} onChange={e => setInvLineItems(prev => prev.map(i => i.id === item.id ? { ...i, description: e.target.value } as InvoiceLineItem : i))} />
                       </div>
-                      <div style={{ display: 'flex', gap: 10 }}>
-                        <div className="field" style={{ flex: 1, minWidth: 0 }}>
-                          <span className="label">Quantity</span>
-                          <input
-                            type="number"
-                            min="0"
-                            step="1"
-                            value={item.quantity}
-                            onChange={e => setInvBPItems(prev => prev.map(i => i.id === item.id ? { ...i, quantity: e.target.value } : i))}
-                          />
-                        </div>
-                        <div className="field" style={{ flex: 1, minWidth: 0 }}>
-                          <span className="label">Unit Price</span>
-                          <input
-                            type="number"
-                            min="0"
-                            step="0.01"
-                            value={item.unitPrice}
-                            onChange={e => setInvBPItems(prev => prev.map(i => i.id === item.id ? { ...i, unitPrice: e.target.value } : i))}
-                          />
-                        </div>
-                      </div>
-                      <div className="inv-item-amount">
-                        <span>Amount</span>
-                        <strong>${money((parseFloat(item.quantity) || 0) * (parseFloat(item.unitPrice) || 0))}</strong>
-                      </div>
+                      {item.type === 'time' && (
+                        <>
+                          <div className="double">
+                            <div className="field">
+                              <span className="label">Duration</span>
+                              <div className="duration-input">
+                                <input type="text" inputMode="numeric" value={item.durationHours} onChange={e => { const v = e.target.value.replace(/\D/g, ''); setInvLineItems(prev => prev.map(i => i.id === item.id ? { ...i, durationHours: v, exactAmount: undefined } as InvoiceLineItem : i)) }} />
+                                <span className="duration-sep">h</span>
+                                <input type="text" inputMode="numeric" value={item.durationMinutes} onChange={e => { const v = e.target.value.replace(/\D/g, ''); setInvLineItems(prev => prev.map(i => i.id === item.id ? { ...i, durationMinutes: v, exactAmount: undefined } as InvoiceLineItem : i)) }} />
+                                <span className="duration-sep">m</span>
+                              </div>
+                            </div>
+                            <div className="field" style={{ alignItems: 'flex-end' }}>
+                              <span className="label">Rate ($/hr)</span>
+                              <input type="text" style={{ width: 60 }} value={item.rate} onChange={e => setInvLineItems(prev => prev.map(i => i.id === item.id ? { ...i, rate: e.target.value, exactAmount: undefined } as InvoiceLineItem : i))} />
+                            </div>
+                          </div>
+                          <div className="inv-item-amount"><span>Amount</span><strong>${money(calcLineItemAmount(item))}</strong></div>
+                        </>
+                      )}
+                      {item.type === 'service' && (
+                        <>
+                          <div className="field">
+                            <span className="label">Amount ($)</span>
+                            <input type="number" min="0" step="0.01" value={item.amount} onChange={e => setInvLineItems(prev => prev.map(i => i.id === item.id ? { ...i, amount: e.target.value } as InvoiceLineItem : i))} />
+                          </div>
+                          <div className="inv-item-amount"><span>Amount</span><strong>${money(calcLineItemAmount(item))}</strong></div>
+                        </>
+                      )}
+                      {item.type === 'product' && (
+                        <>
+                          <div style={{ display: 'flex', gap: 10 }}>
+                            <div className="field" style={{ flex: 1, minWidth: 0 }}>
+                              <span className="label">Quantity</span>
+                              <input type="number" min="0" step="1" value={item.quantity} onChange={e => setInvLineItems(prev => prev.map(i => i.id === item.id ? { ...i, quantity: e.target.value } as InvoiceLineItem : i))} />
+                            </div>
+                            <div className="field" style={{ flex: 1, minWidth: 0 }}>
+                              <span className="label">Unit Price</span>
+                              <input type="number" min="0" step="0.01" value={item.unitPrice} onChange={e => setInvLineItems(prev => prev.map(i => i.id === item.id ? { ...i, unitPrice: e.target.value } as InvoiceLineItem : i))} />
+                            </div>
+                          </div>
+                          <div className="inv-item-amount"><span>Amount</span><strong>${money(calcLineItemAmount(item))}</strong></div>
+                        </>
+                      )}
                     </div>
                   ))}
                 </div>
               </div>
 
               {(() => {
-                const subtotal = invBPItems.reduce((s, i) => s + (parseFloat(i.quantity) || 0) * (parseFloat(i.unitPrice) || 0), 0)
+                const subtotal = invLineItems.reduce((s, item) => s + calcLineItemAmount(item), 0)
                 const gst = invoiceProfile.chargeGst ? subtotal * 0.1 : 0
                 const total = subtotal + gst
                 return (
@@ -2876,7 +3043,7 @@ function App() {
             <div className="inv-footer">
               <button className="ghost-button" onClick={() => setIsInvoiceByProductsOpen(false)}>Cancel</button>
               <button className="primary-btn" style={{ flex: 1 }} onClick={generateInvoiceByProducts} disabled={invBPForm.clientId === null}>
-                Save
+                Create PDF
               </button>
             </div>
           </div>

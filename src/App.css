@@ -1593,6 +1593,35 @@
   color: #e53e3e;
 }
 
+.inv-add-menu {
+  position: absolute;
+  right: 0;
+  top: 100%;
+  z-index: 100;
+  background: var(--surface, #fff);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 4px 0;
+  min-width: 160px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+}
+
+.inv-add-menu button {
+  display: block;
+  width: 100%;
+  padding: 8px 14px;
+  background: none;
+  border: none;
+  text-align: left;
+  cursor: pointer;
+  font-size: 14px;
+  color: var(--text-primary);
+}
+
+.inv-add-menu button:hover {
+  background: var(--app-bg);
+}
+
 .inv-line-item-card {
   background: var(--input-bg);
   border: 1px solid var(--border);
