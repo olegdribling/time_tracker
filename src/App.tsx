@@ -18,17 +18,23 @@ import {
   Timer,
   User,
   Users,
-  Wrench,
   X,
 } from 'lucide-react'
 import { api } from './api'
+import { CreateInvoiceModal, calcLineItemAmount } from './components/CreateInvoiceModal'
+import type { InvBTForm, InvSuccessData } from './components/CreateInvoiceModal'
+import { useProducts } from './hooks/useProducts'
+import { useSettings } from './hooks/useSettings'
 import { calculateTotals, getPeriodByOffset, getPeriodRange, minutesBetween } from './lib/calculations'
+import { DEFAULT_INVOICE_PROFILE, DEFAULT_SETTINGS } from './lib/defaults'
+import { formatDate, money } from './lib/format'
 import { generateInvoicePdf } from './lib/invoice'
-import type { Client, ClientDraft, InvoiceProfile, Product, ProductDraft, Settings, Shift, ShiftForm } from './types'
+import type { Client, ClientDraft, InvoiceLineItem, InvoiceProfile, Settings, Shift, ShiftForm } from './types'
 
 
-const INITIAL_HOURLY_RATE = 25
 const MENU_STORAGE_KEY = 'worktracker:menu-open'
+const CLOCK_INTERVAL_MS = 30_000
+const WEEK_MS = 7 * 24 * 60 * 60 * 1000
 
 const emptyForm = (): ShiftForm => {
   const date = toLocalDateKey(new Date())
@@ -66,43 +72,7 @@ function formatLunch(minutes: number) {
   return `${h}h ${m}m`
 }
 
-const DEFAULT_SETTINGS: Settings = {
-  period: 'weekly',
-  weekStart: 'monday',
-  hourlyRate: INITIAL_HOURLY_RATE,
-  weekendRateEnabled: false,
-  weekendRate: INITIAL_HOURLY_RATE,
-}
 
-const DEFAULT_INVOICE_PROFILE: InvoiceProfile = {
-  fullName: '',
-  address: '',
-  abn: '',
-  speciality: '',
-  accountBankName: '',
-  bsb: '',
-  accountNumber: '',
-  nextInvoiceNumber: 1,
-  chargeGst: false,
-}
-
-function formatDate(value: string) {
-  if (!value) return ''
-  const date = new Date(`${value}T00:00:00`)
-  if (isNaN(date.getTime())) return value
-  return new Intl.DateTimeFormat('en-AU', {
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-  }).format(date)
-}
-
-function money(amount: number) {
-  return amount.toLocaleString('en-AU', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })
-}
 
 function formatDuration(minutes: number) {
   const safe = Math.max(minutes, 0)
@@ -259,10 +229,24 @@ const WheelPicker = ({ options, value, onChange, itemHeight = 44 }: WheelPickerP
   )
 }
 
-type InvoiceLineItem =
-  | { id: number; type: 'time'; description: string; durationHours: string; durationMinutes: string; rate: string; exactAmount?: number }
-  | { id: number; type: 'service'; description: string; amount: string }
-  | { id: number; type: 'product'; description: string; quantity: string; unitPrice: string }
+function buildCalendarCells(monthKey: string): Array<{ date: string | null; day: number | null }> {
+  const { year, month } = parseMonthKey(monthKey)
+  const firstDay = new Date(year, month - 1, 1).getDay()
+  const daysInMonth = new Date(year, month, 0).getDate()
+  const leadingBlanks = (firstDay - CALENDAR_WEEK_START_INDEX + 7) % 7
+  const totalCells = Math.ceil((leadingBlanks + daysInMonth) / 7) * 7
+  const monthPrefix = `${year}-${pad2(month)}`
+  const cells: Array<{ date: string | null; day: number | null }> = []
+  for (let idx = 0; idx < totalCells; idx += 1) {
+    const day = idx - leadingBlanks + 1
+    if (day < 1 || day > daysInMonth) {
+      cells.push({ date: null, day: null })
+    } else {
+      cells.push({ date: `${monthPrefix}-${pad2(day)}`, day })
+    }
+  }
+  return cells
+}
 
 function App() {
   const navigate = useNavigate()
@@ -277,30 +261,13 @@ function App() {
       return false
     }
   })
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false)
   const [isInvoiceModalOpen, setIsInvoiceModalOpen] = useState(false)
-  const [isInvoiceScreenOpen, setIsInvoiceScreenOpen] = useState(false)
-  const [isInvoiceEditing, setIsInvoiceEditing] = useState(false)
-  const [selectedClientId, setSelectedClientId] = useState<number | null>(null)
-  const [showEmailPrompt, setShowEmailPrompt] = useState(false)
-  const [lastInvoiceNumber, setLastInvoiceNumber] = useState<number | null>(null)
   const [form, setForm] = useState<ShiftForm>(emptyForm)
-  const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS)
-  const [settingsDraft, setSettingsDraft] = useState<Settings>(DEFAULT_SETTINGS)
-  const [hourlyRateInput, setHourlyRateInput] = useState(() => String(DEFAULT_SETTINGS.hourlyRate))
-  const [weekendRateInput, setWeekendRateInput] = useState(() => String(DEFAULT_SETTINGS.weekendRate))
   const [invoiceProfile, setInvoiceProfile] = useState<InvoiceProfile>(DEFAULT_INVOICE_PROFILE)
   const [invoiceDraft, setInvoiceDraft] = useState<InvoiceProfile>(DEFAULT_INVOICE_PROFILE)
-  const [invoiceForm, setInvoiceForm] = useState({
-    invoiceNumber: 1,
-    rate: INITIAL_HOURLY_RATE,
-    durationMinutes: 0,
-    total: 0,
-  })
-  const [invoiceNumberInput, setInvoiceNumberInput] = useState('1')
-  const [invoiceRateInput, setInvoiceRateInput] = useState(() => String(INITIAL_HOURLY_RATE))
-  const [invoiceTotalInput, setInvoiceTotalInput] = useState('0')
   const [nextInvoiceNumberInput, setNextInvoiceNumberInput] = useState('1')
+  const [hourlyRateInput, setHourlyRateInput] = useState(String(DEFAULT_INVOICE_PROFILE.hourlyRate))
+  const [weekendRateInput, setWeekendRateInput] = useState(String(DEFAULT_INVOICE_PROFILE.weekendRate))
 
   const isMutatingRef = useRef(false)
   const [userEmail, setUserEmail] = useState<string>('')
@@ -310,47 +277,70 @@ function App() {
   const [isClientModalOpen, setIsClientModalOpen] = useState(false)
   const [editingClientId, setEditingClientId] = useState<number | null>(null)
   const [clientDraft, setClientDraft] = useState<ClientDraft>({ name: '', address: '', abn: '', email: '' })
-  const [clientReturnContext, setClientReturnContext] = useState<'invoiceByTime' | 'invoiceByServices' | 'invoiceByProducts' | 'invoiceScreen' | 'shiftForm' | null>(null)
+  const [clientReturnContext, setClientReturnContext] = useState<'invoiceByTime' | 'shiftForm' | null>(null)
   const [billingPlan, setBillingPlan] = useState<string>('trial')
   const [billingActive, setBillingActive] = useState<boolean>(true)
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false)
   const [isExpiredModalOpen, setIsExpiredModalOpen] = useState(false)
+
+  const requireActive = (): boolean => {
+    if (!billingActive) {
+      setIsExpiredModalOpen(true)
+      return false
+    }
+    return true
+  }
+
   const [periodOffset, setPeriodOffset] = useState(0)
+
+  const {
+    settings, setSettings,
+    settingsDraft, setSettingsDraft,
+    isSettingsOpen,
+    openSettingsModal, closeSettings, saveSettings,
+  } = useSettings(setPeriodOffset)
+
+  const {
+    products, setProducts,
+    isProductModalOpen,
+    editingProductId,
+    productDraft, setProductDraft,
+    openAddProduct, openEditProduct, closeProductModal, saveProduct, handleDeleteProduct,
+  } = useProducts({ isMutatingRef, requireActive, billingPlan, setIsUpgradeModalOpen })
+
   const [weeksVisible, setWeeksVisible] = useState(2)
   const [reportClientId, setReportClientId] = useState<number | null>(null)
   const [calendarMonth, setCalendarMonth] = useState(() => toMonthKey(new Date()))
   const [calendarSelectedDate, setCalendarSelectedDate] = useState(() => toLocalDateKey(new Date()))
-  const [openMenuShiftId, setOpenMenuShiftId] = useState<string | null>(null)
-  const [openMenuProductId, setOpenMenuProductId] = useState<number | null>(null)
-  const [openMenuClientId, setOpenMenuClientId] = useState<number | null>(null)
+  const [openMenu, setOpenMenu] = useState<{ type: 'shift' | 'product' | 'client'; id: string | number } | null>(null)
+  const openMenuShiftId = openMenu?.type === 'shift' ? openMenu.id as string : null
+  const openMenuProductId = openMenu?.type === 'product' ? openMenu.id as number : null
+  const openMenuClientId = openMenu?.type === 'client' ? openMenu.id as number : null
+  const setOpenMenuShiftId = (id: string | null) => setOpenMenu(id ? { type: 'shift', id } : null)
+  const setOpenMenuProductId = (id: number | null) => setOpenMenu(id ? { type: 'product', id } : null)
+  const setOpenMenuClientId = (id: number | null) => setOpenMenu(id ? { type: 'client', id } : null)
   const [isFabOpen, setIsFabOpen] = useState(false)
-  const [fabInvoiceOpen, setFabInvoiceOpen] = useState(false)
   const [isInvoiceByTimeOpen, setIsInvoiceByTimeOpen] = useState(false)
-  const [isInvoiceByServicesOpen, setIsInvoiceByServicesOpen] = useState(false)
-  const [invBSForm, setInvBSForm] = useState({ number: '1', date: toLocalDateKey(new Date()), clientId: null as number | null })
-  const [invBSCalendarOpen, setInvBSCalendarOpen] = useState(false)
-  const [invBSCalendarMonth, setInvBSCalendarMonth] = useState(() => toMonthKey(new Date()))
-  const [invBTForm, setInvBTForm] = useState({
+  const [invBTForm, setInvBTForm] = useState<InvBTForm>({
     number: '1',
     date: toLocalDateKey(new Date()),
-    clientId: null as number | null,
+    clientId: null,
     comments: '',
   })
   const [invBTCalendarOpen, setInvBTCalendarOpen] = useState(false)
-  const [invBTSuccessData, setInvBTSuccessData] = useState<{ clientEmail: string; invNum: string; date: string } | null>(null)
+  const [invBTSuccessData, setInvBTSuccessData] = useState<InvSuccessData | null>(null)
   const [invBTCalendarMonth, setInvBTCalendarMonth] = useState(() => toMonthKey(new Date()))
-  const [isInvoiceByProductsOpen, setIsInvoiceByProductsOpen] = useState(false)
-  const [invBPForm, setInvBPForm] = useState({ number: '1', date: toLocalDateKey(new Date()), clientId: null as number | null })
-  const [invBPCalendarOpen, setInvBPCalendarOpen] = useState(false)
-  const [invBPCalendarMonth, setInvBPCalendarMonth] = useState(() => toMonthKey(new Date()))
   const [invLineItems, setInvLineItems] = useState<InvoiceLineItem[]>([])
   const [invAddMenuOpen, setInvAddMenuOpen] = useState(false)
-  const [products, setProducts] = useState<Product[]>([])
-  const [isProductModalOpen, setIsProductModalOpen] = useState(false)
-  const [editingProductId, setEditingProductId] = useState<number | null>(null)
-  const [productDraft, setProductDraft] = useState<ProductDraft>({ name: '', price: 0 })
   const [activePickerField, setActivePickerField] = useState<'date' | 'start' | 'end' | 'lunch' | null>(null)
   const [formCalendarMonth, setFormCalendarMonth] = useState(() => toMonthKey(new Date()))
+  const [settingsFromCalOpen, setSettingsFromCalOpen] = useState(false)
+  const [settingsToCalOpen, setSettingsToCalOpen] = useState(false)
+  const [settingsFromCalMonth, setSettingsFromCalMonth] = useState(() => toMonthKey(new Date()))
+  const [settingsToCalMonth, setSettingsToCalMonth] = useState(() => toMonthKey(new Date()))
+  const [customReportFrom, setCustomReportFrom] = useState(() => toLocalDateKey(new Date()))
+  const [customReportTo, setCustomReportTo] = useState(() => toLocalDateKey(new Date()))
+  const [customReportRange, setCustomReportRange] = useState<{ start: string; end: string } | null>(null)
   const [clockDisplay, setClockDisplay] = useState(() => {
     const now = new Date()
     return `${pad2(now.getHours())}:${pad2(now.getMinutes())}`
@@ -396,8 +386,9 @@ function App() {
         }
 
         if (invoiceRow) {
-          setInvoiceProfile({ ...invoiceRow, chargeGst: invoiceRow.chargeGst ?? false })
-          setInvoiceDraft({ ...invoiceRow, chargeGst: invoiceRow.chargeGst ?? false })
+          const profile = { ...DEFAULT_INVOICE_PROFILE, ...invoiceRow }
+          setInvoiceProfile(profile)
+          setInvoiceDraft(profile)
         } else {
           setInvoiceProfile(DEFAULT_INVOICE_PROFILE)
           setInvoiceDraft(DEFAULT_INVOICE_PROFILE)
@@ -463,17 +454,9 @@ function App() {
       const now = new Date()
       setClockDisplay(`${pad2(now.getHours())}:${pad2(now.getMinutes())}`)
     }
-    const id = setInterval(tick, 30000)
+    const id = setInterval(tick, CLOCK_INTERVAL_MS)
     return () => clearInterval(id)
   }, [])
-
-  useEffect(() => {
-    setHourlyRateInput(String(settingsDraft.hourlyRate))
-  }, [settingsDraft.hourlyRate])
-
-  useEffect(() => {
-    setWeekendRateInput(String(settingsDraft.weekendRate))
-  }, [settingsDraft.weekendRate])
 
   useEffect(() => {
     setNextInvoiceNumberInput(String(invoiceDraft.nextInvoiceNumber))
@@ -545,7 +528,7 @@ function App() {
       d.setDate(d.getDate() - diff)
       d.setHours(0, 0, 0, 0)
       const diffMs = currentWeekStart.getTime() - d.getTime()
-      const diffWeeks = Math.round(diffMs / (7 * 24 * 60 * 60 * 1000))
+      const diffWeeks = Math.round(diffMs / WEEK_MS)
       if (diffWeeks < 0) return 'Upcoming'
       if (diffWeeks === 0) return 'This Week'
       if (diffWeeks === 1) return 'Last Week'
@@ -579,8 +562,8 @@ function App() {
   )
 
   const reportRange = useMemo(
-    () => getPeriodByOffset(settings, periodOffset),
-    [settings, periodOffset],
+    () => customReportRange ?? getPeriodByOffset(settings, periodOffset),
+    [settings, periodOffset, customReportRange],
   )
 
   const reportShifts = useMemo(() => {
@@ -615,8 +598,6 @@ function App() {
     return `${formatDate(reportRange.start)} — ${formatDate(reportRange.end)}`
   }, [reportRange])
 
-  const canNavigateReports = true
-
   const calendarWeekLabels = useMemo(() => {
     return Array.from({ length: 7 }, (_, idx) => WEEKDAY_LABELS[WEEKDAYS[(CALENDAR_WEEK_START_INDEX + idx) % 7]])
   }, [])
@@ -629,104 +610,27 @@ function App() {
     }).format(new Date(year, month - 1, 1))
   }, [calendarMonth])
 
-  const calendarCells = useMemo(() => {
-    const { year, month } = parseMonthKey(calendarMonth)
-    const firstDay = new Date(year, month - 1, 1).getDay()
-    const daysInMonth = new Date(year, month, 0).getDate()
-    const leadingBlanks = (firstDay - CALENDAR_WEEK_START_INDEX + 7) % 7
-    const totalCells = Math.ceil((leadingBlanks + daysInMonth) / 7) * 7
-    const monthPrefix = `${year}-${pad2(month)}`
-    const cells: Array<{ date: string | null; day: number | null }> = []
-
-    for (let idx = 0; idx < totalCells; idx += 1) {
-      const day = idx - leadingBlanks + 1
-      if (day < 1 || day > daysInMonth) {
-        cells.push({ date: null, day: null })
-      } else {
-        cells.push({
-          date: `${monthPrefix}-${pad2(day)}`,
-          day,
-        })
-      }
-    }
-
-    return cells
-  }, [calendarMonth])
-
-  const formCalendarCells = useMemo(() => {
-    const { year, month } = parseMonthKey(formCalendarMonth)
-    const firstDay = new Date(year, month - 1, 1).getDay()
-    const daysInMonth = new Date(year, month, 0).getDate()
-    const leadingBlanks = (firstDay - CALENDAR_WEEK_START_INDEX + 7) % 7
-    const totalCells = Math.ceil((leadingBlanks + daysInMonth) / 7) * 7
-    const monthPrefix = `${year}-${pad2(month)}`
-    const cells: Array<{ date: string | null; day: number | null }> = []
-    for (let idx = 0; idx < totalCells; idx += 1) {
-      const day = idx - leadingBlanks + 1
-      if (day < 1 || day > daysInMonth) {
-        cells.push({ date: null, day: null })
-      } else {
-        cells.push({ date: `${monthPrefix}-${pad2(day)}`, day })
-      }
-    }
-    return cells
-  }, [formCalendarMonth])
-
+  const calendarCells = useMemo(() => buildCalendarCells(calendarMonth), [calendarMonth])
+  const formCalendarCells = useMemo(() => buildCalendarCells(formCalendarMonth), [formCalendarMonth])
   const formCalendarLabel = useMemo(() => {
     const { year, month } = parseMonthKey(formCalendarMonth)
     return new Intl.DateTimeFormat('en-AU', { month: 'long', year: 'numeric' }).format(new Date(year, month - 1, 1))
   }, [formCalendarMonth])
-
-  const invBTCalendarCells = useMemo(() => {
-    const { year, month } = parseMonthKey(invBTCalendarMonth)
-    const firstDay = new Date(year, month - 1, 1).getDay()
-    const daysInMonth = new Date(year, month, 0).getDate()
-    const cells: { date: string | null; day: number | null }[] = []
-    for (let i = 0; i < firstDay; i++) cells.push({ date: null, day: null })
-    for (let d = 1; d <= daysInMonth; d++) {
-      cells.push({ date: `${year}-${String(month).padStart(2, '0')}-${String(d).padStart(2, '0')}`, day: d })
-    }
-    return cells
-  }, [invBTCalendarMonth])
-
+  const invBTCalendarCells = useMemo(() => buildCalendarCells(invBTCalendarMonth), [invBTCalendarMonth])
   const invBTCalendarLabel = useMemo(() => {
     const { year, month } = parseMonthKey(invBTCalendarMonth)
     return new Intl.DateTimeFormat('en-AU', { month: 'long', year: 'numeric' }).format(new Date(year, month - 1, 1))
   }, [invBTCalendarMonth])
-
-  const invBSCalendarCells = useMemo(() => {
-    const { year, month } = parseMonthKey(invBSCalendarMonth)
-    const firstDay = new Date(year, month - 1, 1).getDay()
-    const daysInMonth = new Date(year, month, 0).getDate()
-    const cells: { date: string | null; day: number | null }[] = []
-    for (let i = 0; i < firstDay; i++) cells.push({ date: null, day: null })
-    for (let d = 1; d <= daysInMonth; d++) {
-      cells.push({ date: `${year}-${String(month).padStart(2, '0')}-${String(d).padStart(2, '0')}`, day: d })
-    }
-    return cells
-  }, [invBSCalendarMonth])
-
-  const invBSCalendarLabel = useMemo(() => {
-    const { year, month } = parseMonthKey(invBSCalendarMonth)
+  const settingsFromCalCells = useMemo(() => buildCalendarCells(settingsFromCalMonth), [settingsFromCalMonth])
+  const settingsFromCalLabel = useMemo(() => {
+    const { year, month } = parseMonthKey(settingsFromCalMonth)
     return new Intl.DateTimeFormat('en-AU', { month: 'long', year: 'numeric' }).format(new Date(year, month - 1, 1))
-  }, [invBSCalendarMonth])
-
-  const invBPCalendarCells = useMemo(() => {
-    const { year, month } = parseMonthKey(invBPCalendarMonth)
-    const firstDay = new Date(year, month - 1, 1).getDay()
-    const daysInMonth = new Date(year, month, 0).getDate()
-    const cells: { date: string | null; day: number | null }[] = []
-    for (let i = 0; i < firstDay; i++) cells.push({ date: null, day: null })
-    for (let d = 1; d <= daysInMonth; d++) {
-      cells.push({ date: `${year}-${String(month).padStart(2, '0')}-${String(d).padStart(2, '0')}`, day: d })
-    }
-    return cells
-  }, [invBPCalendarMonth])
-
-  const invBPCalendarLabel = useMemo(() => {
-    const { year, month } = parseMonthKey(invBPCalendarMonth)
+  }, [settingsFromCalMonth])
+  const settingsToCalCells = useMemo(() => buildCalendarCells(settingsToCalMonth), [settingsToCalMonth])
+  const settingsToCalLabel = useMemo(() => {
+    const { year, month } = parseMonthKey(settingsToCalMonth)
     return new Intl.DateTimeFormat('en-AU', { month: 'long', year: 'numeric' }).format(new Date(year, month - 1, 1))
-  }, [invBPCalendarMonth])
+  }, [settingsToCalMonth])
 
   const shiftsByDate = useMemo(() => {
     const map = new Map<string, Shift[]>()
@@ -753,18 +657,8 @@ function App() {
 
   const closeOverlays = () => {
     setIsMenuOpen(false)
-    setIsSettingsOpen(false)
+    closeSettings()
     setIsInvoiceModalOpen(false)
-    setIsInvoiceScreenOpen(false)
-    setShowEmailPrompt(false)
-  }
-
-  const requireActive = (): boolean => {
-    if (!billingActive) {
-      setIsExpiredModalOpen(true)
-      return false
-    }
-    return true
   }
 
   const openCreate = () => {
@@ -801,12 +695,18 @@ function App() {
 
   const openSettings = () => {
     closeOverlays()
-    setSettingsDraft(settings)
-    setIsSettingsOpen(true)
+    setSettingsFromCalOpen(false)
+    setSettingsToCalOpen(false)
+    setSettingsFromCalMonth(toMonthKey(new Date()))
+    setSettingsToCalMonth(toMonthKey(new Date()))
+    setCustomReportFrom(toLocalDateKey(new Date()))
+    setCustomReportTo(toLocalDateKey(new Date()))
+    openSettingsModal(settings)
   }
 
   const openReports = () => {
     closeOverlays()
+    setCustomReportRange(null)
     setActiveView('reports')
     setPeriodOffset(0)
     setReportClientId(soloClientId)
@@ -864,7 +764,7 @@ function App() {
     setIsClientModalOpen(true)
   }
 
-  const openAddClientFromInvoice = (context: 'invoiceByTime' | 'invoiceByServices' | 'invoiceByProducts' | 'invoiceScreen' | 'shiftForm') => {
+  const openAddClientFromInvoice = (context: 'invoiceByTime' | 'shiftForm') => {
     if (!requireActive()) return
     if ((billingPlan === 'trial' || billingPlan === 'solo') && clients.length >= 1) {
       setIsUpgradeModalOpen(true)
@@ -874,9 +774,6 @@ function App() {
     setClientDraft({ name: '', address: '', abn: '', email: '' })
     setClientReturnContext(context)
     if (context === 'invoiceByTime') setIsInvoiceByTimeOpen(false)
-    if (context === 'invoiceByServices') setIsInvoiceByServicesOpen(false)
-    if (context === 'invoiceByProducts') setIsInvoiceByProductsOpen(false)
-    if (context === 'invoiceScreen') setIsInvoiceScreenOpen(false)
     if (context === 'shiftForm') setIsAddOpen(false)
     setIsClientModalOpen(true)
   }
@@ -912,15 +809,6 @@ function App() {
         if (clientReturnContext === 'invoiceByTime') {
           setInvBTForm(prev => ({ ...prev, clientId: newClientId! }))
           setIsInvoiceByTimeOpen(true)
-        } else if (clientReturnContext === 'invoiceByServices') {
-          setInvBSForm(prev => ({ ...prev, clientId: newClientId! }))
-          setIsInvoiceByServicesOpen(true)
-        } else if (clientReturnContext === 'invoiceByProducts') {
-          setInvBPForm(prev => ({ ...prev, clientId: newClientId! }))
-          setIsInvoiceByProductsOpen(true)
-        } else if (clientReturnContext === 'invoiceScreen') {
-          setSelectedClientId(newClientId)
-          setIsInvoiceScreenOpen(true)
         } else if (clientReturnContext === 'shiftForm') {
           setForm(prev => ({ ...prev, clientId: newClientId! }))
           setIsAddOpen(true)
@@ -950,77 +838,9 @@ function App() {
     }
   }
 
-  const openAddProduct = () => {
-    if (!requireActive()) return
-    if ((billingPlan === 'trial' || billingPlan === 'solo') && products.length >= 1) {
-      setIsUpgradeModalOpen(true)
-      return
-    }
-    setEditingProductId(null)
-    setProductDraft({ name: '', price: 0 })
-    setIsProductModalOpen(true)
-  }
+  const goPrevPeriod = () => setPeriodOffset((prev) => prev - 1)
 
-  const openEditProduct = (product: Product) => {
-    if (!requireActive()) return
-    setEditingProductId(product.id)
-    setProductDraft({ name: product.name, price: product.price })
-    setIsProductModalOpen(true)
-  }
-
-  const closeProductModal = () => {
-    setIsProductModalOpen(false)
-    setEditingProductId(null)
-  }
-
-  const saveProduct = async () => {
-    if (!productDraft.name.trim()) { alert('Product name is required.'); return }
-    isMutatingRef.current = true
-    try {
-      if (editingProductId !== null) {
-        await api.updateProduct(editingProductId, productDraft)
-      } else {
-        await api.createProduct(productDraft)
-      }
-      const fresh = await api.getProducts()
-      setProducts(fresh)
-      setIsProductModalOpen(false)
-    } catch (error) {
-      alert('Failed to save product. Please try again.')
-      console.error('Failed to save product', error)
-    } finally {
-      isMutatingRef.current = false
-    }
-  }
-
-  const handleDeleteProduct = async (id: number) => {
-    const ok = window.confirm('Remove this product? This cannot be undone.')
-    if (!ok) return
-    isMutatingRef.current = true
-    try {
-      await api.deleteProduct(id)
-      setProducts(prev => prev.filter(p => p.id !== id))
-    } catch (error) {
-      alert('Failed to delete product. Please try again.')
-      console.error('Failed to delete product', error)
-    } finally {
-      isMutatingRef.current = false
-    }
-  }
-
-  const goPrevPeriod = () => {
-    if (!canNavigateReports) return
-    setPeriodOffset((prev) => prev - 1)
-  }
-
-  const goNextPeriod = () => {
-    if (!canNavigateReports) return
-    setPeriodOffset((prev) => prev + 1)
-  }
-
-  const closeSettings = () => {
-    setIsSettingsOpen(false)
-  }
+  const goNextPeriod = () => setPeriodOffset((prev) => prev + 1)
 
   const handleLogout = async () => {
     setIsMenuOpen(false)
@@ -1063,7 +883,7 @@ function App() {
             end: form.end,
             lunchMinutes: form.lunchMinutes,
             comment: form.comment.trim(),
-            hourlyRate: settings.hourlyRate,
+            hourlyRate: invoiceProfile.hourlyRate,
             clientId: form.clientId,
           }),
           date: form.date,
@@ -1079,7 +899,7 @@ function App() {
       } else {
         const dayOfWeek = new Date(`${form.date}T00:00:00`).getDay()
         const isWeekend = dayOfWeek === 0 || dayOfWeek === 6
-        const rateToUse = settings.weekendRateEnabled && isWeekend ? settings.weekendRate : settings.hourlyRate
+        const rateToUse = invoiceProfile.weekendRateEnabled && isWeekend ? invoiceProfile.weekendRate : invoiceProfile.hourlyRate
         const newShift: Shift = {
           id: crypto.randomUUID(),
           date: form.date,
@@ -1103,20 +923,12 @@ function App() {
     }
   }
 
-  const saveSettings = async () => {
-    setSettings(settingsDraft)
-    setPeriodOffset(0)
-    try {
-      await api.saveSettings(settingsDraft)
-    } catch (error) {
-      console.error('Failed to save settings', error)
-    }
-    closeSettings()
-  }
-
   const openInvoiceModal = () => {
     closeOverlays()
     setInvoiceDraft(invoiceProfile)
+    setNextInvoiceNumberInput(String(invoiceProfile.nextInvoiceNumber))
+    setHourlyRateInput(String(invoiceProfile.hourlyRate))
+    setWeekendRateInput(String(invoiceProfile.weekendRate))
     setIsInvoiceModalOpen(true)
   }
 
@@ -1136,26 +948,11 @@ function App() {
 
   const hasInvoiceCoreFields = invoiceProfile.fullName.trim() !== '' && invoiceProfile.accountNumber.trim() !== ''
 
-  const closeInvoiceScreen = () => {
-    setIsInvoiceScreenOpen(false)
-    setIsInvoiceEditing(false)
-    setShowEmailPrompt(false)
-  }
-
-  const calcLineItemAmount = (item: InvoiceLineItem): number => {
-    if (item.type === 'time') {
-      if (item.exactAmount !== undefined) return item.exactAmount
-      return ((parseInt(item.durationHours) || 0) * 60 + (parseInt(item.durationMinutes) || 0)) / 60 * (parseFloat(item.rate) || 0)
-    }
-    if (item.type === 'service') return parseFloat(item.amount) || 0
-    return (parseFloat(item.quantity) || 0) * (parseFloat(item.unitPrice) || 0)
-  }
-
   const addLineItem = (type: InvoiceLineItem['type']) => {
     const newId = invLineItems.length > 0 ? Math.max(...invLineItems.map(i => i.id)) + 1 : 1
     const item: InvoiceLineItem =
       type === 'time'
-        ? { id: newId, type: 'time', description: '', durationHours: '0', durationMinutes: '0', rate: String(settings.hourlyRate) }
+        ? { id: newId, type: 'time', description: invoiceProfile.speciality || '', durationHours: '0', durationMinutes: '0', rate: String(invoiceProfile.hourlyRate) }
         : type === 'service'
         ? { id: newId, type: 'service', description: '', amount: '0' }
         : { id: newId, type: 'product', description: '', quantity: '1', unitPrice: '0' }
@@ -1163,33 +960,40 @@ function App() {
     setInvAddMenuOpen(false)
   }
 
-  const openInvoiceByTime = (manual = false) => {
+  // mode: 'create' = blank form (FAB), 'manual' = 1h time item, 'auto' = from report data
+  const openInvoiceByTime = (mode: 'create' | 'manual' | 'auto' = 'auto') => {
     if (!requireActive()) return
     const today = toLocalDateKey(new Date())
-    const totalMinutes = manual ? 60 : Math.max(reportTotals.durationMinutes, 0)
+    const currentMonthKey = toMonthKey(new Date())
     setInvBTForm({
       number: String(invoiceProfile.nextInvoiceNumber),
       date: today,
-      clientId: manual ? soloClientId : (reportClientId ?? soloClientId),
-      comments: manual ? '' : [...reportShifts].reverse().map(s => s.comment).filter(Boolean).join('\n'),
+      clientId: reportClientId ?? soloClientId,
+      comments: mode === 'auto' ? [...reportShifts].reverse().map(s => s.comment).filter(Boolean).join('\n') : '',
     })
-    setInvLineItems([{
-      id: 1,
-      type: 'time',
-      description: invoiceProfile.speciality || 'Work shift',
-      durationHours: String(Math.floor(totalMinutes / 60)),
-      durationMinutes: String(Math.round(totalMinutes % 60)),
-      rate: String(settings.hourlyRate),
-      exactAmount: manual ? undefined : reportTotals.pay,
-    }])
+    if (mode === 'create') {
+      setInvLineItems([])
+    } else {
+      const totalMinutes = mode === 'manual' ? 60 : Math.max(reportTotals.durationMinutes, 0)
+      setInvLineItems([{
+        id: 1,
+        type: 'time',
+        description: invoiceProfile.speciality || 'Work shift',
+        durationHours: String(Math.floor(totalMinutes / 60)),
+        durationMinutes: String(Math.round(totalMinutes % 60)),
+        rate: String(invoiceProfile.hourlyRate),
+        exactAmount: mode === 'manual' ? undefined : reportTotals.pay,
+      }])
+    }
     setInvAddMenuOpen(false)
-    setInvBTCalendarMonth(toMonthKey(new Date()))
+    setInvBTCalendarMonth(currentMonthKey)
     setInvBTCalendarOpen(false)
     setInvBTSuccessData(null)
     setIsFabOpen(false)
-    setFabInvoiceOpen(false)
     setIsInvoiceByTimeOpen(true)
   }
+
+  const openCreateInvoice = () => openInvoiceByTime('create')
 
   const openInvoiceFromShift = (shift: Shift) => {
     const workMinutes = Math.max(minutesBetween(shift.start, shift.end) - shift.lunchMinutes, 0)
@@ -1215,127 +1019,36 @@ function App() {
     setInvBTCalendarOpen(false)
     setInvBTSuccessData(null)
     setIsFabOpen(false)
-    setFabInvoiceOpen(false)
     setIsInvoiceByTimeOpen(true)
   }
 
-  const generateInvoiceByTime = async () => {
+  const generateInvoice = async (
+    form: { number: string; date: string; clientId: number | null; comments?: string },
+    closeModal: () => void
+  ) => {
     if (invLineItems.length === 0) { alert('Please add at least one item.'); return }
-    const lineItems = invLineItems.map(item => ({ description: item.type === 'time' ? item.description : item.type === 'service' ? item.description : item.description, amount: calcLineItemAmount(item) }))
-    const subtotal = lineItems.reduce((s, i) => s + i.amount, 0)
-    const gst = invoiceProfile.chargeGst ? subtotal * 0.1 : 0
-    const total = subtotal + gst
-    const invNum = parseInt(invBTForm.number) || 1
-    const period = reportRange ?? { start: invBTForm.date, end: invBTForm.date }
-    const selectedClient = clients.find(c => c.id === invBTForm.clientId)
-    if (!selectedClient) {
-      alert('Selected client not found. Please re-select a client.')
-      return
-    }
-    try {
-      await generateInvoicePdf({
-        profile: invoiceProfile,
-        period,
-        invoiceNumber: invNum,
-        itemLabel: '',
-        unitPrice: 0,
-        quantityMinutes: 0,
-        subtotal,
-        gst,
-        balanceDue: total,
-        billTo: { name: selectedClient.name, address: selectedClient.address, abn: selectedClient.abn },
-        lineItems,
-        comments: invBTForm.comments || undefined,
-      })
-      const nextNumber = invNum >= invoiceProfile.nextInvoiceNumber ? invNum + 1 : invoiceProfile.nextInvoiceNumber + 1
-      const updated: InvoiceProfile = { ...invoiceProfile, nextInvoiceNumber: nextNumber }
-      setInvoiceProfile(updated)
-      setInvoiceDraft(updated)
-      await api.saveInvoiceProfile(updated)
-      setIsInvoiceByTimeOpen(false)
-      setInvBTSuccessData({
-        clientEmail: selectedClient.email ?? '',
-        invNum: String(invNum).padStart(3, '0'),
-        date: invBTForm.date,
-      })
-    } catch (error) {
-      console.error('Failed to generate invoice', error)
-      alert('Failed to generate invoice.')
-    }
-  }
-
-  const saveInvoicePdf = async () => {
-    if (!reportRange) return
-    const lineItem = invoiceProfile.speciality || 'Service'
-    const invoiceNumber = invoiceForm.invoiceNumber
-    const gst = invoiceProfile.chargeGst ? invoiceForm.total / 11 : 0
-    const unitPrice = invoiceProfile.chargeGst ? invoiceForm.rate / 1.1 : invoiceForm.rate
-    const netSubtotal = invoiceForm.total - gst
-    const balanceDue = invoiceForm.total + invLineItems.reduce((s, item) => s + calcLineItemAmount(item), 0)
-    const selectedClient = clients.find(c => c.id === selectedClientId)
-    if (!selectedClient) {
-      alert('Selected client not found. Please re-select a client.')
-      return
-    }
-    const extraItems = invLineItems.length > 0
-      ? invLineItems.map(item => ({ description: item.description, amount: calcLineItemAmount(item) }))
-      : undefined
-    try {
-      await generateInvoicePdf({
-        profile: invoiceProfile,
-        period: reportRange,
-        invoiceNumber,
-        itemLabel: lineItem,
-        unitPrice,
-        quantityMinutes: invoiceForm.durationMinutes,
-        subtotal: netSubtotal,
-        gst,
-        balanceDue,
-        billTo: { name: selectedClient.name, address: selectedClient.address, abn: selectedClient.abn },
-        lineItems: extraItems,
-      })
-      const nextNumber =
-        invoiceNumber > invoiceProfile.nextInvoiceNumber
-          ? invoiceNumber + 1
-          : invoiceProfile.nextInvoiceNumber + 1
-      const updated: InvoiceProfile = { ...invoiceProfile, nextInvoiceNumber: nextNumber }
-      setInvoiceProfile(updated)
-      setInvoiceDraft(updated)
-      await api.saveInvoiceProfile(updated)
-      setLastInvoiceNumber(invoiceNumber)
-      closeInvoiceScreen()
-      setShowEmailPrompt(true)
-    } catch (error) {
-      console.error('Failed to generate invoice', error)
-      alert('Failed to generate invoice. See console for details.')
-    }
-  }
-
-  const openInvoiceByServices = () => {
-    if (!requireActive()) return
-    setInvBSForm({
-      number: String(invoiceProfile.nextInvoiceNumber),
-      date: toLocalDateKey(new Date()),
-      clientId: reportClientId ?? soloClientId,
+    const items = invLineItems.map(item => {
+      const amount = calcLineItemAmount(item)
+      if (item.type === 'time') {
+        const h = parseInt(item.durationHours) || 0
+        const m = parseInt(item.durationMinutes) || 0
+        const qtyStr = m > 0 ? `${h}h${m}m` : `${h}h`
+        return { description: item.description, unitPrice: parseFloat(item.rate) || 0, qty: qtyStr, amount }
+      }
+      if (item.type === 'product') {
+        return { description: item.description, unitPrice: parseFloat(item.unitPrice) || 0, qty: item.quantity, amount }
+      }
+      return { description: item.description, amount }
     })
-    setInvLineItems([{ id: 1, type: 'service', description: 'Services', amount: '0' }])
-    setInvAddMenuOpen(false)
-    setInvBSCalendarMonth(toMonthKey(new Date()))
-    setInvBSCalendarOpen(false)
-    setIsFabOpen(false)
-    setFabInvoiceOpen(false)
-    setIsInvoiceByServicesOpen(true)
-  }
-
-  const generateInvoiceByServices = async () => {
-    if (invLineItems.length === 0) { alert('Please add at least one item.'); return }
-    const lineItems = invLineItems.map(item => ({ description: item.description, amount: calcLineItemAmount(item) }))
-    const subtotal = lineItems.reduce((s, i) => s + i.amount, 0)
-    const gst = invoiceProfile.chargeGst ? subtotal * 0.1 : 0
-    const total = subtotal + gst
-    const invNum = parseInt(invBSForm.number) || 1
-    const period = reportRange ?? { start: invBSForm.date, end: invBSForm.date }
-    const selectedClient = clients.find(c => c.id === invBSForm.clientId)
+    const subtotal = items.reduce((s, i) => s + i.amount, 0)
+    const { gstMode } = invoiceProfile
+    const gst = gstMode === 'exclusive' ? subtotal * 0.1
+      : gstMode === 'inclusive' ? subtotal / 11
+      : 0
+    const total = gstMode === 'inclusive' ? subtotal : subtotal + gst
+    const invNum = parseInt(form.number) || 1
+    const period = reportRange ?? { start: form.date, end: form.date }
+    const selectedClient = clients.find(c => c.id === form.clientId)
     if (!selectedClient) {
       alert('Selected client not found. Please re-select a client.')
       return
@@ -1352,18 +1065,21 @@ function App() {
         gst,
         balanceDue: total,
         billTo: { name: selectedClient.name, address: selectedClient.address, abn: selectedClient.abn },
-        lineItems,
+        items,
+        comments: form.comments || undefined,
+        gstMode,
       })
       const nextNumber = invNum >= invoiceProfile.nextInvoiceNumber ? invNum + 1 : invoiceProfile.nextInvoiceNumber + 1
       const updated: InvoiceProfile = { ...invoiceProfile, nextInvoiceNumber: nextNumber }
       setInvoiceProfile(updated)
       setInvoiceDraft(updated)
       await api.saveInvoiceProfile(updated)
-      setIsInvoiceByServicesOpen(false)
+      closeModal()
       setInvBTSuccessData({
         clientEmail: selectedClient.email ?? '',
         invNum: String(invNum).padStart(3, '0'),
-        date: invBSForm.date,
+        date: form.date,
+        invoiceFullName: invoiceProfile.fullName,
       })
     } catch (error) {
       console.error('Failed to generate invoice', error)
@@ -1371,84 +1087,8 @@ function App() {
     }
   }
 
-  const openInvoiceByProducts = () => {
-    if (!requireActive()) return
-    const defaultItem: InvoiceLineItem = products.length === 1
-      ? { id: 1, type: 'product', description: products[0].name, quantity: '1', unitPrice: String(products[0].price) }
-      : { id: 1, type: 'product', description: '', quantity: '1', unitPrice: '0' }
-    setInvBPForm({
-      number: String(invoiceProfile.nextInvoiceNumber),
-      date: toLocalDateKey(new Date()),
-      clientId: reportClientId ?? soloClientId,
-    })
-    setInvLineItems([defaultItem])
-    setInvAddMenuOpen(false)
-    setInvBPCalendarMonth(toMonthKey(new Date()))
-    setInvBPCalendarOpen(false)
-    setIsFabOpen(false)
-    setFabInvoiceOpen(false)
-    setIsInvoiceByProductsOpen(true)
-  }
+  const generateInvoiceByTime = () => generateInvoice(invBTForm, () => setIsInvoiceByTimeOpen(false))
 
-  const generateInvoiceByProducts = async () => {
-    if (invLineItems.length === 0) { alert('Please add at least one item.'); return }
-    const lineItems = invLineItems.map(item => ({ description: item.description, amount: calcLineItemAmount(item) }))
-    const subtotal = lineItems.reduce((s, i) => s + i.amount, 0)
-    const gst = invoiceProfile.chargeGst ? subtotal * 0.1 : 0
-    const total = subtotal + gst
-    const invNum = parseInt(invBPForm.number) || 1
-    const period = reportRange ?? { start: invBPForm.date, end: invBPForm.date }
-    const selectedClient = clients.find(c => c.id === invBPForm.clientId)
-    if (!selectedClient) {
-      alert('Selected client not found. Please re-select a client.')
-      return
-    }
-    try {
-      await generateInvoicePdf({
-        profile: invoiceProfile,
-        period,
-        invoiceNumber: invNum,
-        itemLabel: '',
-        unitPrice: 0,
-        quantityMinutes: 0,
-        subtotal,
-        gst,
-        balanceDue: total,
-        billTo: { name: selectedClient.name, address: selectedClient.address, abn: selectedClient.abn },
-        lineItems,
-      })
-      const nextNumber = invNum >= invoiceProfile.nextInvoiceNumber ? invNum + 1 : invoiceProfile.nextInvoiceNumber + 1
-      const updated: InvoiceProfile = { ...invoiceProfile, nextInvoiceNumber: nextNumber }
-      setInvoiceProfile(updated)
-      setInvoiceDraft(updated)
-      await api.saveInvoiceProfile(updated)
-      setIsInvoiceByProductsOpen(false)
-      setInvBTSuccessData({
-        clientEmail: selectedClient.email ?? '',
-        invNum: String(invNum).padStart(3, '0'),
-        date: invBPForm.date,
-      })
-    } catch (error) {
-      console.error('Failed to generate invoice', error)
-      alert('Failed to generate invoice.')
-    }
-  }
-
-  const openEmailDraft = () => {
-    if (!reportRange) {
-      alert('Select a reporting period first.')
-      return
-    }
-    const selectedClient = clients.find(c => c.id === selectedClientId)
-    if (!selectedClient?.email) {
-      alert('Select a client with an email address to send the invoice.')
-      return
-    }
-    const invNumber = lastInvoiceNumber ?? invoiceForm.invoiceNumber
-    const subject = `Invoice #${invNumber} - ${invoiceProfile.fullName || 'Invoice'}`
-    const mailto = `mailto:${encodeURIComponent(selectedClient.email)}?subject=${encodeURIComponent(subject)}`
-    window.location.href = mailto
-  }
 
   if (!appReady) return (
     <div className="splash-screen">
@@ -1507,688 +1147,32 @@ function App() {
         </>
       )}
 
-      {/* INVOICE SCREEN MODAL */}
-      {isInvoiceScreenOpen && (
-        <div className="modal-backdrop" onClick={closeInvoiceScreen}>
-          <div className="modal wide" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header-dark">
-              <div className="modal-title-dark">Create Invoice</div>
-              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                <button
-                  style={{ background: 'transparent', border: 'none', color: 'rgba(255,255,255,0.8)', cursor: 'pointer', fontSize: 14, fontWeight: 600 }}
-                  onClick={() => setIsInvoiceEditing((prev) => !prev)}
-                >
-                  {isInvoiceEditing ? 'Lock' : 'Edit'}
-                </button>
-                <button className="modal-close-btn" onClick={closeInvoiceScreen}><X size={18} /></button>
-              </div>
-            </div>
-
-            <div className="form-grid">
-              <div className="field">
-                <div className="field-label-row">
-                  <span className="label">Client</span>
-                  <button type="button" className="add-action-btn" onClick={() => openAddClientFromInvoice('invoiceScreen')}>+ Add Client</button>
-                </div>
-                <select
-                  value={selectedClientId ?? ''}
-                  onChange={e => setSelectedClientId(e.target.value ? Number(e.target.value) : null)}
-                >
-                  {clients.length === 0 && <option value="" disabled>Add new Client</option>}
-                  {clients.length > 1 && <option value="">Select Client</option>}
-                  {clients.map(c => (
-                    <option key={c.id} value={c.id}>{c.name}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="field">
-                <span className="label">Invoice number</span>
-                <input
-                  type="text"
-                  inputMode="decimal"
-                  pattern="[0-9]*"
-                  value={invoiceNumberInput}
-                  disabled={!isInvoiceEditing}
-                  onChange={(e) => {
-                    const raw = e.target.value
-                    setInvoiceNumberInput(raw)
-                    const parsed = parseDecimal(raw)
-                    if (parsed !== null) {
-                      setInvoiceForm((prev) => ({ ...prev, invoiceNumber: Math.max(1, Math.round(parsed)) }))
-                    }
-                  }}
-                  onBlur={(e) => {
-                    const parsed = parseDecimal(e.target.value)
-                    const safe = Math.max(1, parsed ?? invoiceForm.invoiceNumber ?? 1)
-                    const rounded = Math.round(safe)
-                    setInvoiceNumberInput(String(rounded))
-                    setInvoiceForm((prev) => ({ ...prev, invoiceNumber: rounded }))
-                  }}
-                />
-              </div>
-
-              <div className="double">
-                <label className="field">
-                  <span className="label">Total duration</span>
-                  <input
-                    type="text"
-                    value={`${Math.floor(invoiceForm.durationMinutes / 60)}h ${invoiceForm.durationMinutes % 60}m`}
-                    disabled
-                  />
-                </label>
-                <label className="field">
-                  <span className="label">Hourly rate</span>
-                  <input
-                    type="text"
-                    inputMode="decimal"
-                    pattern="[0-9]*[.,]?[0-9]*"
-                    value={invoiceRateInput}
-                    disabled={!isInvoiceEditing}
-                    onChange={(e) => {
-                      const raw = e.target.value
-                      setInvoiceRateInput(raw)
-                      const parsed = parseDecimal(raw)
-                      if (parsed !== null) {
-                        setInvoiceForm((prev) => ({ ...prev, rate: Math.max(0, parsed) }))
-                      }
-                    }}
-                    onBlur={(e) => {
-                      const parsed = parseDecimal(e.target.value)
-                      const safe = Math.max(0, parsed ?? invoiceForm.rate ?? 0)
-                      setInvoiceRateInput(String(safe))
-                      setInvoiceForm((prev) => ({ ...prev, rate: safe }))
-                    }}
-                  />
-                </label>
-              </div>
-
-              <label className="field">
-                <span className="label">Total amount</span>
-                <input
-                  type="text"
-                  inputMode="decimal"
-                  pattern="[0-9]*[.,]?[0-9]*"
-                  value={invoiceTotalInput}
-                  disabled={!isInvoiceEditing}
-                  onChange={(e) => {
-                    const raw = e.target.value
-                    setInvoiceTotalInput(raw)
-                    const parsed = parseDecimal(raw)
-                    if (parsed !== null) {
-                      setInvoiceForm((prev) => ({ ...prev, total: Math.max(0, parsed) }))
-                    }
-                  }}
-                  onBlur={(e) => {
-                    const parsed = parseDecimal(e.target.value)
-                    const safe = Math.max(0, parsed ?? invoiceForm.total ?? 0)
-                    setInvoiceTotalInput(String(safe))
-                    setInvoiceForm((prev) => ({ ...prev, total: safe }))
-                  }}
-                />
-              </label>
-            </div>
-
-            <div style={{ position: 'relative', marginTop: 8 }}>
-              {invAddMenuOpen && (
-                <div
-                  style={{ position: 'absolute', inset: 0, zIndex: 98, backdropFilter: 'blur(2px)', borderRadius: 'inherit' }}
-                  onClick={() => setInvAddMenuOpen(false)}
-                />
-              )}
-              {invLineItems.length > 0 && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 10 }}>
-                  {invLineItems.map((item, idx) => (
-                    <div key={item.id} className="inv-line-item-card">
-                      <div className="inv-item-title-row">
-                        <div className="inv-item-title">Extra {idx + 1} <span style={{ fontSize: 11, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>{item.type}</span></div>
-                        <button type="button" className="inv-remove-item-btn" onClick={() => setInvLineItems(prev => prev.filter(i => i.id !== item.id))}><X size={14} /></button>
-                      </div>
-                      <div className="field">
-                        <span className="label">Description</span>
-                        <input type="text" value={item.description} onChange={e => setInvLineItems(prev => prev.map(i => i.id === item.id ? { ...i, description: e.target.value } as InvoiceLineItem : i))} />
-                      </div>
-                      {item.type === 'time' && (
-                        <>
-                          <div className="double">
-                            <div className="field">
-                              <span className="label">Duration</span>
-                              <div className="duration-input">
-                                <input type="text" inputMode="numeric" value={item.durationHours} onChange={e => { const v = e.target.value.replace(/\D/g, ''); setInvLineItems(prev => prev.map(i => i.id === item.id ? { ...i, durationHours: v, exactAmount: undefined } as InvoiceLineItem : i)) }} />
-                                <span className="duration-sep">h</span>
-                                <input type="text" inputMode="numeric" value={item.durationMinutes} onChange={e => { const v = e.target.value.replace(/\D/g, ''); setInvLineItems(prev => prev.map(i => i.id === item.id ? { ...i, durationMinutes: v, exactAmount: undefined } as InvoiceLineItem : i)) }} />
-                                <span className="duration-sep">m</span>
-                              </div>
-                            </div>
-                            <div className="field" style={{ alignItems: 'flex-end' }}>
-                              <span className="label">Rate ($/hr)</span>
-                              <input type="text" style={{ width: 60 }} value={item.rate} onChange={e => setInvLineItems(prev => prev.map(i => i.id === item.id ? { ...i, rate: e.target.value, exactAmount: undefined } as InvoiceLineItem : i))} onBlur={e => { const v = e.target.value.replace(',', '.'); setInvLineItems(prev => prev.map(i => i.id === item.id ? { ...i, rate: v, exactAmount: undefined } as InvoiceLineItem : i)) }} />
-                            </div>
-                          </div>
-                        </>
-                      )}
-                      {item.type === 'service' && (
-                        <div className="field">
-                          <span className="label">Amount ($)</span>
-                          <input type="number" min="0" step="0.01" value={item.amount} onChange={e => setInvLineItems(prev => prev.map(i => i.id === item.id ? { ...i, amount: e.target.value } as InvoiceLineItem : i))} />
-                        </div>
-                      )}
-                      {item.type === 'product' && (
-                        <div style={{ display: 'flex', gap: 10 }}>
-                          <div className="field" style={{ flex: 1, minWidth: 0 }}>
-                            <span className="label">Quantity</span>
-                            <input type="number" min="0" step="1" value={item.quantity} onChange={e => setInvLineItems(prev => prev.map(i => i.id === item.id ? { ...i, quantity: e.target.value } as InvoiceLineItem : i))} />
-                          </div>
-                          <div className="field" style={{ flex: 1, minWidth: 0 }}>
-                            <span className="label">Unit Price</span>
-                            <input type="number" min="0" step="0.01" value={item.unitPrice} onChange={e => setInvLineItems(prev => prev.map(i => i.id === item.id ? { ...i, unitPrice: e.target.value } as InvoiceLineItem : i))} />
-                          </div>
-                        </div>
-                      )}
-                      <div className="inv-item-amount"><span>Amount</span><strong>${money(calcLineItemAmount(item))}</strong></div>
-                    </div>
-                  ))}
-                </div>
-              )}
-              <div style={{ position: 'relative', zIndex: invAddMenuOpen ? 99 : 'auto' }}>
-                <button type="button" className="add-action-btn" onClick={() => setInvAddMenuOpen(p => !p)}>+ Add Item</button>
-                {invAddMenuOpen && (
-                  <div className="inv-add-menu">
-                    <button onClick={() => addLineItem('time')}>+ Add Time</button>
-                    <button onClick={() => addLineItem('service')}>+ Add Service</button>
-                    <button onClick={() => addLineItem('product')}>+ Add Product</button>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <button className="primary-btn" style={{ marginTop: 12 }} onClick={saveInvoicePdf} disabled={selectedClientId === null}>
-              Create PDF
-            </button>
-          </div>
-        </div>
-      )}
-
       {/* INVOICE BY TIME MODAL */}
-      {isInvoiceByTimeOpen && (
-        <div className="modal-backdrop" onClick={() => setIsInvoiceByTimeOpen(false)}>
-          <div className="modal" onClick={e => e.stopPropagation()}>
-            <div className="inv-header">
-              <div className="inv-header-left">
-                <FileText size={20} />
-                <span className="inv-header-title">Create Invoice</span>
-              </div>
-              <button className="inv-close-btn" onClick={() => setIsInvoiceByTimeOpen(false)}><X size={18} /></button>
-            </div>
-
-            <div className="form-grid">
-              <div>
-                <div className="inv-section-title">INVOICE DETAILS</div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 14, marginTop: 14 }}>
-                  <div className="field">
-                    <span className="label">Invoice Number</span>
-                    <input
-                      type="text"
-                      value={`INV-${String(invBTForm.number).padStart(3, '0')}`}
-                      onChange={e => {
-                        const raw = e.target.value.replace(/^INV-0*/, '').replace(/\D/g, '')
-                        setInvBTForm(prev => ({ ...prev, number: raw || '1' }))
-                      }}
-                    />
-                  </div>
-                  <div className="field">
-                    <span className="label">Date</span>
-                    <button
-                      type="button"
-                      className="form-field-btn"
-                      onClick={() => setInvBTCalendarOpen(prev => !prev)}
-                    >
-                      {formatDate(invBTForm.date)}
-                    </button>
-                    {invBTCalendarOpen && (
-                      <div className="form-calendar">
-                        <div className="form-calendar-header">
-                          <button type="button" className="nav-btn" onClick={() => setInvBTCalendarMonth(prev => shiftMonthKey(prev, -1))}><ChevronLeft size={16} /></button>
-                          <span className="form-calendar-title">{invBTCalendarLabel}</span>
-                          <button type="button" className="nav-btn" onClick={() => setInvBTCalendarMonth(prev => shiftMonthKey(prev, 1))}><ChevronRight size={16} /></button>
-                        </div>
-                        <div className="calendar-weekdays">
-                          {calendarWeekLabels.map(l => <div key={l} className="calendar-weekday">{l}</div>)}
-                        </div>
-                        <div className="calendar-grid">
-                          {invBTCalendarCells.map((cell, idx) => {
-                            if (!cell.date || !cell.day) return <div key={`invbt-${idx}`} className="calendar-day-empty" />
-                            const isSelected = cell.date === invBTForm.date
-                            const isToday = cell.date === todayIso
-                            return (
-                              <button
-                                key={cell.date}
-                                type="button"
-                                className={`calendar-day${isSelected ? ' is-selected' : ''}${isToday ? ' is-today' : ''}`}
-                                onClick={() => {
-                                  setInvBTForm(prev => ({ ...prev, date: cell.date! }))
-                                  setInvBTCalendarOpen(false)
-                                }}
-                              >
-                                <span className="calendar-day-number">{cell.day}</span>
-                              </button>
-                            )
-                          })}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                  <div className="field">
-                    <div className="field-label-row">
-                      <span className="label">Client</span>
-                      <button type="button" className="add-action-btn" onClick={() => openAddClientFromInvoice('invoiceByTime')}>+ Add Client</button>
-                    </div>
-                    <select
-                      value={invBTForm.clientId ?? ''}
-                      onChange={e => setInvBTForm(prev => ({ ...prev, clientId: e.target.value ? Number(e.target.value) : null }))}
-                    >
-                      {clients.length === 0 && <option value="" disabled>Add new Client</option>}
-                      {clients.length > 1 && <option value="">Select Client</option>}
-                      {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                    </select>
-                  </div>
-                </div>
-              </div>
-
-              <div style={{ position: 'relative' }}>
-                {invAddMenuOpen && (
-                  <div
-                    style={{ position: 'absolute', inset: 0, zIndex: 98, backdropFilter: 'blur(2px)', borderRadius: 'inherit' }}
-                    onClick={() => setInvAddMenuOpen(false)}
-                  />
-                )}
-                <div className="inv-section-title-row">
-                  <div className="inv-section-title">LINE ITEMS</div>
-                  <div style={{ position: 'relative', zIndex: invAddMenuOpen ? 99 : 'auto' }}>
-                    <button type="button" className="add-action-btn" onClick={() => setInvAddMenuOpen(p => !p)}>+ Add Item</button>
-                    {invAddMenuOpen && (
-                      <div className="inv-add-menu">
-                        <button onClick={() => addLineItem('time')}>+ Add Time</button>
-                        <button onClick={() => addLineItem('service')}>+ Add Service</button>
-                        <button onClick={() => addLineItem('product')}>+ Add Product</button>
-                      </div>
-                    )}
-                  </div>
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 14 }}>
-                  {invLineItems.map((item, idx) => (
-                    <div key={item.id} className="inv-line-item-card">
-                      <div className="inv-item-title-row">
-                        <div className="inv-item-title">Item {idx + 1} <span style={{ fontSize: 11, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>{item.type}</span></div>
-                        {invLineItems.length > 1 && (
-                          <button type="button" className="inv-remove-item-btn" onClick={() => setInvLineItems(prev => prev.filter(i => i.id !== item.id))}><X size={14} /></button>
-                        )}
-                      </div>
-                      <div className="field">
-                        <span className="label">Description</span>
-                        <input type="text" value={item.description} onChange={e => setInvLineItems(prev => prev.map(i => i.id === item.id ? { ...i, description: e.target.value } as InvoiceLineItem : i))} />
-                      </div>
-                      {item.type === 'time' && (
-                        <>
-                          <div className="double">
-                            <div className="field">
-                              <span className="label">Duration</span>
-                              <div className="duration-input">
-                                <input type="text" inputMode="numeric" value={item.durationHours} onChange={e => { const v = e.target.value.replace(/\D/g, ''); setInvLineItems(prev => prev.map(i => i.id === item.id ? { ...i, durationHours: v, exactAmount: undefined } as InvoiceLineItem : i)) }} />
-                                <span className="duration-sep">h</span>
-                                <input type="text" inputMode="numeric" value={item.durationMinutes} onChange={e => { const v = e.target.value.replace(/\D/g, ''); setInvLineItems(prev => prev.map(i => i.id === item.id ? { ...i, durationMinutes: v, exactAmount: undefined } as InvoiceLineItem : i)) }} />
-                                <span className="duration-sep">m</span>
-                              </div>
-                            </div>
-                            <div className="field" style={{ alignItems: 'flex-end' }}>
-                              <span className="label">Rate ($/hr)</span>
-                              <input type="text" style={{ width: 60 }} value={item.rate} onChange={e => setInvLineItems(prev => prev.map(i => i.id === item.id ? { ...i, rate: e.target.value, exactAmount: undefined } as InvoiceLineItem : i))} onBlur={e => { const v = e.target.value.replace(',', '.'); setInvLineItems(prev => prev.map(i => i.id === item.id ? { ...i, rate: v, exactAmount: undefined } as InvoiceLineItem : i)) }} />
-                            </div>
-                          </div>
-                          <div className="inv-item-amount"><span>Amount</span><strong>${money(calcLineItemAmount(item))}</strong></div>
-                        </>
-                      )}
-                      {item.type === 'service' && (
-                        <>
-                          <div className="field">
-                            <span className="label">Amount ($)</span>
-                            <input type="number" min="0" step="0.01" value={item.amount} onChange={e => setInvLineItems(prev => prev.map(i => i.id === item.id ? { ...i, amount: e.target.value } as InvoiceLineItem : i))} />
-                          </div>
-                          <div className="inv-item-amount"><span>Amount</span><strong>${money(calcLineItemAmount(item))}</strong></div>
-                        </>
-                      )}
-                      {item.type === 'product' && (
-                        <>
-                          <div style={{ display: 'flex', gap: 10 }}>
-                            <div className="field" style={{ flex: 1, minWidth: 0 }}>
-                              <span className="label">Quantity</span>
-                              <input type="number" min="0" step="1" value={item.quantity} onChange={e => setInvLineItems(prev => prev.map(i => i.id === item.id ? { ...i, quantity: e.target.value } as InvoiceLineItem : i))} />
-                            </div>
-                            <div className="field" style={{ flex: 1, minWidth: 0 }}>
-                              <span className="label">Unit Price</span>
-                              <input type="number" min="0" step="0.01" value={item.unitPrice} onChange={e => setInvLineItems(prev => prev.map(i => i.id === item.id ? { ...i, unitPrice: e.target.value } as InvoiceLineItem : i))} />
-                            </div>
-                          </div>
-                          <div className="inv-item-amount"><span>Amount</span><strong>${money(calcLineItemAmount(item))}</strong></div>
-                        </>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {(() => {
-                const subtotal = invLineItems.reduce((s, item) => s + calcLineItemAmount(item), 0)
-                const gst = invoiceProfile.chargeGst ? subtotal * 0.1 : 0
-                const total = subtotal + gst
-                return (
-                  <div className="inv-summary-card">
-                    <div className="inv-summary-row">
-                      <span>Subtotal</span>
-                      <span>${money(subtotal)}</span>
-                    </div>
-                    {invoiceProfile.chargeGst && (
-                      <div className="inv-summary-row">
-                        <span>GST (10%)</span>
-                        <span>${money(gst)}</span>
-                      </div>
-                    )}
-                    <div className="inv-summary-divider" />
-                    <div className="inv-summary-row inv-summary-total">
-                      <strong>Total</strong>
-                      <strong>${money(total)}</strong>
-                    </div>
-                  </div>
-                )
-              })()}
-
-              <div className="field" style={{ marginTop: 14 }}>
-                <span className="label">COMMENTS</span>
-                <textarea
-                  rows={3}
-                  style={{ resize: 'vertical', fontFamily: 'inherit', fontSize: 14 }}
-                  placeholder="Comments will appear on the invoice"
-                  value={invBTForm.comments}
-                  onChange={e => setInvBTForm(prev => ({ ...prev, comments: e.target.value }))}
-                />
-              </div>
-            </div>
-
-            <div className="inv-footer">
-              <button className="ghost-button" onClick={() => setIsInvoiceByTimeOpen(false)}>Cancel</button>
-              <button className="primary-btn" style={{ flex: 1 }} onClick={generateInvoiceByTime} disabled={invBTForm.clientId === null}>
-                Create PDF
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* INVOICE PDF SUCCESS MODAL */}
-      {invBTSuccessData && (
-        <div className="modal-backdrop" onClick={() => setInvBTSuccessData(null)}>
-          <div className="modal" style={{ maxWidth: 360 }} onClick={e => e.stopPropagation()}>
-            <div className="inv-header">
-              <div className="inv-header-left">
-                <FileText size={20} />
-                <span className="inv-header-title">Invoice Created</span>
-              </div>
-              <button className="inv-close-btn" onClick={() => setInvBTSuccessData(null)}><X size={18} /></button>
-            </div>
-            <div style={{ padding: '24px 20px 8px', textAlign: 'center' }}>
-              <div style={{ fontSize: 40, marginBottom: 12 }}>✓</div>
-              <p style={{ margin: '0 0 6px', fontWeight: 600 }}>INV-{invBTSuccessData.invNum} saved as PDF</p>
-              <p style={{ margin: 0, fontSize: 13, color: 'var(--text-secondary, #666)' }}>
-                The file was saved to your Downloads folder.
-              </p>
-            </div>
-            <div className="inv-footer">
-              <button className="ghost-button" onClick={() => setInvBTSuccessData(null)}>Close</button>
-              <button
-                className="primary-btn"
-                style={{ flex: 1 }}
-                onClick={() => {
-                  const subject = `Invoice #INV-${invBTSuccessData.invNum} – ${invoiceProfile.fullName || ''} – ${formatDate(invBTSuccessData.date)}`
-                  const mailto = `mailto:${encodeURIComponent(invBTSuccessData.clientEmail)}?subject=${encodeURIComponent(subject)}`
-                  window.location.href = mailto
-                }}
-              >
-                Send by Email
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* INVOICE BY SERVICES MODAL */}
-      {isInvoiceByServicesOpen && (
-        <div className="modal-backdrop" onClick={() => setIsInvoiceByServicesOpen(false)}>
-          <div className="modal" onClick={e => e.stopPropagation()}>
-            <div className="inv-header">
-              <div className="inv-header-left">
-                <FileText size={20} />
-                <span className="inv-header-title">Create Invoice</span>
-              </div>
-              <button className="inv-close-btn" onClick={() => setIsInvoiceByServicesOpen(false)}><X size={18} /></button>
-            </div>
-
-            <div className="form-grid">
-              <div>
-                <div className="inv-section-title">INVOICE DETAILS</div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 14, marginTop: 14 }}>
-                  <div className="field">
-                    <span className="label">Invoice Number</span>
-                    <input
-                      type="text"
-                      value={`INV-${String(invBSForm.number).padStart(3, '0')}`}
-                      onChange={e => {
-                        const raw = e.target.value.replace(/^INV-0*/, '').replace(/\D/g, '')
-                        setInvBSForm(prev => ({ ...prev, number: raw || '1' }))
-                      }}
-                    />
-                  </div>
-                  <div className="field">
-                    <span className="label">Date</span>
-                    <button
-                      type="button"
-                      className="form-field-btn"
-                      onClick={() => setInvBSCalendarOpen(prev => !prev)}
-                    >
-                      {formatDate(invBSForm.date)}
-                    </button>
-                    {invBSCalendarOpen && (
-                      <div className="form-calendar">
-                        <div className="form-calendar-header">
-                          <button type="button" className="nav-btn" onClick={() => setInvBSCalendarMonth(prev => shiftMonthKey(prev, -1))}><ChevronLeft size={16} /></button>
-                          <span className="form-calendar-title">{invBSCalendarLabel}</span>
-                          <button type="button" className="nav-btn" onClick={() => setInvBSCalendarMonth(prev => shiftMonthKey(prev, 1))}><ChevronRight size={16} /></button>
-                        </div>
-                        <div className="calendar-weekdays">
-                          {calendarWeekLabels.map(l => <div key={l} className="calendar-weekday">{l}</div>)}
-                        </div>
-                        <div className="calendar-grid">
-                          {invBSCalendarCells.map((cell, idx) => {
-                            if (!cell.date || !cell.day) return <div key={`invbs-${idx}`} className="calendar-day-empty" />
-                            const isSelected = cell.date === invBSForm.date
-                            const isToday = cell.date === todayIso
-                            return (
-                              <button
-                                key={cell.date}
-                                type="button"
-                                className={`calendar-day${isSelected ? ' is-selected' : ''}${isToday ? ' is-today' : ''}`}
-                                onClick={() => {
-                                  setInvBSForm(prev => ({ ...prev, date: cell.date! }))
-                                  setInvBSCalendarOpen(false)
-                                }}
-                              >
-                                <span className="calendar-day-number">{cell.day}</span>
-                              </button>
-                            )
-                          })}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                  <div className="field">
-                    <div className="field-label-row">
-                      <span className="label">Client</span>
-                      <button type="button" className="add-action-btn" onClick={() => openAddClientFromInvoice('invoiceByServices')}>+ Add Client</button>
-                    </div>
-                    <select
-                      value={invBSForm.clientId ?? ''}
-                      onChange={e => setInvBSForm(prev => ({ ...prev, clientId: e.target.value ? Number(e.target.value) : null }))}
-                    >
-                      {clients.length === 0 && <option value="" disabled>Add new Client</option>}
-                      {clients.length > 1 && <option value="">Select Client</option>}
-                      {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                    </select>
-                  </div>
-                </div>
-              </div>
-
-              <div style={{ position: 'relative' }}>
-                {invAddMenuOpen && (
-                  <div
-                    style={{ position: 'absolute', inset: 0, zIndex: 98, backdropFilter: 'blur(2px)', borderRadius: 'inherit' }}
-                    onClick={() => setInvAddMenuOpen(false)}
-                  />
-                )}
-                <div className="inv-section-title-row">
-                  <div className="inv-section-title">LINE ITEMS</div>
-                  <div style={{ position: 'relative', zIndex: invAddMenuOpen ? 99 : 'auto' }}>
-                    <button type="button" className="add-action-btn" onClick={() => setInvAddMenuOpen(p => !p)}>+ Add Item</button>
-                    {invAddMenuOpen && (
-                      <div className="inv-add-menu">
-                        <button onClick={() => addLineItem('time')}>+ Add Time</button>
-                        <button onClick={() => addLineItem('service')}>+ Add Service</button>
-                        <button onClick={() => addLineItem('product')}>+ Add Product</button>
-                      </div>
-                    )}
-                  </div>
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 14 }}>
-                  {invLineItems.map((item, idx) => (
-                    <div key={item.id} className="inv-line-item-card">
-                      <div className="inv-item-title-row">
-                        <div className="inv-item-title">Item {idx + 1} <span style={{ fontSize: 11, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>{item.type}</span></div>
-                        {invLineItems.length > 1 && (
-                          <button type="button" className="inv-remove-item-btn" onClick={() => setInvLineItems(prev => prev.filter(i => i.id !== item.id))}><X size={14} /></button>
-                        )}
-                      </div>
-                      <div className="field">
-                        <span className="label">Description</span>
-                        <input type="text" value={item.description} onChange={e => setInvLineItems(prev => prev.map(i => i.id === item.id ? { ...i, description: e.target.value } as InvoiceLineItem : i))} />
-                      </div>
-                      {item.type === 'time' && (
-                        <>
-                          <div className="double">
-                            <div className="field">
-                              <span className="label">Duration</span>
-                              <div className="duration-input">
-                                <input type="text" inputMode="numeric" value={item.durationHours} onChange={e => { const v = e.target.value.replace(/\D/g, ''); setInvLineItems(prev => prev.map(i => i.id === item.id ? { ...i, durationHours: v, exactAmount: undefined } as InvoiceLineItem : i)) }} />
-                                <span className="duration-sep">h</span>
-                                <input type="text" inputMode="numeric" value={item.durationMinutes} onChange={e => { const v = e.target.value.replace(/\D/g, ''); setInvLineItems(prev => prev.map(i => i.id === item.id ? { ...i, durationMinutes: v, exactAmount: undefined } as InvoiceLineItem : i)) }} />
-                                <span className="duration-sep">m</span>
-                              </div>
-                            </div>
-                            <div className="field" style={{ alignItems: 'flex-end' }}>
-                              <span className="label">Rate ($/hr)</span>
-                              <input type="text" style={{ width: 60 }} value={item.rate} onChange={e => setInvLineItems(prev => prev.map(i => i.id === item.id ? { ...i, rate: e.target.value, exactAmount: undefined } as InvoiceLineItem : i))} onBlur={e => { const v = e.target.value.replace(',', '.'); setInvLineItems(prev => prev.map(i => i.id === item.id ? { ...i, rate: v, exactAmount: undefined } as InvoiceLineItem : i)) }} />
-                            </div>
-                          </div>
-                          <div className="inv-item-amount"><span>Amount</span><strong>${money(calcLineItemAmount(item))}</strong></div>
-                        </>
-                      )}
-                      {item.type === 'service' && (
-                        <>
-                          <div className="field">
-                            <span className="label">Amount ($)</span>
-                            <input type="number" min="0" step="0.01" value={item.amount} onChange={e => setInvLineItems(prev => prev.map(i => i.id === item.id ? { ...i, amount: e.target.value } as InvoiceLineItem : i))} />
-                          </div>
-                          <div className="inv-item-amount"><span>Amount</span><strong>${money(calcLineItemAmount(item))}</strong></div>
-                        </>
-                      )}
-                      {item.type === 'product' && (
-                        <>
-                          <div style={{ display: 'flex', gap: 10 }}>
-                            <div className="field" style={{ flex: 1, minWidth: 0 }}>
-                              <span className="label">Quantity</span>
-                              <input type="number" min="0" step="1" value={item.quantity} onChange={e => setInvLineItems(prev => prev.map(i => i.id === item.id ? { ...i, quantity: e.target.value } as InvoiceLineItem : i))} />
-                            </div>
-                            <div className="field" style={{ flex: 1, minWidth: 0 }}>
-                              <span className="label">Unit Price</span>
-                              <input type="number" min="0" step="0.01" value={item.unitPrice} onChange={e => setInvLineItems(prev => prev.map(i => i.id === item.id ? { ...i, unitPrice: e.target.value } as InvoiceLineItem : i))} />
-                            </div>
-                          </div>
-                          <div className="inv-item-amount"><span>Amount</span><strong>${money(calcLineItemAmount(item))}</strong></div>
-                        </>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {(() => {
-                const subtotal = invLineItems.reduce((s, item) => s + calcLineItemAmount(item), 0)
-                const gst = invoiceProfile.chargeGst ? subtotal * 0.1 : 0
-                const total = subtotal + gst
-                return (
-                  <div className="inv-summary-card">
-                    <div className="inv-summary-row">
-                      <span>Subtotal</span>
-                      <span>${money(subtotal)}</span>
-                    </div>
-                    {invoiceProfile.chargeGst && (
-                      <div className="inv-summary-row">
-                        <span>GST (10%)</span>
-                        <span>${money(gst)}</span>
-                      </div>
-                    )}
-                    <div className="inv-summary-divider" />
-                    <div className="inv-summary-row inv-summary-total">
-                      <strong>Total</strong>
-                      <strong>${money(total)}</strong>
-                    </div>
-                  </div>
-                )
-              })()}
-            </div>
-
-            <div className="inv-footer">
-              <button className="ghost-button" onClick={() => setIsInvoiceByServicesOpen(false)}>Cancel</button>
-              <button className="primary-btn" style={{ flex: 1 }} onClick={generateInvoiceByServices} disabled={invBSForm.clientId === null}>
-                Create PDF
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* SEND EMAIL PROMPT */}
-      {showEmailPrompt && (
-        <div className="modal-backdrop" onClick={() => { setShowEmailPrompt(false); setActiveView('home') }}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header-dark">
-              <div className="modal-title-dark">Send invoice</div>
-              <button className="modal-close-btn" onClick={() => { setShowEmailPrompt(false); setActiveView('home') }}><X size={18} /></button>
-            </div>
-            <div className="actions-row" style={{ padding: '16px 0 8px' }}>
-              <button className="ghost-button" onClick={openEmailDraft}>
-                Open email draft
-              </button>
-              <button
-                className="primary-btn"
-                onClick={() => {
-                  setShowEmailPrompt(false)
-                  setActiveView('home')
-                }}
-              >
-                Close
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <CreateInvoiceModal
+        isOpen={isInvoiceByTimeOpen}
+        form={invBTForm}
+        setForm={setInvBTForm}
+        lineItems={invLineItems}
+        setLineItems={setInvLineItems}
+        calendarOpen={invBTCalendarOpen}
+        setCalendarOpen={setInvBTCalendarOpen}
+        calendarMonth={invBTCalendarMonth}
+        setCalendarMonth={setInvBTCalendarMonth}
+        calendarCells={invBTCalendarCells}
+        calendarLabel={invBTCalendarLabel}
+        addMenuOpen={invAddMenuOpen}
+        setAddMenuOpen={setInvAddMenuOpen}
+        clients={clients}
+        invoiceProfile={invoiceProfile}
+        todayIso={todayIso}
+        calendarWeekLabels={calendarWeekLabels}
+        successData={invBTSuccessData}
+        onClose={() => setIsInvoiceByTimeOpen(false)}
+        onAddClient={() => openAddClientFromInvoice('invoiceByTime')}
+        onAddItem={addLineItem}
+        onGenerate={generateInvoiceByTime}
+        onSuccessClose={() => setInvBTSuccessData(null)}
+      />
 
       {/* MAIN CONTENT */}
       <main className="content">
@@ -2540,43 +1524,24 @@ function App() {
         </button>
       ) : activeView === 'home' && (
         <>
-          {isFabOpen && <div className="fab-backdrop" onClick={() => { setIsFabOpen(false); setFabInvoiceOpen(false) }} />}
+          {isFabOpen && <div className="fab-backdrop" onClick={() => setIsFabOpen(false)} />}
           {isFabOpen && (
             <div className="fab-menu">
-              {fabInvoiceOpen ? (
-                <>
-                  <button className="fab-menu-item" onClick={() => openInvoiceByTime(true)}>
-                    <Clock size={20} />
-                    Invoice by Time
-                  </button>
-                  <button className="fab-menu-item" onClick={openInvoiceByServices}>
-                    <Wrench size={20} />
-                    Invoice by Services
-                  </button>
-                  <button className="fab-menu-item" onClick={openInvoiceByProducts}>
-                    <Package size={20} />
-                    Invoice by Products
-                  </button>
-                </>
-              ) : (
-                <>
-                  <button className="fab-menu-item" onClick={() => setFabInvoiceOpen(true)}>
-                    <FileText size={20} />
-                    Create Invoice
-                  </button>
-                  <button className="fab-menu-item" onClick={() => { setIsFabOpen(false); openCreate() }}>
-                    <Clock size={20} />
-                    New Shift
-                  </button>
-                  <button className="fab-menu-item" onClick={() => { setIsFabOpen(false); openReports() }}>
-                    <BarChart2 size={20} />
-                    Reports
-                  </button>
-                </>
-              )}
+              <button className="fab-menu-item" onClick={openCreateInvoice}>
+                <FileText size={20} />
+                Create Invoice
+              </button>
+              <button className="fab-menu-item" onClick={() => { setIsFabOpen(false); openCreate() }}>
+                <Clock size={20} />
+                New Shift
+              </button>
+              <button className="fab-menu-item" onClick={() => { setIsFabOpen(false); openReports() }}>
+                <BarChart2 size={20} />
+                Reports
+              </button>
             </div>
           )}
-          <button className="floating-btn" onClick={() => { setIsFabOpen(prev => !prev); setFabInvoiceOpen(false) }}>
+          <button className="floating-btn" onClick={() => setIsFabOpen(prev => !prev)}>
             {isFabOpen ? <X size={24} /> : <Plus size={24} />}
           </button>
         </>
@@ -2585,10 +1550,13 @@ function App() {
       {/* SHIFT FORM MODAL */}
       {isAddOpen && (
         <div className="modal-backdrop" onClick={closeModal}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header-dark">
-              <div className="modal-title-dark">{editingId ? 'Edit shift' : 'New shift'}</div>
-              <button className="modal-close-btn" onClick={closeModal}><X size={18} /></button>
+          <div className="modal modal--fullscreen" onClick={(e) => e.stopPropagation()}>
+            <div className="inv-header">
+              <div className="inv-header-left">
+                <Clock size={20} />
+                <span className="inv-header-title">{editingId ? 'Edit shift' : 'New shift'}</span>
+              </div>
+              <button className="inv-close-btn" onClick={closeModal}><X size={18} /></button>
             </div>
 
             <div className="form-grid">
@@ -2699,7 +1667,10 @@ function App() {
               </label>
             </div>
 
-            <button className="primary-btn" onClick={handleSave} disabled={form.clientId === null}>Save</button>
+            <div className="inv-footer">
+              <button className="ghost-button" onClick={closeModal}>Cancel</button>
+              <button className="primary-btn" style={{ flex: 1 }} onClick={handleSave} disabled={form.clientId === null}>Save</button>
+            </div>
           </div>
         </div>
       )}
@@ -2859,207 +1830,6 @@ function App() {
         </div>
       )}
 
-      {/* INVOICE BY PRODUCTS MODAL */}
-      {isInvoiceByProductsOpen && (
-        <div className="modal-backdrop" onClick={() => setIsInvoiceByProductsOpen(false)}>
-          <div className="modal" onClick={e => e.stopPropagation()}>
-            <div className="inv-header">
-              <div className="inv-header-left">
-                <Package size={20} />
-                <span className="inv-header-title">Create Invoice</span>
-              </div>
-              <button className="inv-close-btn" onClick={() => setIsInvoiceByProductsOpen(false)}><X size={18} /></button>
-            </div>
-
-            <div className="form-grid">
-              <div>
-                <div className="inv-section-title">INVOICE DETAILS</div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 14, marginTop: 14 }}>
-                  <div className="field">
-                    <span className="label">Invoice Number</span>
-                    <input
-                      type="text"
-                      value={`INV-${String(invBPForm.number).padStart(3, '0')}`}
-                      onChange={e => {
-                        const raw = e.target.value.replace(/^INV-0*/, '').replace(/\D/g, '')
-                        setInvBPForm(prev => ({ ...prev, number: raw || '1' }))
-                      }}
-                    />
-                  </div>
-                  <div className="field">
-                    <span className="label">Date</span>
-                    <button
-                      type="button"
-                      className="form-field-btn"
-                      onClick={() => setInvBPCalendarOpen(prev => !prev)}
-                    >
-                      {formatDate(invBPForm.date)}
-                    </button>
-                    {invBPCalendarOpen && (
-                      <div className="form-calendar">
-                        <div className="form-calendar-header">
-                          <button type="button" className="nav-btn" onClick={() => setInvBPCalendarMonth(prev => shiftMonthKey(prev, -1))}><ChevronLeft size={16} /></button>
-                          <span className="form-calendar-title">{invBPCalendarLabel}</span>
-                          <button type="button" className="nav-btn" onClick={() => setInvBPCalendarMonth(prev => shiftMonthKey(prev, 1))}><ChevronRight size={16} /></button>
-                        </div>
-                        <div className="calendar-weekdays">
-                          {calendarWeekLabels.map(l => <div key={l} className="calendar-weekday">{l}</div>)}
-                        </div>
-                        <div className="calendar-grid">
-                          {invBPCalendarCells.map((cell, idx) => {
-                            if (!cell.date || !cell.day) return <div key={`invbp-${idx}`} className="calendar-day-empty" />
-                            const isSelected = cell.date === invBPForm.date
-                            const isToday = cell.date === todayIso
-                            return (
-                              <button
-                                key={cell.date}
-                                type="button"
-                                className={`calendar-day${isSelected ? ' is-selected' : ''}${isToday ? ' is-today' : ''}`}
-                                onClick={() => { setInvBPForm(prev => ({ ...prev, date: cell.date! })); setInvBPCalendarOpen(false) }}
-                              >
-                                <span className="calendar-day-number">{cell.day}</span>
-                              </button>
-                            )
-                          })}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                  <div className="field">
-                    <div className="field-label-row">
-                      <span className="label">Client</span>
-                      <button type="button" className="add-action-btn" onClick={() => openAddClientFromInvoice('invoiceByProducts')}>+ Add Client</button>
-                    </div>
-                    <select
-                      value={invBPForm.clientId ?? ''}
-                      onChange={e => setInvBPForm(prev => ({ ...prev, clientId: e.target.value ? Number(e.target.value) : null }))}
-                    >
-                      {clients.length === 0 && <option value="" disabled>Add new Client</option>}
-                      {clients.length > 1 && <option value="">Select Client</option>}
-                      {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                    </select>
-                  </div>
-                </div>
-              </div>
-
-              <div style={{ position: 'relative' }}>
-                {invAddMenuOpen && (
-                  <div
-                    style={{ position: 'absolute', inset: 0, zIndex: 98, backdropFilter: 'blur(2px)', borderRadius: 'inherit' }}
-                    onClick={() => setInvAddMenuOpen(false)}
-                  />
-                )}
-                <div className="inv-section-title-row">
-                  <div className="inv-section-title">LINE ITEMS</div>
-                  <div style={{ position: 'relative', zIndex: invAddMenuOpen ? 99 : 'auto' }}>
-                    <button type="button" className="add-action-btn" onClick={() => setInvAddMenuOpen(p => !p)}>+ Add Item</button>
-                    {invAddMenuOpen && (
-                      <div className="inv-add-menu">
-                        <button onClick={() => addLineItem('time')}>+ Add Time</button>
-                        <button onClick={() => addLineItem('service')}>+ Add Service</button>
-                        <button onClick={() => addLineItem('product')}>+ Add Product</button>
-                      </div>
-                    )}
-                  </div>
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 14 }}>
-                  {invLineItems.map((item, idx) => (
-                    <div key={item.id} className="inv-line-item-card">
-                      <div className="inv-item-title-row">
-                        <div className="inv-item-title">Item {idx + 1} <span style={{ fontSize: 11, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>{item.type}</span></div>
-                        {invLineItems.length > 1 && (
-                          <button type="button" className="inv-remove-item-btn" onClick={() => setInvLineItems(prev => prev.filter(i => i.id !== item.id))}><X size={14} /></button>
-                        )}
-                      </div>
-                      <div className="field">
-                        <span className="label">Description</span>
-                        <input type="text" value={item.description} onChange={e => setInvLineItems(prev => prev.map(i => i.id === item.id ? { ...i, description: e.target.value } as InvoiceLineItem : i))} />
-                      </div>
-                      {item.type === 'time' && (
-                        <>
-                          <div className="double">
-                            <div className="field">
-                              <span className="label">Duration</span>
-                              <div className="duration-input">
-                                <input type="text" inputMode="numeric" value={item.durationHours} onChange={e => { const v = e.target.value.replace(/\D/g, ''); setInvLineItems(prev => prev.map(i => i.id === item.id ? { ...i, durationHours: v, exactAmount: undefined } as InvoiceLineItem : i)) }} />
-                                <span className="duration-sep">h</span>
-                                <input type="text" inputMode="numeric" value={item.durationMinutes} onChange={e => { const v = e.target.value.replace(/\D/g, ''); setInvLineItems(prev => prev.map(i => i.id === item.id ? { ...i, durationMinutes: v, exactAmount: undefined } as InvoiceLineItem : i)) }} />
-                                <span className="duration-sep">m</span>
-                              </div>
-                            </div>
-                            <div className="field" style={{ alignItems: 'flex-end' }}>
-                              <span className="label">Rate ($/hr)</span>
-                              <input type="text" style={{ width: 60 }} value={item.rate} onChange={e => setInvLineItems(prev => prev.map(i => i.id === item.id ? { ...i, rate: e.target.value, exactAmount: undefined } as InvoiceLineItem : i))} onBlur={e => { const v = e.target.value.replace(',', '.'); setInvLineItems(prev => prev.map(i => i.id === item.id ? { ...i, rate: v, exactAmount: undefined } as InvoiceLineItem : i)) }} />
-                            </div>
-                          </div>
-                          <div className="inv-item-amount"><span>Amount</span><strong>${money(calcLineItemAmount(item))}</strong></div>
-                        </>
-                      )}
-                      {item.type === 'service' && (
-                        <>
-                          <div className="field">
-                            <span className="label">Amount ($)</span>
-                            <input type="number" min="0" step="0.01" value={item.amount} onChange={e => setInvLineItems(prev => prev.map(i => i.id === item.id ? { ...i, amount: e.target.value } as InvoiceLineItem : i))} />
-                          </div>
-                          <div className="inv-item-amount"><span>Amount</span><strong>${money(calcLineItemAmount(item))}</strong></div>
-                        </>
-                      )}
-                      {item.type === 'product' && (
-                        <>
-                          <div style={{ display: 'flex', gap: 10 }}>
-                            <div className="field" style={{ flex: 1, minWidth: 0 }}>
-                              <span className="label">Quantity</span>
-                              <input type="number" min="0" step="1" value={item.quantity} onChange={e => setInvLineItems(prev => prev.map(i => i.id === item.id ? { ...i, quantity: e.target.value } as InvoiceLineItem : i))} />
-                            </div>
-                            <div className="field" style={{ flex: 1, minWidth: 0 }}>
-                              <span className="label">Unit Price</span>
-                              <input type="number" min="0" step="0.01" value={item.unitPrice} onChange={e => setInvLineItems(prev => prev.map(i => i.id === item.id ? { ...i, unitPrice: e.target.value } as InvoiceLineItem : i))} />
-                            </div>
-                          </div>
-                          <div className="inv-item-amount"><span>Amount</span><strong>${money(calcLineItemAmount(item))}</strong></div>
-                        </>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {(() => {
-                const subtotal = invLineItems.reduce((s, item) => s + calcLineItemAmount(item), 0)
-                const gst = invoiceProfile.chargeGst ? subtotal * 0.1 : 0
-                const total = subtotal + gst
-                return (
-                  <div className="inv-summary-card">
-                    <div className="inv-summary-row">
-                      <span>Subtotal</span>
-                      <span>${money(subtotal)}</span>
-                    </div>
-                    {invoiceProfile.chargeGst && (
-                      <div className="inv-summary-row">
-                        <span>GST (10%)</span>
-                        <span>${money(gst)}</span>
-                      </div>
-                    )}
-                    <div className="inv-summary-divider" />
-                    <div className="inv-summary-row inv-summary-total">
-                      <strong>Total</strong>
-                      <strong>${money(total)}</strong>
-                    </div>
-                  </div>
-                )
-              })()}
-            </div>
-
-            <div className="inv-footer">
-              <button className="ghost-button" onClick={() => setIsInvoiceByProductsOpen(false)}>Cancel</button>
-              <button className="primary-btn" style={{ flex: 1 }} onClick={generateInvoiceByProducts} disabled={invBPForm.clientId === null}>
-                Create PDF
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* UPGRADE MODAL */}
       {isUpgradeModalOpen && (
         <div className="modal-backdrop" onClick={() => setIsUpgradeModalOpen(false)}>
@@ -3111,10 +1881,13 @@ function App() {
       {/* SETTINGS MODAL */}
       {isSettingsOpen && (
         <div className="modal-backdrop" onClick={closeSettings}>
-          <div className="modal modal-pinned" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header-dark">
-              <div className="modal-title-dark">Settings</div>
-              <button className="modal-close-btn" onClick={closeSettings}><X size={18} /></button>
+          <div className="modal modal--fullscreen" onClick={(e) => e.stopPropagation()}>
+            <div className="inv-header">
+              <div className="inv-header-left">
+                <SettingsIcon size={20} />
+                <span className="inv-header-title">Settings</span>
+              </div>
+              <button className="inv-close-btn" onClick={closeSettings}><X size={18} /></button>
             </div>
 
             <div className="form-grid">
@@ -3178,59 +1951,97 @@ function App() {
                 </div>
               )}
 
-              <label className="field">
-                <span className="label">Weekday rate (AUD)</span>
-                <input
-                  type="text"
-                  inputMode="decimal"
-                  pattern="[0-9]*[.,]?[0-9]*"
-                  value={hourlyRateInput}
-                  onChange={(e) => {
-                    const raw = e.target.value
-                    setHourlyRateInput(raw)
-                    const parsed = parseDecimal(raw)
-                    if (parsed !== null) {
-                      setSettingsDraft((prev) => ({ ...prev, hourlyRate: Math.max(0, parsed) }))
-                    }
-                  }}
-                />
-              </label>
+              {settingsDraft.period === 'custom' && (
+                <>
+                  <div className="field">
+                    <span className="label">Date from</span>
+                    <button type="button" className="form-field-btn" onClick={() => { setSettingsFromCalOpen(p => !p); setSettingsToCalOpen(false) }}>
+                      {formatDate(customReportFrom)}
+                    </button>
+                    {settingsFromCalOpen && (
+                      <div className="form-calendar">
+                        <div className="form-calendar-header">
+                          <button type="button" className="nav-btn" onClick={() => setSettingsFromCalMonth(prev => shiftMonthKey(prev, -1))}><ChevronLeft size={16} /></button>
+                          <span className="form-calendar-title">{settingsFromCalLabel}</span>
+                          <button type="button" className="nav-btn" onClick={() => setSettingsFromCalMonth(prev => shiftMonthKey(prev, 1))}><ChevronRight size={16} /></button>
+                        </div>
+                        <div className="calendar-weekdays">
+                          {calendarWeekLabels.map(l => <div key={l} className="calendar-weekday">{l}</div>)}
+                        </div>
+                        <div className="calendar-grid">
+                          {settingsFromCalCells.map((cell, idx) => {
+                            if (!cell.date || !cell.day) return <div key={`sf-${idx}`} className="calendar-day-empty" />
+                            const isSelected = cell.date === customReportFrom
+                            const isToday = cell.date === todayIso
+                            return (
+                              <button key={cell.date} type="button"
+                                className={`calendar-day${isSelected ? ' is-selected' : ''}${isToday ? ' is-today' : ''}`}
+                                onClick={() => { setCustomReportFrom(cell.date!); setSettingsFromCalOpen(false) }}
+                              >
+                                <span className="calendar-day-number">{cell.day}</span>
+                              </button>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </div>
 
-              <div className="field">
-                <div className="toggle-row">
-                  <span className="label">Different rate for weekends</span>
-                  <button
-                    type="button"
-                    className={`toggle-btn ${settingsDraft.weekendRateEnabled ? 'is-on' : ''}`}
-                    onClick={() => setSettingsDraft(prev => ({ ...prev, weekendRateEnabled: !prev.weekendRateEnabled }))}
-                  >
-                    <span className="toggle-knob" />
-                  </button>
-                </div>
-              </div>
-
-              {settingsDraft.weekendRateEnabled && (
-                <label className="field">
-                  <span className="label">Weekend rate (AUD)</span>
-                  <input
-                    type="text"
-                    inputMode="decimal"
-                    pattern="[0-9]*[.,]?[0-9]*"
-                    value={weekendRateInput}
-                    onChange={(e) => {
-                      const raw = e.target.value
-                      setWeekendRateInput(raw)
-                      const parsed = parseDecimal(raw)
-                      if (parsed !== null) {
-                        setSettingsDraft((prev) => ({ ...prev, weekendRate: Math.max(0, parsed) }))
-                      }
-                    }}
-                  />
-                </label>
+                  <div className="field">
+                    <span className="label">Date to</span>
+                    <button type="button" className="form-field-btn" onClick={() => { setSettingsToCalOpen(p => !p); setSettingsFromCalOpen(false) }}>
+                      {formatDate(customReportTo)}
+                    </button>
+                    {settingsToCalOpen && (
+                      <div className="form-calendar">
+                        <div className="form-calendar-header">
+                          <button type="button" className="nav-btn" onClick={() => setSettingsToCalMonth(prev => shiftMonthKey(prev, -1))}><ChevronLeft size={16} /></button>
+                          <span className="form-calendar-title">{settingsToCalLabel}</span>
+                          <button type="button" className="nav-btn" onClick={() => setSettingsToCalMonth(prev => shiftMonthKey(prev, 1))}><ChevronRight size={16} /></button>
+                        </div>
+                        <div className="calendar-weekdays">
+                          {calendarWeekLabels.map(l => <div key={l} className="calendar-weekday">{l}</div>)}
+                        </div>
+                        <div className="calendar-grid">
+                          {settingsToCalCells.map((cell, idx) => {
+                            if (!cell.date || !cell.day) return <div key={`st-${idx}`} className="calendar-day-empty" />
+                            const isSelected = cell.date === customReportTo
+                            const isToday = cell.date === todayIso
+                            return (
+                              <button key={cell.date} type="button"
+                                className={`calendar-day${isSelected ? ' is-selected' : ''}${isToday ? ' is-today' : ''}`}
+                                onClick={() => { setCustomReportTo(cell.date!); setSettingsToCalOpen(false) }}
+                              >
+                                <span className="calendar-day-number">{cell.day}</span>
+                              </button>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </>
               )}
+
             </div>
 
-            <button className="primary-btn" onClick={saveSettings}>Save</button>
+            <div className="inv-footer">
+              <button className="ghost-button" onClick={closeSettings}>Cancel</button>
+              {settingsDraft.period === 'custom' ? (
+                <button className="primary-btn" style={{ flex: 1 }} onClick={() => {
+                  if (customReportFrom > customReportTo) {
+                    alert('"Date from" cannot be later than "Date to"')
+                    return
+                  }
+                  setCustomReportRange({ start: customReportFrom, end: customReportTo })
+                  closeSettings()
+                  setActiveView('reports')
+                  setReportClientId(soloClientId)
+                }}>Report</button>
+              ) : (
+                <button className="primary-btn" style={{ flex: 1 }} onClick={saveSettings}>Save</button>
+              )}
+            </div>
           </div>
         </div>
       )}
@@ -3238,10 +2049,13 @@ function App() {
       {/* INVOICE DETAILS MODAL */}
       {isInvoiceModalOpen && (
         <div className="modal-backdrop" onClick={closeInvoiceModal}>
-          <div className="modal modal-pinned" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header-dark">
-              <div className="modal-title-dark">Invoice details</div>
-              <button className="modal-close-btn" onClick={closeInvoiceModal}><X size={18} /></button>
+          <div className="modal modal--fullscreen" onClick={(e) => e.stopPropagation()}>
+            <div className="inv-header">
+              <div className="inv-header-left">
+                <FileText size={20} />
+                <span className="inv-header-title">My Invoice Details</span>
+              </div>
+              <button className="inv-close-btn" onClick={closeInvoiceModal}><X size={18} /></button>
             </div>
 
             <div className="form-grid">
@@ -3335,17 +2149,98 @@ function App() {
                 />
               </label>
 
-              <label className="field checkbox-inline">
-                <span className="label">Include GST (10%)</span>
+              <label className="field">
+                <span className="label">Weekday rate (AUD/hr)</span>
                 <input
-                  type="checkbox"
-                  checked={invoiceDraft.chargeGst}
-                  onChange={(e) => setInvoiceDraft((prev) => ({ ...prev, chargeGst: e.target.checked }))}
+                  type="text"
+                  inputMode="decimal"
+                  pattern="[0-9]*[.,]?[0-9]*"
+                  value={hourlyRateInput}
+                  onChange={(e) => {
+                    const raw = e.target.value
+                    setHourlyRateInput(raw)
+                    const parsed = parseDecimal(raw)
+                    if (parsed !== null) {
+                      setInvoiceDraft((prev) => ({ ...prev, hourlyRate: Math.max(0, parsed) }))
+                    }
+                  }}
+                  onBlur={(e) => {
+                    const parsed = parseDecimal(e.target.value)
+                    const safe = Math.max(0, parsed ?? invoiceDraft.hourlyRate ?? 0)
+                    setHourlyRateInput(String(safe))
+                    setInvoiceDraft((prev) => ({ ...prev, hourlyRate: safe }))
+                  }}
                 />
               </label>
+
+              <div className="field">
+                <div className="toggle-row">
+                  <span className="label">Different rate for weekends</span>
+                  <button
+                    type="button"
+                    className={`toggle-btn ${invoiceDraft.weekendRateEnabled ? 'is-on' : ''}`}
+                    onClick={() => setInvoiceDraft(prev => ({ ...prev, weekendRateEnabled: !prev.weekendRateEnabled }))}
+                  >
+                    <span className="toggle-knob" />
+                  </button>
+                </div>
+              </div>
+
+              {invoiceDraft.weekendRateEnabled && (
+                <label className="field">
+                  <span className="label">Weekend rate (AUD/hr)</span>
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    pattern="[0-9]*[.,]?[0-9]*"
+                    value={weekendRateInput}
+                    onChange={(e) => {
+                      const raw = e.target.value
+                      setWeekendRateInput(raw)
+                      const parsed = parseDecimal(raw)
+                      if (parsed !== null) {
+                        setInvoiceDraft((prev) => ({ ...prev, weekendRate: Math.max(0, parsed) }))
+                      }
+                    }}
+                    onBlur={(e) => {
+                      const parsed = parseDecimal(e.target.value)
+                      const safe = Math.max(0, parsed ?? invoiceDraft.weekendRate ?? 0)
+                      setWeekendRateInput(String(safe))
+                      setInvoiceDraft((prev) => ({ ...prev, weekendRate: safe }))
+                    }}
+                  />
+                </label>
+              )}
+
+              <div className="field">
+                <span className="label">GST</span>
+                <div className="radio-group">
+                  <label className="radio-option">
+                    <input type="radio" name="gstMode" value="none"
+                      checked={invoiceDraft.gstMode === 'none'}
+                      onChange={() => setInvoiceDraft(p => ({ ...p, gstMode: 'none' }))} />
+                    No GST
+                  </label>
+                  <label className="radio-option">
+                    <input type="radio" name="gstMode" value="exclusive"
+                      checked={invoiceDraft.gstMode === 'exclusive'}
+                      onChange={() => setInvoiceDraft(p => ({ ...p, gstMode: 'exclusive' }))} />
+                    Add GST on top (10%)
+                  </label>
+                  <label className="radio-option">
+                    <input type="radio" name="gstMode" value="inclusive"
+                      checked={invoiceDraft.gstMode === 'inclusive'}
+                      onChange={() => setInvoiceDraft(p => ({ ...p, gstMode: 'inclusive' }))} />
+                    GST included in rate
+                  </label>
+                </div>
+              </div>
             </div>
 
-            <button className="primary-btn" onClick={saveInvoiceProfile}>Save</button>
+            <div className="inv-footer">
+              <button className="ghost-button" onClick={closeInvoiceModal}>Cancel</button>
+              <button className="primary-btn" style={{ flex: 1 }} onClick={saveInvoiceProfile}>Save</button>
+            </div>
           </div>
         </div>
       )}

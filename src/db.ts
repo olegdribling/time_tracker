@@ -30,10 +30,8 @@ class WorkTrackerDB extends Dexie {
         invoiceProfile: 'key',
       })
       .upgrade((tx) => {
-        return tx.table('invoiceProfile').toCollection().modify((row: InvoiceProfileRow & Partial<InvoiceProfile>) => {
-          if (row.chargeGst === undefined) {
-            row.chargeGst = false
-          }
+        return tx.table('invoiceProfile').toCollection().modify((_row: unknown) => {
+          // migration no-op: chargeGst replaced by gstMode
         })
       })
   }

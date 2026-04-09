@@ -21,9 +21,6 @@ export type ShiftForm = {
 export type Settings = {
   period: 'weekly' | 'monthly' | 'custom'
   weekStart: 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday' | 'sunday'
-  hourlyRate: number
-  weekendRateEnabled: boolean
-  weekendRate: number
 }
 
 export type Client = {
@@ -44,6 +41,11 @@ export type Product = {
 
 export type ProductDraft = Omit<Product, 'id'>
 
+export type InvoiceLineItem =
+  | { id: number; type: 'time'; description: string; durationHours: string; durationMinutes: string; rate: string; exactAmount?: number }
+  | { id: number; type: 'service'; description: string; amount: string }
+  | { id: number; type: 'product'; description: string; quantity: string; unitPrice: string }
+
 export type InvoiceProfile = {
   fullName: string
   address: string
@@ -53,5 +55,8 @@ export type InvoiceProfile = {
   bsb: string
   accountNumber: string
   nextInvoiceNumber: number
-  chargeGst: boolean
+  gstMode: 'none' | 'exclusive' | 'inclusive'
+  hourlyRate: number
+  weekendRateEnabled: boolean
+  weekendRate: number
 }

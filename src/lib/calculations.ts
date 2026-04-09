@@ -98,9 +98,7 @@ export function getPeriodByOffset(
   }
 
   if (settings.period === 'custom') {
-    const day = new Date(base.start)
-    day.setDate(day.getDate() + offset)
-    return { start: iso(day), end: iso(day) }
+    return base
   }
 
   return base

@@ -58,7 +58,7 @@ export function BillingPage() {
     setCheckoutLoading(plan)
     const data = await api.createCheckout(plan)
     if (data.url) {
-      window.location.href = data.url
+      window.location.assign(data.url)
     } else {
       alert(data.error || 'Something went wrong')
       setCheckoutLoading(null)
@@ -69,7 +69,7 @@ export function BillingPage() {
     setPortalLoading(true)
     const data = await api.createPortal()
     if (data.url) {
-      window.location.href = data.url
+      window.location.assign(data.url)
     } else {
       alert(data.error || 'Something went wrong')
       setPortalLoading(false)

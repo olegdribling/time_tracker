@@ -19,7 +19,10 @@ router.get('/', async (req, res) => {
       bsb: row.bsb,
       accountNumber: row.account_number,
       nextInvoiceNumber: row.next_invoice_number,
-      chargeGst: row.charge_gst,
+      gstMode: row.gst_mode ?? 'none',
+      hourlyRate: parseFloat(row.hourly_rate) || 25,
+      weekendRateEnabled: row.weekend_rate_enabled ?? false,
+      weekendRate: parseFloat(row.weekend_rate) || 25,
     })
   } catch (err) {
     console.error(err)
@@ -28,20 +31,22 @@ router.get('/', async (req, res) => {
 })
 
 router.put('/', async (req, res) => {
-  const { fullName, address, abn, speciality, accountBankName, bsb, accountNumber, nextInvoiceNumber, chargeGst } = req.body
+  const { fullName, address, abn, speciality, accountBankName, bsb, accountNumber, nextInvoiceNumber, gstMode, hourlyRate, weekendRateEnabled, weekendRate } = req.body
   try {
     await pool.query(
       `INSERT INTO invoice_profiles
-         (user_id, full_name, address, abn, speciality, account_bank_name, bsb, account_number, next_invoice_number, charge_gst)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+         (user_id, full_name, address, abn, speciality, account_bank_name, bsb, account_number, next_invoice_number, gst_mode, hourly_rate, weekend_rate_enabled, weekend_rate)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
        ON CONFLICT (user_id) DO UPDATE SET
          full_name=EXCLUDED.full_name, address=EXCLUDED.address, abn=EXCLUDED.abn,
          speciality=EXCLUDED.speciality, account_bank_name=EXCLUDED.account_bank_name,
          bsb=EXCLUDED.bsb, account_number=EXCLUDED.account_number,
-         next_invoice_number=EXCLUDED.next_invoice_number, charge_gst=EXCLUDED.charge_gst,
-         updated_at=NOW()`,
+         next_invoice_number=EXCLUDED.next_invoice_number, gst_mode=EXCLUDED.gst_mode,
+         hourly_rate=EXCLUDED.hourly_rate, weekend_rate_enabled=EXCLUDED.weekend_rate_enabled,
+         weekend_rate=EXCLUDED.weekend_rate, updated_at=NOW()`,
       [req.userId, fullName || '', address || '', abn || '', speciality || '',
-       accountBankName || '', bsb || '', accountNumber || '', nextInvoiceNumber ?? 1, chargeGst ?? false]
+       accountBankName || '', bsb || '', accountNumber || '', nextInvoiceNumber ?? 1,
+       gstMode ?? 'none', hourlyRate ?? 25, weekendRateEnabled ?? false, weekendRate ?? 25]
     )
     res.json({ ok: true })
   } catch (err) {

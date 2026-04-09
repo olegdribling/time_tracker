@@ -556,6 +556,25 @@
   max-height: min(86vh, calc(100dvh - 104px));
 }
 
+.modal.modal--fullscreen {
+  width: 100%;
+  height: 100dvh;
+  max-height: 100dvh;
+  border-radius: 0;
+  border: none;
+}
+
+.modal--fullscreen .form-grid {
+  flex: 1;
+}
+
+.modal-backdrop:has(.modal--fullscreen) {
+  padding: 0;
+  background: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
 /* ── Modal header dark ──────────────────────────────────── */
 .modal-header-dark {
   background: var(--header-bg);
@@ -1636,6 +1655,16 @@
   background: var(--surface);
 }
 
+.inv-line-item-card .field input[type="number"]::-webkit-inner-spin-button,
+.inv-line-item-card .field input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.inv-line-item-card .field input[type="number"] {
+  -moz-appearance: textfield;
+}
+
 .inv-item-title {
   font-weight: 700;
   font-size: 14px;
@@ -1744,4 +1773,25 @@
     margin-top: 44px;
     max-height: min(88vh, calc(100dvh - 84px));
   }
+}
+
+/* ── Radio group (GST mode, etc.) ───────────────────────── */
+.radio-group {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 4px;
+}
+.radio-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  cursor: pointer;
+}
+.radio-option input[type="radio"] {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+  accent-color: var(--primary, #2563eb);
 }

@@ -52,7 +52,7 @@ async function fetchAuth(url: string, options: RequestInit = {}): Promise<Respon
     Authorization: `Bearer ${token}`,
   })
 
-  let res = await fetch(url, { ...options, headers: makeHeaders(getToken()) })
+  const res = await fetch(url, { ...options, headers: makeHeaders(getToken()) })
   if (res.status !== 401) return res
 
   // Deduplicate concurrent refresh calls

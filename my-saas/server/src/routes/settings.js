@@ -13,9 +13,6 @@ router.get('/', async (req, res) => {
     res.json({
       period: row.period,
       weekStart: row.week_start,
-      hourlyRate: parseFloat(row.hourly_rate),
-      weekendRateEnabled: row.weekend_rate_enabled,
-      weekendRate: parseFloat(row.weekend_rate),
     })
   } catch (err) {
     console.error(err)
@@ -24,16 +21,14 @@ router.get('/', async (req, res) => {
 })
 
 router.put('/', async (req, res) => {
-  const { period, weekStart, hourlyRate, weekendRateEnabled, weekendRate } = req.body
+  const { period, weekStart } = req.body
   try {
     await pool.query(
-      `INSERT INTO settings (user_id, period, week_start, hourly_rate, weekend_rate_enabled, weekend_rate)
-       VALUES ($1, $2, $3, $4, $5, $6)
+      `INSERT INTO settings (user_id, period, week_start)
+       VALUES ($1, $2, $3)
        ON CONFLICT (user_id) DO UPDATE SET
-         period=EXCLUDED.period, week_start=EXCLUDED.week_start,
-         hourly_rate=EXCLUDED.hourly_rate, weekend_rate_enabled=EXCLUDED.weekend_rate_enabled,
-         weekend_rate=EXCLUDED.weekend_rate, updated_at=NOW()`,
-      [req.userId, period, weekStart, hourlyRate, weekendRateEnabled ?? false, weekendRate ?? 0]
+         period=EXCLUDED.period, week_start=EXCLUDED.week_start, updated_at=NOW()`,
+      [req.userId, period, weekStart]
     )
     res.json({ ok: true })
   } catch (err) {
