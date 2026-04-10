@@ -1542,7 +1542,7 @@
   align-items: center;
   justify-content: space-between;
   padding: 16px 20px;
-  border-bottom: 1px solid var(--border);
+  background: var(--header-bg);
   flex-shrink: 0;
 }
 
@@ -1550,21 +1550,22 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  color: var(--text-primary);
+  color: #fff;
 }
 
 .inv-header-title {
   font-size: 18px;
   font-weight: 700;
+  color: #fff;
 }
 
 .inv-close-btn {
   width: 32px;
   height: 32px;
   border-radius: 50%;
-  border: 1px solid var(--border);
-  background: var(--input-bg);
-  color: var(--text-muted);
+  border: 1px solid rgba(255,255,255,0.3);
+  background: transparent;
+  color: #fff;
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -1572,7 +1573,7 @@
 }
 
 .inv-close-btn:hover {
-  background: var(--border);
+  background: rgba(255,255,255,0.15);
 }
 
 .inv-section-title {

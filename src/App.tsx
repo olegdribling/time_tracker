@@ -1,41 +1,46 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// ИМПОРТЫ
+// ─────────────────────────────────────────────────────────────────────────────
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import './App.css'
 import {
-  Banknote,
-  BarChart2,
+  Banknote,    // иконка для биллинга/подписки
+  BarChart2,   // иконка для отчётов
   ChevronLeft,
   ChevronRight,
-  Clock,
-  Coffee,
-  FileText,
-  Home,
-  LogOut,
-  MoreVertical,
-  Package,
-  Plus,
+  Clock,       // иконка для смен
+  Coffee,      // иконка для перерыва на обед
+  FileText,    // иконка для инвойса
+  Home,        // иконка "домой"
+  LogOut,      // иконка выхода
+  MoreVertical,// иконка "три точки" (контекстное меню)
+  Package,     // иконка продуктов
+  Plus,        // иконка добавления (FAB-кнопка)
   Settings as SettingsIcon,
   Timer,
   User,
-  Users,
-  X,
+  Users,       // иконка клиентов
+  X,           // иконка закрытия
 } from 'lucide-react'
-import { api } from './api'
-import { CreateInvoiceModal, calcLineItemAmount } from './components/CreateInvoiceModal'
+import { api } from './api'                                                       // REST-клиент (все запросы к серверу)
+import { CreateInvoiceModal, calcLineItemAmount } from './components/CreateInvoiceModal' // модалка создания инвойса
 import type { InvBTForm, InvSuccessData } from './components/CreateInvoiceModal'
-import { useProducts } from './hooks/useProducts'
-import { useSettings } from './hooks/useSettings'
-import { calculateTotals, getPeriodByOffset, getPeriodRange, minutesBetween } from './lib/calculations'
-import { DEFAULT_INVOICE_PROFILE, DEFAULT_SETTINGS } from './lib/defaults'
-import { formatDate, money } from './lib/format'
-import { generateInvoicePdf } from './lib/invoice'
-import type { Client, ClientDraft, InvoiceLineItem, InvoiceProfile, Settings, Shift, ShiftForm } from './types'
+import { useProducts } from './hooks/useProducts'                                  // хук управления продуктами
+import { useSettings } from './hooks/useSettings'                                  // хук управления настройками
+import { calculateTotals, getPeriodByOffset, getPeriodRange, minutesBetween } from './lib/calculations' // расчёты периодов и итогов
+import { DEFAULT_INVOICE_PROFILE, DEFAULT_SETTINGS } from './lib/defaults'         // дефолтные значения
+import { formatDate, money } from './lib/format'                                   // форматирование дат и денег
+import { generateInvoicePdf } from './lib/invoice'                                 // генерация PDF инвойса
+import type { Client, ClientDraft, InvoiceLineItem, InvoiceProfile, Settings, Shift, ShiftForm } from './types' // все TypeScript-типы
 
+// ─────────────────────────────────────────────────────────────────────────────
+// КОНСТАНТЫ
+// ─────────────────────────────────────────────────────────────────────────────
+const CLOCK_INTERVAL_MS = 30_000                 // как часто обновляются часы в хедере (30 сек)
+const WEEK_MS = 7 * 24 * 60 * 60 * 1000         // миллисекунд в неделе (для группировки смен по неделям)
 
-const MENU_STORAGE_KEY = 'worktracker:menu-open'
-const CLOCK_INTERVAL_MS = 30_000
-const WEEK_MS = 7 * 24 * 60 * 60 * 1000
-
+// Создаёт пустую форму новой смены с дефолтными значениями
 const emptyForm = (): ShiftForm => {
   const date = toLocalDateKey(new Date())
   return {
@@ -48,6 +53,11 @@ const emptyForm = (): ShiftForm => {
   }
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ФОРМАТИРОВАНИЯ
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Форматирует дату для карточки смены: "Today", "Yesterday" или "15 April 2026"
 function formatShortDate(value: string) {
   if (!value) return ''
   const date = new Date(`${value}T00:00:00`)
@@ -63,6 +73,7 @@ function formatShortDate(value: string) {
   }).format(date)
 }
 
+// Форматирует обед в человекочитаемый вид: "No lunch", "30 min", "1 hour"
 function formatLunch(minutes: number) {
   if (minutes === 0) return 'No lunch'
   if (minutes < 60) return `${minutes} min`
@@ -72,17 +83,7 @@ function formatLunch(minutes: number) {
   return `${h}h ${m}m`
 }
 
-
-
-function formatDuration(minutes: number) {
-  const safe = Math.max(minutes, 0)
-  const hours = Math.floor(safe / 60)
-  const mins = safe % 60
-  if (hours === 0) return `${mins}m`
-  if (mins === 0) return `${hours}h`
-  return `${hours}h ${mins}m`
-}
-
+// Форматирует длительность: минуты всегда двузначные: "7h 05m", "0h 45m", "8h 00m"
 function formatDurationPadded(minutes: number) {
   const safe = Math.max(minutes, 0)
   const hours = Math.floor(safe / 60)
@@ -90,7 +91,7 @@ function formatDurationPadded(minutes: number) {
   return `${hours}h ${String(mins).padStart(2, '0')}m`
 }
 
-
+// Парсит строку с числом, заменяя запятую на точку. Возвращает null если не число
 const parseDecimal = (raw: string) => {
   const normalized = raw.replace(',', '.').trim()
   if (normalized === '') return null
@@ -98,12 +99,17 @@ const parseDecimal = (raw: string) => {
   return Number.isFinite(num) ? num : null
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// ТИПЫ И КОНСТАНТЫ ДЛЯ CALENDAR / WEEKPICKER
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Тип для опции в WheelPicker (барабанный выбор времени)
 type Option = {
   value: string
   label: string
 }
 
-
+// Все дни недели в порядке JS (0=воскресенье)
 const WEEKDAYS: Settings['weekStart'][] = [
   'sunday',
   'monday',
@@ -114,6 +120,7 @@ const WEEKDAYS: Settings['weekStart'][] = [
   'saturday',
 ]
 
+// Короткие названия дней для отображения в заголовке календаря
 const WEEKDAY_LABELS: Record<Settings['weekStart'], string> = {
   sunday: 'Sun',
   monday: 'Mon',
@@ -124,16 +131,21 @@ const WEEKDAY_LABELS: Record<Settings['weekStart'], string> = {
   saturday: 'Sat',
 }
 
+// Календарь всегда начинается с понедельника (независимо от настройки недели пользователя)
 const CALENDAR_WEEK_START: Settings['weekStart'] = 'monday'
-const CALENDAR_WEEK_START_INDEX = WEEKDAYS.indexOf(CALENDAR_WEEK_START)
+const CALENDAR_WEEK_START_INDEX = WEEKDAYS.indexOf(CALENDAR_WEEK_START) // = 1
 
+// Дополняет число до двух цифр: 5 → "05"
 const pad2 = (value: number) => String(value).padStart(2, '0')
 
+// Преобразует Date в строку "YYYY-MM-DD" по локальному времени (не UTC!)
 const toLocalDateKey = (date: Date) =>
   `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`
 
+// Преобразует Date в строку "YYYY-MM" (ключ месяца для календаря)
 const toMonthKey = (date: Date) => `${date.getFullYear()}-${pad2(date.getMonth() + 1)}`
 
+// Разбирает строку "YYYY-MM" обратно в { year, month }
 const parseMonthKey = (value: string) => {
   const [yearRaw, monthRaw] = value.split('-')
   return {
@@ -142,6 +154,7 @@ const parseMonthKey = (value: string) => {
   }
 }
 
+// Сдвигает месяц на offset месяцев вперёд/назад, возвращает новый ключ "YYYY-MM"
 const shiftMonthKey = (value: string, offset: number) => {
   const { year, month } = parseMonthKey(value)
   const shifted = new Date(year, month - 1 + offset, 1)
@@ -149,22 +162,27 @@ const shiftMonthKey = (value: string, offset: number) => {
 }
 
 
+// ─────────────────────────────────────────────────────────────────────────────
+// КОМПОНЕНТ: WheelPicker — барабанный выбор времени (часы/минуты/обед)
+// ─────────────────────────────────────────────────────────────────────────────
 type WheelPickerProps = {
-  options: Option[]
-  value: string
+  options: Option[]       // список значений (напр. 00..23 для часов)
+  value: string           // текущее выбранное значение
   onChange: (value: string) => void
-  itemHeight?: number
+  itemHeight?: number     // высота одной строки в пикселях (по умолчанию 44)
 }
 
 const WheelPicker = ({ options, value, onChange, itemHeight = 44 }: WheelPickerProps) => {
   const ref = useRef<HTMLDivElement | null>(null)
   const scrollTimeout = useRef<ReturnType<typeof setTimeout> | null>(null)
   const viewportPadding = itemHeight
-  const wheelHeight = itemHeight * 3
+  const wheelHeight = itemHeight * 3  // показываем 3 строки (одна по центру — выбранная)
+  // Список троится для эффекта "бесконечного" барабана
   const loopedOptions = useMemo(() => [...options, ...options, ...options], [options])
   const baseCount = options.length
-  const middleOffset = baseCount
+  const middleOffset = baseCount // начинаем с середины троированного списка
 
+  // При смене value — плавно скроллим к нужной позиции
   useEffect(() => {
     if (!baseCount) return
     const index = Math.max(0, options.findIndex((item) => item.value === value))
@@ -178,6 +196,7 @@ const WheelPicker = ({ options, value, onChange, itemHeight = 44 }: WheelPickerP
     }
   }, [value, options, itemHeight, viewportPadding, baseCount, middleOffset])
 
+  // Привязывает скролл к ближайшему значению после остановки (snap-эффект)
   const snapToNearest = () => {
     if (!ref.current || !baseCount) return
     const { scrollTop } = ref.current
@@ -186,7 +205,7 @@ const WheelPicker = ({ options, value, onChange, itemHeight = 44 }: WheelPickerP
     const normalized = ((index % baseCount) + baseCount) % baseCount
     const targetIndex = middleOffset + normalized
     const target = Math.max(0, viewportPadding - itemHeight + targetIndex * itemHeight)
-    // Only scroll if normalization is needed (infinite-loop reset); CSS snap handles visual snapping
+    // Прыгаем в середину только если нужен "сброс" бесконечного цикла
     if (Math.abs(scrollTop - target) > 2) {
       ref.current.scrollTo({ top: target, behavior: 'instant' })
     }
@@ -196,6 +215,7 @@ const WheelPicker = ({ options, value, onChange, itemHeight = 44 }: WheelPickerP
     }
   }
 
+  // Ждёт 80мс после последнего события скролла, потом фиксирует позицию
   const handleScroll = () => {
     if (scrollTimeout.current) clearTimeout(scrollTimeout.current)
     scrollTimeout.current = setTimeout(snapToNearest, 80)
@@ -203,7 +223,7 @@ const WheelPicker = ({ options, value, onChange, itemHeight = 44 }: WheelPickerP
 
   return (
     <div className="wheel" style={{ height: wheelHeight }}>
-      <div className="wheel__mask" />
+      <div className="wheel__mask" />    {/* затемнение сверху и снизу */}
       <div
         className="wheel__viewport"
         ref={ref}
@@ -224,65 +244,82 @@ const WheelPicker = ({ options, value, onChange, itemHeight = 44 }: WheelPickerP
           </div>
         ))}
       </div>
-      <div className="wheel__highlight" style={{ height: itemHeight }} />
+      <div className="wheel__highlight" style={{ height: itemHeight }} />  {/* подсветка центральной строки */}
     </div>
   )
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// ФУНКЦИЯ: buildCalendarCells — строит сетку дней для отображения календаря
+// Возвращает массив ячеек (всегда кратен 7 — полные недели).
+// Ячейки без даты (до начала и после конца месяца) имеют date=null, day=null.
+// ─────────────────────────────────────────────────────────────────────────────
 function buildCalendarCells(monthKey: string): Array<{ date: string | null; day: number | null }> {
   const { year, month } = parseMonthKey(monthKey)
-  const firstDay = new Date(year, month - 1, 1).getDay()
-  const daysInMonth = new Date(year, month, 0).getDate()
-  const leadingBlanks = (firstDay - CALENDAR_WEEK_START_INDEX + 7) % 7
-  const totalCells = Math.ceil((leadingBlanks + daysInMonth) / 7) * 7
+  const firstDay = new Date(year, month - 1, 1).getDay()            // день недели первого числа (0=вс)
+  const daysInMonth = new Date(year, month, 0).getDate()             // сколько дней в месяце
+  const leadingBlanks = (firstDay - CALENDAR_WEEK_START_INDEX + 7) % 7 // пустых ячеек в начале (перед 1-м числом)
+  const totalCells = Math.ceil((leadingBlanks + daysInMonth) / 7) * 7  // всего ячеек (полные недели)
   const monthPrefix = `${year}-${pad2(month)}`
   const cells: Array<{ date: string | null; day: number | null }> = []
   for (let idx = 0; idx < totalCells; idx += 1) {
     const day = idx - leadingBlanks + 1
     if (day < 1 || day > daysInMonth) {
-      cells.push({ date: null, day: null })
+      cells.push({ date: null, day: null })          // пустая ячейка (до/после месяца)
     } else {
-      cells.push({ date: `${monthPrefix}-${pad2(day)}`, day })
+      cells.push({ date: `${monthPrefix}-${pad2(day)}`, day }) // реальный день
     }
   }
   return cells
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// ГЛАВНЫЙ КОМПОНЕНТ ПРИЛОЖЕНИЯ
+// ─────────────────────────────────────────────────────────────────────────────
 function App() {
   const navigate = useNavigate()
-  const [appReady, setAppReady] = useState(false)
-  const [shifts, setShifts] = useState<Shift[]>([])
-  const [isAddOpen, setIsAddOpen] = useState(false)
-  const [isMenuOpen, setIsMenuOpen] = useState(() => {
-    try {
-      return localStorage.getItem(MENU_STORAGE_KEY) === 'true'
-    } catch (error) {
-      console.error('Failed to read stored menu state', error)
-      return false
-    }
-  })
+
+  // ── Общее состояние ────────────────────────────────────────────────────────
+  const [appReady, setAppReady] = useState(false)       // false пока данные не загружены с сервера → показываем сплэш
+  const [shifts, setShifts] = useState<Shift[]>([])     // все смены пользователя
+  const [isAddOpen, setIsAddOpen] = useState(false)     // открыта ли модалка "New shift / Edit shift"
+  const [isMenuOpen, setIsMenuOpen] = useState(false) // при загрузке меню всегда закрыто
+
+  // ── Invoice Details (профиль для инвойсов) ─────────────────────────────────
   const [isInvoiceModalOpen, setIsInvoiceModalOpen] = useState(false)
-  const [form, setForm] = useState<ShiftForm>(emptyForm)
-  const [invoiceProfile, setInvoiceProfile] = useState<InvoiceProfile>(DEFAULT_INVOICE_PROFILE)
-  const [invoiceDraft, setInvoiceDraft] = useState<InvoiceProfile>(DEFAULT_INVOICE_PROFILE)
+  const [invoiceProfile, setInvoiceProfile] = useState<InvoiceProfile>(DEFAULT_INVOICE_PROFILE) // сохранённые данные
+  const [invoiceDraft, setInvoiceDraft] = useState<InvoiceProfile>(DEFAULT_INVOICE_PROFILE)     // черновик в форме (до Save)
+  // Строковые инпуты для числовых полей (чтобы пользователь мог вводить "." без сброса)
   const [nextInvoiceNumberInput, setNextInvoiceNumberInput] = useState('1')
   const [hourlyRateInput, setHourlyRateInput] = useState(String(DEFAULT_INVOICE_PROFILE.hourlyRate))
   const [weekendRateInput, setWeekendRateInput] = useState(String(DEFAULT_INVOICE_PROFILE.weekendRate))
 
+  // ── Защита от гонки запросов ───────────────────────────────────────────────
+  // isMutatingRef=true пока выполняется создание/обновление/удаление → syncData пропускает перезагрузку
   const isMutatingRef = useRef(false)
+
+  // ── Пользователь и авторизация ────────────────────────────────────────────
   const [userEmail, setUserEmail] = useState<string>('')
-  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editingId, setEditingId] = useState<string | null>(null) // id смены при редактировании (null = новая)
+
+  // ── Навигация между экранами ──────────────────────────────────────────────
   const [activeView, setActiveView] = useState<'home' | 'reports' | 'calendar' | 'clients' | 'products'>('home')
+
+  // ── Клиенты ───────────────────────────────────────────────────────────────
   const [clients, setClients] = useState<Client[]>([])
   const [isClientModalOpen, setIsClientModalOpen] = useState(false)
   const [editingClientId, setEditingClientId] = useState<number | null>(null)
   const [clientDraft, setClientDraft] = useState<ClientDraft>({ name: '', address: '', abn: '', email: '' })
+  // Откуда открыли "Add Client" — чтобы вернуться назад после сохранения
   const [clientReturnContext, setClientReturnContext] = useState<'invoiceByTime' | 'shiftForm' | null>(null)
-  const [billingPlan, setBillingPlan] = useState<string>('trial')
-  const [billingActive, setBillingActive] = useState<boolean>(true)
-  const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false)
-  const [isExpiredModalOpen, setIsExpiredModalOpen] = useState(false)
 
+  // ── Биллинг / подписка ────────────────────────────────────────────────────
+  const [billingPlan, setBillingPlan] = useState<string>('trial')   // 'trial' | 'solo' | 'pro'
+  const [billingActive, setBillingActive] = useState<boolean>(true)  // false если подписка истекла
+  const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false) // попап "Upgrade plan"
+  const [isExpiredModalOpen, setIsExpiredModalOpen] = useState(false) // попап "Trial expired"
+
+  // Проверяет активность подписки; показывает попап и возвращает false если истекла
   const requireActive = (): boolean => {
     if (!billingActive) {
       setIsExpiredModalOpen(true)
@@ -291,15 +328,17 @@ function App() {
     return true
   }
 
-  const [periodOffset, setPeriodOffset] = useState(0)
+  // ── Настройки (период, начало недели) — вынесены в хук useSettings ─────────
+  const [periodOffset, setPeriodOffset] = useState(0) // смещение периода: 0=текущий, -1=предыдущий и т.д.
 
   const {
-    settings, setSettings,
-    settingsDraft, setSettingsDraft,
-    isSettingsOpen,
-    openSettingsModal, closeSettings, saveSettings,
+    settings, setSettings,         // сохранённые настройки
+    settingsDraft, setSettingsDraft, // черновик в форме Settings (до Save)
+    isSettingsOpen,                  // открыта ли модалка Settings
+    openSettingsModal, closeSettings, saveSettings, // действия
   } = useSettings(setPeriodOffset)
 
+  // ── Продукты — вынесены в хук useProducts ─────────────────────────────────
   const {
     products, setProducts,
     isProductModalOpen,
@@ -308,44 +347,70 @@ function App() {
     openAddProduct, openEditProduct, closeProductModal, saveProduct, handleDeleteProduct,
   } = useProducts({ isMutatingRef, requireActive, billingPlan, setIsUpgradeModalOpen })
 
+  // ── Главный экран: сколько групп недель показывать (кнопка "Load more") ────
   const [weeksVisible, setWeeksVisible] = useState(2)
-  const [reportClientId, setReportClientId] = useState<number | null>(null)
+
+  // ── Отчёты ────────────────────────────────────────────────────────────────
+  const [reportClientId, setReportClientId] = useState<number | null>(null) // фильтр по клиенту в отчёте
+
+  // ── Полноэкранный календарь ───────────────────────────────────────────────
   const [calendarMonth, setCalendarMonth] = useState(() => toMonthKey(new Date()))
   const [calendarSelectedDate, setCalendarSelectedDate] = useState(() => toLocalDateKey(new Date()))
+
+  // ── Контекстное меню (три точки) на карточках ─────────────────────────────
+  // Храним один объект { type, id } вместо трёх отдельных state
   const [openMenu, setOpenMenu] = useState<{ type: 'shift' | 'product' | 'client'; id: string | number } | null>(null)
-  const openMenuShiftId = openMenu?.type === 'shift' ? openMenu.id as string : null
+  const openMenuShiftId   = openMenu?.type === 'shift'   ? openMenu.id as string : null
   const openMenuProductId = openMenu?.type === 'product' ? openMenu.id as number : null
-  const openMenuClientId = openMenu?.type === 'client' ? openMenu.id as number : null
-  const setOpenMenuShiftId = (id: string | null) => setOpenMenu(id ? { type: 'shift', id } : null)
+  const openMenuClientId  = openMenu?.type === 'client'  ? openMenu.id as number : null
+  const setOpenMenuShiftId   = (id: string | null) => setOpenMenu(id ? { type: 'shift',   id } : null)
   const setOpenMenuProductId = (id: number | null) => setOpenMenu(id ? { type: 'product', id } : null)
-  const setOpenMenuClientId = (id: number | null) => setOpenMenu(id ? { type: 'client', id } : null)
-  const [isFabOpen, setIsFabOpen] = useState(false)
+  const setOpenMenuClientId  = (id: number | null) => setOpenMenu(id ? { type: 'client',  id } : null)
+
+  // ── FAB-кнопка (плавающая + кнопка) ──────────────────────────────────────
+  const [isFabOpen, setIsFabOpen] = useState(false) // открыто ли FAB-меню
+
+  // ── Модалка "Create Invoice" ──────────────────────────────────────────────
   const [isInvoiceByTimeOpen, setIsInvoiceByTimeOpen] = useState(false)
-  const [invBTForm, setInvBTForm] = useState<InvBTForm>({
+  const [invBTForm, setInvBTForm] = useState<InvBTForm>({  // форма инвойса (номер, дата, клиент, комментарий)
     number: '1',
     date: toLocalDateKey(new Date()),
     clientId: null,
     comments: '',
   })
-  const [invBTCalendarOpen, setInvBTCalendarOpen] = useState(false)
-  const [invBTSuccessData, setInvBTSuccessData] = useState<InvSuccessData | null>(null)
+  const [invBTCalendarOpen, setInvBTCalendarOpen] = useState(false)        // открыт ли встроенный календарь в форме
+  const [invBTSuccessData, setInvBTSuccessData] = useState<InvSuccessData | null>(null) // данные для экрана "Invoice Created"
   const [invBTCalendarMonth, setInvBTCalendarMonth] = useState(() => toMonthKey(new Date()))
-  const [invLineItems, setInvLineItems] = useState<InvoiceLineItem[]>([])
-  const [invAddMenuOpen, setInvAddMenuOpen] = useState(false)
-  const [activePickerField, setActivePickerField] = useState<'date' | 'start' | 'end' | 'lunch' | null>(null)
-  const [formCalendarMonth, setFormCalendarMonth] = useState(() => toMonthKey(new Date()))
+  const [invLineItems, setInvLineItems] = useState<InvoiceLineItem[]>([])   // строки инвойса (time/service/product)
+  const [invAddMenuOpen, setInvAddMenuOpen] = useState(false)               // открыто ли меню "+ Add Item"
+
+  // ── Форма смены ───────────────────────────────────────────────────────────
+  const [form, setForm] = useState<ShiftForm>(emptyForm)                                                      // данные формы (дата, время, обед, комментарий, клиент)
+  const [activePickerField, setActivePickerField] = useState<'date' | 'start' | 'end' | 'lunch' | null>(null) // какой барабанный пикер открыт
+  const [formCalendarMonth, setFormCalendarMonth] = useState(() => toMonthKey(new Date()))                    // месяц в мини-календаре формы
+
+  // ── Settings: календари для кастомного периода отчёта ─────────────────────
   const [settingsFromCalOpen, setSettingsFromCalOpen] = useState(false)
   const [settingsToCalOpen, setSettingsToCalOpen] = useState(false)
   const [settingsFromCalMonth, setSettingsFromCalMonth] = useState(() => toMonthKey(new Date()))
   const [settingsToCalMonth, setSettingsToCalMonth] = useState(() => toMonthKey(new Date()))
+  // Выбранные даты кастомного отчёта (НЕ сохраняются, только для разового отчёта)
   const [customReportFrom, setCustomReportFrom] = useState(() => toLocalDateKey(new Date()))
   const [customReportTo, setCustomReportTo] = useState(() => toLocalDateKey(new Date()))
+  // Если не null — перекрывает обычный reportRange (используется при кастомном отчёте)
   const [customReportRange, setCustomReportRange] = useState<{ start: string; end: string } | null>(null)
+
+  // ── Часы в хедере ─────────────────────────────────────────────────────────
   const [clockDisplay, setClockDisplay] = useState(() => {
     const now = new Date()
     return `${pad2(now.getHours())}:${pad2(now.getMinutes())}`
   })
 
+  // ── useEffect: начальная загрузка данных ──────────────────────────────────
+  // Запускается один раз при монтировании компонента.
+  // Параллельно получает все данные с сервера: смены, настройки, профиль инвойса,
+  // текущего пользователя, клиентов, статус подписки, продукты.
+  // Используем Promise.allSettled — один упавший запрос не ломает остальные.
   useEffect(() => {
     let cancelled = false
     ;(async () => {
@@ -413,7 +478,11 @@ function App() {
     }
   }, [])
 
-  // Sync: reload shifts/clients/products from server (called on tab focus + polling)
+  // ── syncData: фоновая синхронизация с сервером ────────────────────────────
+  // Перезагружает смены, клиентов и продукты. Вызывается при фокусе на вкладке
+  // и при возврате страницы из фона (visibilitychange).
+  // Если isMutatingRef=true (идёт мутация) — пропускаем, чтобы не перезаписать
+  // оптимистичное обновление UI данными с сервера.
   const syncData = useCallback(async () => {
     if (isMutatingRef.current) return
     const [shiftsRes, clientsRes, productsRes] = await Promise.allSettled([
@@ -430,6 +499,7 @@ function App() {
     if (productRows !== null) setProducts(productRows)
   }, [])
 
+  // Подписываемся на события фокуса окна и переключения вкладки → синхронизируем данные
   useEffect(() => {
     const onVisible = () => { if (!document.hidden) syncData() }
     const onFocus = () => syncData()
@@ -441,14 +511,7 @@ function App() {
     }
   }, [syncData])
 
-  useEffect(() => {
-    try {
-      localStorage.setItem(MENU_STORAGE_KEY, String(isMenuOpen))
-    } catch (error) {
-      console.error('Failed to persist menu preference', error)
-    }
-  }, [isMenuOpen])
-
+  // Тикаем каждые 30 секунд — обновляем часы в хедере
   useEffect(() => {
     const tick = () => {
       const now = new Date()
@@ -458,10 +521,14 @@ function App() {
     return () => clearInterval(id)
   }, [])
 
+  // Синхронизируем строковый инпут номера инвойса с числовым значением из draft
   useEffect(() => {
     setNextInvoiceNumberInput(String(invoiceDraft.nextInvoiceNumber))
   }, [invoiceDraft.nextInvoiceNumber])
 
+  // ── useMemo: вычисляемые значения ─────────────────────────────────────────
+
+  // Дата сегодня в формате "15 April 2026" — отображается под часами в хедере
   const todayLabel = useMemo(() => {
     const now = new Date()
     return new Intl.DateTimeFormat('en-AU', {
@@ -471,11 +538,13 @@ function App() {
     }).format(now)
   }, [])
 
+  // Опции для барабанного пикера часов: "00".."23"
   const hourOptions = useMemo<Option[]>(
     () => Array.from({ length: 24 }, (_, i) => ({ value: String(i).padStart(2, '0'), label: String(i) })),
     [],
   )
 
+  // Опции для барабанного пикера минут: "00", "05", "10".. "55" (шаг 5 минут)
   const minuteOptions = useMemo<Option[]>(
     () =>
       Array.from({ length: 12 }, (_, i) => i * 5).map((m) => ({
@@ -485,6 +554,7 @@ function App() {
     [],
   )
 
+  // Опции для барабанного пикера обеда: 0, 5, 10.. 120 минут
   const lunchOptions = useMemo<Option[]>(
     () =>
       Array.from({ length: 25 }, (_, i) => i * 5).map((m) => ({
@@ -494,6 +564,7 @@ function App() {
     [],
   )
 
+  // Обновляет часть времени (час или минуту) в форме смены
   const updateTime = (field: 'start' | 'end', part: 'hour' | 'minute', value: string) => {
     setForm((prev) => {
       const [h, m] = prev[field].split(':')
@@ -502,6 +573,7 @@ function App() {
     })
   }
 
+  // Смены, отсортированные по дате (убывание), внутри даты — по времени начала (убывание)
   const sortedShifts = useMemo(
     () =>
       [...shifts].sort((a, b) =>
@@ -510,6 +582,8 @@ function App() {
     [shifts],
   )
 
+  // Группирует смены по неделям для отображения на главном экране:
+  // "This Week", "Last Week", "2 Weeks Ago" и т.д.
   const shiftGroups = useMemo(() => {
     const weekStartIndex = WEEKDAYS.indexOf(settings.weekStart)
     const now = new Date()
@@ -548,24 +622,31 @@ function App() {
     return labelOrder.map(label => ({ label, shifts: groupMap.get(label)! }))
   }, [sortedShifts, settings.weekStart])
 
+  // Ограничиваем показ групп на главном экране (кнопка "Load more" добавляет ещё)
   const visibleGroups = useMemo(
     () => shiftGroups.slice(0, weeksVisible),
     [shiftGroups, weeksVisible]
   )
+  // Показывать ли кнопку "Load more"
   const hasMoreGroups = shiftGroups.length > weeksVisible
 
+  // Диапазон текущего периода (текущей недели / месяца) — для карточки итогов на главном экране
   const periodRange = useMemo(() => getPeriodRange(settings), [settings])
 
+  // Итоги за текущий период (главный экран: "This week: X hours, $Y")
   const totals = useMemo(
     () => calculateTotals(shifts, periodRange),
     [shifts, periodRange],
   )
 
+  // Диапазон для экрана отчётов. Если активен кастомный отчёт — берём его,
+  // иначе вычисляем по смещению periodOffset относительно текущего периода
   const reportRange = useMemo(
     () => customReportRange ?? getPeriodByOffset(settings, periodOffset),
     [settings, periodOffset, customReportRange],
   )
 
+  // Смены, попавшие в диапазон отчёта, с фильтром по клиенту (если выбран)
   const reportShifts = useMemo(() => {
     const inRange = reportRange
       ? shifts.filter(s => s.date >= reportRange.start && s.date <= reportRange.end)
@@ -575,33 +656,40 @@ function App() {
       : inRange
   }, [shifts, reportRange, reportClientId, clients.length])
 
+  // Суммарные итоги по смен в отчётном периоде (часы + деньги)
   const reportTotals = useMemo(
     () => calculateTotals(reportShifts, null),
     [reportShifts],
   )
 
+  // Суммарное время обеда за отчётный период (для строки "Lunch" в отчёте)
   const reportLunchMinutes = useMemo(
     () => reportShifts.reduce((sum, s) => sum + s.lunchMinutes, 0),
     [reportShifts],
   )
 
+  // Суммарные минуты за текущий период (используется в карточке периода на главном)
   const totalDurationMinutes = totals.durationMinutes
 
+  // Строка "13 Apr — 19 Apr 2026" для карточки периода на главном экране
   const periodLabel = useMemo(() => {
     if (!periodRange) return 'All time'
     return `${formatDate(periodRange.start)} — ${formatDate(periodRange.end)}`
   }, [periodRange])
 
+  // Строка диапазона для заголовка отчёта (может быть один день или диапазон)
   const reportPeriodLabel = useMemo(() => {
     if (!reportRange) return 'All time'
     if (reportRange.start === reportRange.end) return formatDate(reportRange.start)
     return `${formatDate(reportRange.start)} — ${formatDate(reportRange.end)}`
   }, [reportRange])
 
+  // Подписи дней недели для заголовка календарей: ["Mon","Tue"..."Sun"]
   const calendarWeekLabels = useMemo(() => {
     return Array.from({ length: 7 }, (_, idx) => WEEKDAY_LABELS[WEEKDAYS[(CALENDAR_WEEK_START_INDEX + idx) % 7]])
   }, [])
 
+  // Заголовок месяца для полноэкранного календаря: "April 2026"
   const calendarMonthLabel = useMemo(() => {
     const { year, month } = parseMonthKey(calendarMonth)
     return new Intl.DateTimeFormat('en-AU', {
@@ -610,28 +698,30 @@ function App() {
     }).format(new Date(year, month - 1, 1))
   }, [calendarMonth])
 
-  const calendarCells = useMemo(() => buildCalendarCells(calendarMonth), [calendarMonth])
-  const formCalendarCells = useMemo(() => buildCalendarCells(formCalendarMonth), [formCalendarMonth])
+  // Ячейки сетки для каждого из пяти календарей в приложении:
+  const calendarCells = useMemo(() => buildCalendarCells(calendarMonth), [calendarMonth])               // полноэкранный
+  const formCalendarCells = useMemo(() => buildCalendarCells(formCalendarMonth), [formCalendarMonth])   // в форме смены
   const formCalendarLabel = useMemo(() => {
     const { year, month } = parseMonthKey(formCalendarMonth)
     return new Intl.DateTimeFormat('en-AU', { month: 'long', year: 'numeric' }).format(new Date(year, month - 1, 1))
   }, [formCalendarMonth])
-  const invBTCalendarCells = useMemo(() => buildCalendarCells(invBTCalendarMonth), [invBTCalendarMonth])
+  const invBTCalendarCells = useMemo(() => buildCalendarCells(invBTCalendarMonth), [invBTCalendarMonth]) // в Create Invoice
   const invBTCalendarLabel = useMemo(() => {
     const { year, month } = parseMonthKey(invBTCalendarMonth)
     return new Intl.DateTimeFormat('en-AU', { month: 'long', year: 'numeric' }).format(new Date(year, month - 1, 1))
   }, [invBTCalendarMonth])
-  const settingsFromCalCells = useMemo(() => buildCalendarCells(settingsFromCalMonth), [settingsFromCalMonth])
+  const settingsFromCalCells = useMemo(() => buildCalendarCells(settingsFromCalMonth), [settingsFromCalMonth]) // "Date from" в Settings
   const settingsFromCalLabel = useMemo(() => {
     const { year, month } = parseMonthKey(settingsFromCalMonth)
     return new Intl.DateTimeFormat('en-AU', { month: 'long', year: 'numeric' }).format(new Date(year, month - 1, 1))
   }, [settingsFromCalMonth])
-  const settingsToCalCells = useMemo(() => buildCalendarCells(settingsToCalMonth), [settingsToCalMonth])
+  const settingsToCalCells = useMemo(() => buildCalendarCells(settingsToCalMonth), [settingsToCalMonth])   // "Date to" в Settings
   const settingsToCalLabel = useMemo(() => {
     const { year, month } = parseMonthKey(settingsToCalMonth)
     return new Intl.DateTimeFormat('en-AU', { month: 'long', year: 'numeric' }).format(new Date(year, month - 1, 1))
   }, [settingsToCalMonth])
 
+  // Карта date → список смен (для полноэкранного календаря: точки на днях)
   const shiftsByDate = useMemo(() => {
     const map = new Map<string, Shift[]>()
     shifts.forEach((shift) => {
@@ -645,22 +735,28 @@ function App() {
     return map
   }, [shifts])
 
+  // Смены выбранного дня в полноэкранном календаре (список внизу)
   const selectedDayShifts = useMemo(
     () => shiftsByDate.get(calendarSelectedDate) ?? [],
     [shiftsByDate, calendarSelectedDate],
   )
 
+  // Сегодняшняя дата в формате "YYYY-MM-DD" (для подсветки "сегодня" в календарях)
   const todayIso = useMemo(() => toLocalDateKey(new Date()), [])
 
-  // Auto-select the only client when there's exactly one
+  // Если у пользователя ровно один клиент — автоматически выбираем его в формах
   const soloClientId = clients.length === 1 ? clients[0].id : null
 
+  // ── Действия: навигация и управление оверлеями ────────────────────────────
+
+  // Закрывает все модалки и боковое меню одновременно
   const closeOverlays = () => {
     setIsMenuOpen(false)
     closeSettings()
     setIsInvoiceModalOpen(false)
   }
 
+  // Открывает форму создания новой смены (пустая форма с датой сегодня)
   const openCreate = () => {
     closeOverlays()
     setEditingId(null)
@@ -671,6 +767,7 @@ function App() {
     setIsAddOpen(true)
   }
 
+  // Открывает форму редактирования существующей смены
   const openEdit = (shift: Shift) => {
     closeOverlays()
     setEditingId(shift.id)
@@ -687,12 +784,14 @@ function App() {
     setIsAddOpen(true)
   }
 
+  // Закрывает форму смены и сбрасывает состояние редактирования
   const closeModal = () => {
     setIsAddOpen(false)
     setEditingId(null)
     setActivePickerField(null)
   }
 
+  // Открывает модалку Settings; сбрасывает состояние кастомных дат к сегодня
   const openSettings = () => {
     closeOverlays()
     setSettingsFromCalOpen(false)
@@ -704,6 +803,7 @@ function App() {
     openSettingsModal(settings)
   }
 
+  // Переходит на экран отчётов; сбрасывает кастомный диапазон и offset
   const openReports = () => {
     closeOverlays()
     setCustomReportRange(null)
@@ -712,16 +812,19 @@ function App() {
     setReportClientId(soloClientId)
   }
 
+  // Переходит на экран клиентов
   const openClients = () => {
     closeOverlays()
     setActiveView('clients')
   }
 
+  // Переходит на экран продуктов
   const openProducts = () => {
     closeOverlays()
     setActiveView('products')
   }
 
+  // Открывает полноэкранный календарь, переходя к нужной дате
   const openCalendar = (targetDate?: string) => {
     closeOverlays()
     const nextDate = targetDate ?? calendarSelectedDate ?? toLocalDateKey(new Date())
@@ -730,6 +833,7 @@ function App() {
     setActiveView('calendar')
   }
 
+  // Тоггл кнопки-даты в хедере: если уже на календаре — возвращает домой, иначе открывает
   const toggleCalendarFromHeader = () => {
     if (activeView === 'calendar') {
       goHome()
@@ -738,20 +842,26 @@ function App() {
     openCalendar(todayIso)
   }
 
+  // Листаем месяц назад в полноэкранном календаре
   const goPrevCalendarMonth = () => {
     setCalendarMonth((prev) => shiftMonthKey(prev, -1))
   }
 
+  // Листаем месяц вперёд в полноэкранном календаре
   const goNextCalendarMonth = () => {
     setCalendarMonth((prev) => shiftMonthKey(prev, 1))
   }
 
-
+  // Возвращает на главный экран (home)
   const goHome = () => {
     closeOverlays()
     setActiveView('home')
   }
 
+  // ── Действия: клиенты ─────────────────────────────────────────────────────
+
+  // Открывает форму добавления нового клиента (из меню).
+  // Trial/Solo: лимит 1 клиент → показываем попап апгрейда.
   const openAddClient = () => {
     if (!requireActive()) return
     if ((billingPlan === 'trial' || billingPlan === 'solo') && clients.length >= 1) {
@@ -764,6 +874,8 @@ function App() {
     setIsClientModalOpen(true)
   }
 
+  // Открывает форму добавления клиента из контекста инвойса или формы смены.
+  // После сохранения клиента — возвращаемся обратно в соответствующую форму.
   const openAddClientFromInvoice = (context: 'invoiceByTime' | 'shiftForm') => {
     if (!requireActive()) return
     if ((billingPlan === 'trial' || billingPlan === 'solo') && clients.length >= 1) {
@@ -778,6 +890,7 @@ function App() {
     setIsClientModalOpen(true)
   }
 
+  // Открывает форму редактирования существующего клиента
   const openEditClient = (client: Client) => {
     if (!requireActive()) return
     setEditingClientId(client.id)
@@ -785,11 +898,14 @@ function App() {
     setIsClientModalOpen(true)
   }
 
+  // Закрывает модалку клиента без сохранения
   const closeClientModal = () => {
     setIsClientModalOpen(false)
     setEditingClientId(null)
   }
 
+  // Сохраняет клиента (создаёт или обновляет).
+  // После создания — если пришли из инвойса/формы смены, возвращаемся туда с выбранным клиентом
   const saveClient = async () => {
     if (!clientDraft.name.trim()) { alert('Client name is required.'); return }
     isMutatingRef.current = true
@@ -823,6 +939,7 @@ function App() {
     }
   }
 
+  // Удаляет клиента после подтверждения
   const handleDeleteClient = async (id: number) => {
     const ok = window.confirm('Remove this client? This cannot be undone.')
     if (!ok) return
@@ -838,16 +955,26 @@ function App() {
     }
   }
 
+  // ── Действия: навигация по периодам в отчёте ──────────────────────────────
+
+  // Переключение на предыдущий период (неделю/месяц) в экране отчётов
   const goPrevPeriod = () => setPeriodOffset((prev) => prev - 1)
 
+  // Переключение на следующий период в экране отчётов
   const goNextPeriod = () => setPeriodOffset((prev) => prev + 1)
 
+  // ── Действия: авторизация ──────────────────────────────────────────────────
+
+  // Выход из аккаунта: отзываем токены на сервере, редиректим на /login
   const handleLogout = async () => {
     setIsMenuOpen(false)
     await api.logout()
     navigate('/login')
   }
 
+  // ── Действия: смены ───────────────────────────────────────────────────────
+
+  // Удаляет смену после подтверждения; оптимистично убирает из UI
   const handleDelete = async (id: string) => {
     const ok = window.confirm('Delete this shift?')
     if (!ok) return
@@ -863,6 +990,10 @@ function App() {
     }
   }
 
+  // Сохраняет смену (создаёт или обновляет).
+  // Оптимистичный UI: обновляем локально, потом синхронизируем с сервером.
+  // При ошибке — откатываем состояние к previousShifts.
+  // При создании новой смены: автоматически применяем weekendRate если включено.
   const handleSave = async () => {
     const workMinutes = minutesBetween(form.start, form.end) - form.lunchMinutes
     if (workMinutes < 0) {
@@ -897,6 +1028,7 @@ function App() {
         closeModal()
         await api.updateShift(updated)
       } else {
+        // Определяем ставку: weekday или weekend (суббота=6, воскресенье=0)
         const dayOfWeek = new Date(`${form.date}T00:00:00`).getDay()
         const isWeekend = dayOfWeek === 0 || dayOfWeek === 6
         const rateToUse = invoiceProfile.weekendRateEnabled && isWeekend ? invoiceProfile.weekendRate : invoiceProfile.hourlyRate
@@ -915,7 +1047,7 @@ function App() {
         await api.createShift(newShift)
       }
     } catch (error) {
-      setShifts(previousShifts)
+      setShifts(previousShifts) // откат оптимистичного обновления
       alert('Failed to save shift. Please try again.')
       console.error('Failed to save shift', error)
     } finally {
@@ -923,6 +1055,9 @@ function App() {
     }
   }
 
+  // ── Действия: My Invoice Details ──────────────────────────────────────────
+
+  // Открывает модалку "My Invoice Details"; копирует сохранённый профиль в draft
   const openInvoiceModal = () => {
     closeOverlays()
     setInvoiceDraft(invoiceProfile)
@@ -932,10 +1067,12 @@ function App() {
     setIsInvoiceModalOpen(true)
   }
 
+  // Закрывает модалку без сохранения
   const closeInvoiceModal = () => {
     setIsInvoiceModalOpen(false)
   }
 
+  // Сохраняет профиль инвойса на сервер и в локальный state
   const saveInvoiceProfile = async () => {
     setInvoiceProfile(invoiceDraft)
     try {
@@ -946,8 +1083,14 @@ function App() {
     closeInvoiceModal()
   }
 
+  // Проверяет, заполнены ли минимальные поля профиля (имя + номер счёта)
+  // Используется для решения показывать ли предупреждение в UI
   const hasInvoiceCoreFields = invoiceProfile.fullName.trim() !== '' && invoiceProfile.accountNumber.trim() !== ''
 
+  // ── Действия: Create Invoice ──────────────────────────────────────────────
+
+  // Добавляет новую строку в инвойс (time/service/product)
+  // Для time — подставляет ставку из профиля и специальность как описание
   const addLineItem = (type: InvoiceLineItem['type']) => {
     const newId = invLineItems.length > 0 ? Math.max(...invLineItems.map(i => i.id)) + 1 : 1
     const item: InvoiceLineItem =
@@ -960,7 +1103,10 @@ function App() {
     setInvAddMenuOpen(false)
   }
 
-  // mode: 'create' = blank form (FAB), 'manual' = 1h time item, 'auto' = from report data
+  // Открывает модалку Create Invoice в одном из трёх режимов:
+  //   'create' — пустая форма (из FAB-меню)
+  //   'manual' — один time-item с 1 часом (кнопка "Create Invoice manually")
+  //   'auto'   — time-item заполняется данными из текущего отчёта (итоговые часы + оплата)
   const openInvoiceByTime = (mode: 'create' | 'manual' | 'auto' = 'auto') => {
     if (!requireActive()) return
     const today = toLocalDateKey(new Date())
@@ -993,8 +1139,11 @@ function App() {
     setIsInvoiceByTimeOpen(true)
   }
 
+  // Открывает пустую форму инвойса (для кнопки "+ Create Invoice" в FAB)
   const openCreateInvoice = () => openInvoiceByTime('create')
 
+  // Открывает форму инвойса, предзаполненную данными конкретной смены
+  // (вызывается из контекстного меню карточки смены)
   const openInvoiceFromShift = (shift: Shift) => {
     const workMinutes = Math.max(minutesBetween(shift.start, shift.end) - shift.lunchMinutes, 0)
     const hours = workMinutes / 60
@@ -1022,6 +1171,9 @@ function App() {
     setIsInvoiceByTimeOpen(true)
   }
 
+  // Генерирует PDF инвойса и сохраняет его в папку Downloads.
+  // После успешной генерации — инкрементирует nextInvoiceNumber и сохраняет профиль.
+  // Показывает экран успеха с кнопкой "Send by Email" (mailto-ссылка).
   const generateInvoice = async (
     form: { number: string; date: string; clientId: number | null; comments?: string },
     closeModal: () => void
@@ -1087,9 +1239,11 @@ function App() {
     }
   }
 
+  // Обёртка generateInvoice для модалки "Create Invoice by time"
   const generateInvoiceByTime = () => generateInvoice(invBTForm, () => setIsInvoiceByTimeOpen(false))
 
-
+  // ── Рендер: сплэш-экран ───────────────────────────────────────────────────
+  // Показываем анимированный логотип пока appReady=false (данные ещё грузятся)
   if (!appReady) return (
     <div className="splash-screen">
       <img src="/invairo_logo_h_white.png" alt="Invairo" className="splash-logo" />
@@ -1174,16 +1328,18 @@ function App() {
         onSuccessClose={() => setInvBTSuccessData(null)}
       />
 
-      {/* MAIN CONTENT */}
+      {/* ОСНОВНОЙ КОНТЕНТ — зависит от activeView: 'home' | 'reports' | 'calendar' | 'clients' | 'products' */}
       <main className="content">
         {activeView === 'home' ? (
           <>
+            {/* Карточка с суммарными часами за текущий период (неделю/месяц) */}
             <section className="overview">
               <div className="overview-label">Total duration</div>
               <div className="overview-period">{periodLabel}</div>
               <div className="overview-value">{formatDurationPadded(totalDurationMinutes)}</div>
             </section>
 
+            {/* Список смен, сгруппированных по неделям (This Week / Last Week / ...) */}
             <div className="shift-list">
               {shiftGroups.length === 0 && (
                 <div className="report-row empty">No shifts yet. Add your first shift.</div>
@@ -1242,7 +1398,7 @@ function App() {
           </>
         ) : activeView === 'reports' ? (
           <section className="reports-page">
-            {/* Header */}
+            {/* Навигация по периодам: кнопки ◀ ▶ и метка диапазона дат */}
             <div className="reports-header">
               <div className="reports-period-label">REPORTING<br />PERIOD</div>
               <div className="reports-nav-row">
@@ -1259,7 +1415,7 @@ function App() {
               </div>
             </div>
 
-            {/* Client filter */}
+            {/* Фильтр по клиенту; скрыт если клиент один — он выбирается автоматически */}
             <div className="reports-client-wrap">
               <select
                 className="reports-client-select"
@@ -1274,7 +1430,8 @@ function App() {
               </select>
             </div>
 
-            {/* Create Invoice button */}
+            {/* Кнопка "Invoice by Period" — открывает Create Invoice с данными отчёта.
+                Disabled если нет клиента, не заполнен профиль или нет смен в периоде */}
             <button
               className="reports-create-invoice-btn"
               onClick={() => openInvoiceByTime()}
@@ -1284,12 +1441,12 @@ function App() {
               Invoice by Period
             </button>
 
-            {/* Stats */}
+            {/* Карточка с итогами: Work / Lunch / Earnings */}
             <div className="reports-stats-card">
               <div className="reports-stat-item">
                 <div className="reports-stat-icon"><Clock size={20} /></div>
                 <div className="reports-stat-label">Work</div>
-                <div className="reports-stat-value">{formatDuration(reportTotals.durationMinutes)}</div>
+                <div className="reports-stat-value">{formatDurationPadded(reportTotals.durationMinutes)}</div>
               </div>
               <div className="reports-stat-divider" />
               <div className="reports-stat-item">
@@ -1305,7 +1462,7 @@ function App() {
               </div>
             </div>
 
-            {/* Shift cards */}
+            {/* Список карточек смен за период, отсортированных по дате (убывание) */}
             <div className="reports-shift-list">
               {reportShifts.length === 0 && (
                 <div className="report-row empty">No shifts in this period</div>
@@ -1517,7 +1674,9 @@ function App() {
         )}
       </main>
 
-      {/* FAB (circular, expandable) */}
+      {/* FAB — плавающая кнопка (круглая, снизу справа).
+          На не-home экранах показываем иконку "Home" для возврата.
+          На главном экране раскрывается в меню: Invoice / New Shift / Reports */}
       {activeView === 'reports' || activeView === 'calendar' || activeView === 'clients' || activeView === 'products' ? (
         <button className="floating-btn" onClick={goHome}>
           <Home size={24} />
@@ -1547,7 +1706,9 @@ function App() {
         </>
       )}
 
-      {/* SHIFT FORM MODAL */}
+      {/* МОДАЛКА ДОБАВЛЕНИЯ / РЕДАКТИРОВАНИЯ СМЕНЫ
+          Полноэкранная. Содержит: дата (встроенный календарь), клиент (select),
+          время начала и конца (открывают bottom-sheet WheelPicker), обед, комментарий */}
       {isAddOpen && (
         <div className="modal-backdrop" onClick={closeModal}>
           <div className="modal modal--fullscreen" onClick={(e) => e.stopPropagation()}>
@@ -1675,7 +1836,9 @@ function App() {
         </div>
       )}
 
-      {/* TIME PICKER BOTTOM SHEET */}
+      {/* BOTTOM SHEET: выбор времени начала/конца смены.
+          Появляется поверх всего (z-index 300/301) при нажатии на поле Start/End.
+          Два WheelPicker — часы (0–23) и минуты (шаг 5). */}
       {(activePickerField === 'start' || activePickerField === 'end') && (
         <>
           <div className="picker-sheet-backdrop" onClick={() => setActivePickerField(null)} />
@@ -1717,7 +1880,7 @@ function App() {
         </>
       )}
 
-      {/* LUNCH PICKER BOTTOM SHEET */}
+      {/* BOTTOM SHEET: выбор длительности обеда (0–120 минут, шаг 5). */}
       {activePickerField === 'lunch' && (
         <>
           <div className="picker-sheet-backdrop" onClick={() => setActivePickerField(null)} />
@@ -1742,7 +1905,8 @@ function App() {
         </>
       )}
 
-      {/* CLIENT MODAL */}
+      {/* МОДАЛКА КЛИЕНТА: добавление или редактирование.
+          Поля: имя, адрес, ABN, email. Используется и из меню, и из контекста инвойса/смены. */}
       {isClientModalOpen && (
         <div className="modal-backdrop" onClick={closeClientModal}>
           <div className="modal" onClick={e => e.stopPropagation()}>
@@ -1794,7 +1958,7 @@ function App() {
         </div>
       )}
 
-      {/* PRODUCT MODAL */}
+      {/* МОДАЛКА ПРОДУКТА: добавление или редактирование. Поля: название, цена. */}
       {isProductModalOpen && (
         <div className="modal-backdrop" onClick={closeProductModal}>
           <div className="modal" onClick={e => e.stopPropagation()}>
@@ -1830,7 +1994,7 @@ function App() {
         </div>
       )}
 
-      {/* UPGRADE MODAL */}
+      {/* ПОПАП АПГРЕЙДА: показывается когда Trial/Solo-план пытается добавить 2+ клиентов/продуктов */}
       {isUpgradeModalOpen && (
         <div className="modal-backdrop" onClick={() => setIsUpgradeModalOpen(false)}>
           <div className="modal" onClick={e => e.stopPropagation()}>
@@ -1854,7 +2018,8 @@ function App() {
         </div>
       )}
 
-      {/* TRIAL EXPIRED MODAL */}
+      {/* ПОПАП ИСТЁКШЕГО ТРИАЛА: показывается при попытке использовать платные функции
+          после окончания 30-дневного пробного периода */}
       {isExpiredModalOpen && (
         <div className="modal-backdrop" onClick={() => setIsExpiredModalOpen(false)}>
           <div className="modal" onClick={e => e.stopPropagation()}>
@@ -1878,7 +2043,10 @@ function App() {
         </div>
       )}
 
-      {/* SETTINGS MODAL */}
+      {/* МОДАЛКА SETTINGS: выбор периода отчёта (weekly/monthly/custom) и начала недели.
+          При "Custom dates" — показывает два встроенных календаря (Date from / Date to)
+          и кнопку "Report" (не сохраняет настройки, только устанавливает customReportRange).
+          При weekly/monthly — кнопка "Save" сохраняет настройки. */}
       {isSettingsOpen && (
         <div className="modal-backdrop" onClick={closeSettings}>
           <div className="modal modal--fullscreen" onClick={(e) => e.stopPropagation()}>
@@ -1951,6 +2119,8 @@ function App() {
                 </div>
               )}
 
+              {/* Кастомный диапазон: два встроенных мини-календаря.
+                  Даты хранятся в customReportFrom/To — НЕ сохраняются в настройках! */}
               {settingsDraft.period === 'custom' && (
                 <>
                   <div className="field">
@@ -2027,6 +2197,7 @@ function App() {
 
             <div className="inv-footer">
               <button className="ghost-button" onClick={closeSettings}>Cancel</button>
+              {/* "Report": устанавливает customReportRange (не сохраняет settings!), переходит в отчёты */}
               {settingsDraft.period === 'custom' ? (
                 <button className="primary-btn" style={{ flex: 1 }} onClick={() => {
                   if (customReportFrom > customReportTo) {
@@ -2046,7 +2217,10 @@ function App() {
         </div>
       )}
 
-      {/* INVOICE DETAILS MODAL */}
+      {/* МОДАЛКА "MY INVOICE DETAILS": данные для PDF-инвойса.
+          Поля: имя, адрес, ABN, специальность, банковские реквизиты, номер следующего инвойса.
+          Ставки: почасовая (weekday), опционально weekend.
+          Режим GST: none / exclusive (добавить 10%) / inclusive (уже включён в ставку). */}
       {isInvoiceModalOpen && (
         <div className="modal-backdrop" onClick={closeInvoiceModal}>
           <div className="modal modal--fullscreen" onClick={(e) => e.stopPropagation()}>
