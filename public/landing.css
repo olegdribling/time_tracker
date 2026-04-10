@@ -149,6 +149,11 @@ ul  { list-style: none; }
 .btn--sm  { height: 36px; padding: 0 16px; font-size: 13px; border-radius: 9px; }
 .btn--lg  { height: 52px; padding: 0 28px; font-size: 16px; border-radius: 12px; }
 .btn--full { width: 100%; margin-top: 4px; }
+.pricing-card .btn {
+  height: 52px;
+  font-size: 15px;
+  border-radius: 14px;
+}
 
 /* ============================================================
    NAV
@@ -499,6 +504,9 @@ ul  { list-style: none; }
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 14px;
+}
+.features__grid--3col {
+  grid-template-columns: repeat(3, 1fr);
 }
 
 
@@ -927,6 +935,9 @@ ul  { list-style: none; }
 /* Mobile */
 @media (max-width: 600px) {
   .features__grid {
+    grid-template-columns: 1fr;
+  }
+  .features__grid--3col {
     grid-template-columns: 1fr;
   }
   .features__grid .feature-card:nth-child(1),
