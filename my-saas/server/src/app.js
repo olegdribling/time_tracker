@@ -40,18 +40,22 @@ app.get('/api/health', (_req, res) => {
 // Serve built frontend
 // index.html must never be cached — JS/CSS assets have content hashes so can be cached
 const distPath = path.join(__dirname, '../../../dist')
+
+// Serve static landing page for root — must be before express.static
+// (express.static would otherwise intercept / and serve index.html)
+app.get('/', (_req, res) => {
+  res.set('Cache-Control', 'no-store')
+  res.sendFile(path.join(distPath, 'landing.html'))
+})
+
 app.use(express.static(distPath, {
+  index: false, // disable auto index.html so our / route above takes effect
   setHeaders: (res, filePath) => {
     if (filePath.endsWith('.html')) {
       res.set('Cache-Control', 'no-store')
     }
   },
 }))
-// Serve static landing page for root (SEO-friendly, no React required)
-app.get('/', (_req, res) => {
-  res.set('Cache-Control', 'no-store')
-  res.sendFile(path.join(distPath, 'landing.html'))
-})
 
 app.get('/{*path}', (_req, res) => {
   res.set('Cache-Control', 'no-store')
