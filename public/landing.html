@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Invairo – Time Tracking &amp; Invoicing App for Contractors Australia</title>
+  <meta name="description" content="Track work hours and send GST invoices in seconds. Invairo is built for Australian sole traders and independent contractors. Free 30-day trial, no card required.">
+  <meta name="robots" content="index, follow">
+  <link rel="canonical" href="https://invairo.com.au/">
+
+  <!-- Open Graph -->
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://invairo.com.au/">
+  <meta property="og:title" content="Invairo – Time Tracking &amp; Invoicing for Contractors Australia">
+  <meta property="og:description" content="Track work hours and send GST invoices in seconds. Built for Australian sole traders and independent contractors. Free 30-day trial.">
+  <meta property="og:image" content="https://invairo.com.au/invairo_logo_512x512.png">
+  <meta property="og:locale" content="en_AU">
+  <meta property="og:site_name" content="Invairo">
+
+  <!-- Twitter -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Invairo – Time Tracking &amp; Invoicing for Contractors">
+  <meta name="twitter:description" content="Track hours and send GST invoices in seconds. Built for Australian sole traders.">
+  <meta name="twitter:image" content="https://invairo.com.au/invairo_logo_512x512.png">
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" href="/invairo_logo_favicon.png">
+  <link rel="apple-touch-icon" href="/invairo_logo_180x180.png">
+  <meta name="theme-color" content="#080d1a">
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <!-- Styles -->
+  <link rel="stylesheet" href="/landing.css">
+
+  <!-- JSON-LD: SoftwareApplication -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "name": "Invairo",
+    "url": "https://invairo.com.au",
+    "description": "Time tracking and invoicing app for sole traders and independent contractors in Australia",
+    "applicationCategory": "BusinessApplication",
+    "applicationSubCategory": "Time Tracking Software",
+    "operatingSystem": "Web, iOS, Android",
+    "countryOfOrigin": "AU",
+    "offers": [
+      {
+        "@type": "Offer",
+        "name": "Solo",
+        "price": "5.00",
+        "priceCurrency": "AUD",
+        "description": "1 client, 1 product, unlimited shifts, invoice generation, PDF export"
+      },
+      {
+        "@type": "Offer",
+        "name": "Pro",
+        "price": "10.00",
+        "priceCurrency": "AUD",
+        "description": "Unlimited clients, products, shifts, invoice generation, PDF export, priority support"
+      }
+    ]
+  }
+  </script>
+
+  <!-- JSON-LD: FAQPage -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": [
+      {
+        "@type": "Question",
+        "name": "Is Invairo designed for sole traders in Australia?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Yes. Invairo is built specifically for Australian sole traders, freelancers, and independent contractors. Your invoices include your ABN, GST, and are formatted to meet ATO requirements."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Can I generate GST invoices with Invairo?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Absolutely. Invairo generates compliant Australian tax invoices including GST, your business name, ABN, and client details. Export as PDF and send directly to your client."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Is there a free plan?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Yes — you get a full 30-day free trial with no credit card required. After that, time tracking stays free forever. Upgrade to Solo ($5 AUD/month) or Pro ($10 AUD/month) to continue invoicing."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Does Invairo work on iPhone and Android?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Yes. Invairo works on any smartphone browser — iPhone, Android, or desktop. No app download required."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Can I track time for multiple clients?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Yes. The Pro plan supports unlimited clients and products. The Solo plan supports 1 client. You can upgrade at any time as your workload grows."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "How is Invairo different from Harvest or TSheets?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Harvest and TSheets are built for teams and agencies with complex per-seat pricing. Invairo is built for solo workers — simpler, faster, and just $5–10 AUD/month with no per-seat fees."
+        }
+      }
+    ]
+  }
+  </script>
+</head>
+<body>
+
+  <!-- ===== NAV ===== -->
+  <nav class="nav" id="nav">
+    <div class="nav__inner">
+      <a href="/" class="nav__logo" aria-label="Invairo home">
+        <img src="/invairo_logo_h_white.png" alt="Invairo" height="28">
+      </a>
+      <div class="nav__links" id="navLinks">
+        <a href="/login" class="nav__link">Log in</a>
+        <a href="/register" class="btn btn--primary btn--sm">Start free trial</a>
+      </div>
+      <button class="nav__burger" id="navBurger" aria-label="Open menu" aria-expanded="false">
+        <span></span><span></span><span></span>
+      </button>
+    </div>
+  </nav>
+
+  <main>
+
+    <!-- ===== HERO ===== -->
+    <section class="hero">
+      <div class="hero__blob hero__blob--1" aria-hidden="true"></div>
+      <div class="hero__blob hero__blob--2" aria-hidden="true"></div>
+      <div class="hero__inner container">
+        <div class="hero__content" data-reveal>
+          <div class="hero__badge">✦ 30-day free trial · No card required</div>
+          <h1 class="hero__title">
+            Track Time.<br>
+            Send Invoices.<br>
+            <span class="gradient-text">All from Your Phone.</span>
+          </h1>
+          <p class="hero__subtitle">
+            The simplest way for freelancers and contractors to log hours and create professional invoices — no desktop required.
+          </p>
+          <div class="hero__actions">
+            <a href="/register" class="btn btn--primary btn--lg">Start free trial →</a>
+            <a href="#pricing" class="btn btn--ghost btn--lg">See pricing</a>
+          </div>
+          <p class="hero__hint">Free time tracking forever · No credit card required</p>
+        </div>
+
+        <div class="hero__phone" aria-hidden="true">
+          <div class="phone">
+            <div class="phone__notch"></div>
+            <div class="phone__screen">
+              <div class="phone__header">
+                <span class="phone__day">Mon 21 Apr</span>
+                <span class="phone__label-text">Today</span>
+              </div>
+              <div class="phone__total">
+                <span class="phone__total-label">Earned today</span>
+                <span class="phone__total-amount">$470</span>
+              </div>
+              <div class="phone__shifts">
+                <div class="phone__shift">
+                  <div>
+                    <div class="phone__shift-client">Acme Corp</div>
+                    <div class="phone__shift-time">09:00 – 17:00</div>
+                  </div>
+                  <span class="phone__shift-pay">$320</span>
+                </div>
+                <div class="phone__shift">
+                  <div>
+                    <div class="phone__shift-client">Startup XYZ</div>
+                    <div class="phone__shift-time">18:00 – 21:00</div>
+                  </div>
+                  <span class="phone__shift-pay">$150</span>
+                </div>
+                <div class="phone__shift phone__shift--live">
+                  <div>
+                    <div class="phone__shift-client">Freelance Job</div>
+                    <div class="phone__shift-time">22:00 – now</div>
+                  </div>
+                  <span class="phone__pay--live"><span class="live-dot"></span>live</span>
+                </div>
+              </div>
+              <div class="phone__invoice">
+                <span>📄 Invoice ready · Apr 2026</span>
+                <span class="phone__invoice-btn">Export PDF</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== TRUST BAR ===== -->
+    <div class="trust-bar">
+      <div class="container trust-bar__inner">
+        <span>🇦🇺 Built for Australia</span>
+        <span class="trust-div" aria-hidden="true">·</span>
+        <span>📱 Works on any phone</span>
+        <span class="trust-div" aria-hidden="true">·</span>
+        <span>🧾 GST invoices included</span>
+        <span class="trust-div" aria-hidden="true">·</span>
+        <span>✓ Cancel anytime</span>
+      </div>
+    </div>
+
+    <!-- ===== PROBLEM ===== -->
+    <section class="problem" data-reveal>
+      <div class="container">
+        <div class="problem__inner">
+          <div class="problem__tag">Sound familiar?</div>
+          <h2 class="problem__title">Still tracking hours<br>in a spreadsheet?</h2>
+          <p class="problem__body">
+            Most contractors waste hours every month piecing together timesheets, manually calculating GST, and
+            formatting invoices. By the time you send the invoice, you've forgotten half the shifts.
+            There's a better way.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== FEATURES ===== -->
+    <section class="features" id="features" data-reveal>
+      <div class="container">
+        <div class="section-label">Why Invairo</div>
+        <h2 class="section-title">Everything you need.<br>Nothing you don't.</h2>
+        <div class="features__grid">
+          <article class="feature-card">
+            <div class="feature-card__icon">📱</div>
+            <h3 class="feature-card__title">Built for mobile, always</h3>
+            <p class="feature-card__body">Log a shift straight from your phone in under 10&nbsp;seconds. No laptop, no spreadsheets — just open the app, tap, done.</p>
+          </article>
+          <article class="feature-card">
+            <div class="feature-card__icon">🧾</div>
+            <h3 class="feature-card__title">GST-ready invoices</h3>
+            <p class="feature-card__body">Generate compliant Australian tax invoices with GST, your ABN, and client details in one tap.</p>
+          </article>
+          <article class="feature-card">
+            <div class="feature-card__icon">👥</div>
+            <h3 class="feature-card__title">Multiple clients</h3>
+            <p class="feature-card__body">Track hours and rates across multiple clients without switching apps or losing track of who owes what.</p>
+          </article>
+          <article class="feature-card">
+            <div class="feature-card__icon">📊</div>
+            <h3 class="feature-card__title">Know your earnings</h3>
+            <p class="feature-card__body">See daily, weekly, and monthly totals at a glance. Always know exactly how much you've earned and with which client.</p>
+          </article>
+          <article class="feature-card">
+            <div class="feature-card__icon">📄</div>
+            <h3 class="feature-card__title">Professional PDFs</h3>
+            <p class="feature-card__body">Send clean, branded PDF invoices your clients will take seriously. Ready to email in seconds.</p>
+          </article>
+          <article class="feature-card">
+            <div class="feature-card__icon">🔒</div>
+            <h3 class="feature-card__title">Secure cloud sync</h3>
+            <p class="feature-card__body">Your data is encrypted and synced across devices. Never lose a timesheet again.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== HOW IT WORKS ===== -->
+    <section class="how-it-works section--alt" data-reveal>
+      <div class="container">
+        <div class="section-label">How it works</div>
+        <h2 class="section-title">Up and running in minutes</h2>
+        <div class="steps">
+          <div class="step">
+            <div class="step__number">01</div>
+            <h3 class="step__title">Create your account</h3>
+            <p class="step__body">Sign up in 30&nbsp;seconds. No credit card, no commitment. Start your full 30-day free trial immediately.</p>
+          </div>
+          <div class="step__connector" aria-hidden="true"></div>
+          <div class="step">
+            <div class="step__number">02</div>
+            <h3 class="step__title">Add clients &amp; log shifts</h3>
+            <p class="step__body">Create your first client, set your hourly rate, and start logging shifts straight from your phone.</p>
+          </div>
+          <div class="step__connector" aria-hidden="true"></div>
+          <div class="step">
+            <div class="step__number">03</div>
+            <h3 class="step__title">Generate &amp; send invoices</h3>
+            <p class="step__body">When payday comes, tap "Generate Invoice" and send a professional GST-compliant PDF in seconds.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== TESTIMONIALS ===== -->
+    <section class="testimonials" data-reveal>
+      <div class="container">
+        <div class="section-label">What contractors say</div>
+        <h2 class="section-title">Built for people like you</h2>
+        <div class="testimonials__grid">
+          <blockquote class="testimonial">
+            <p class="testimonial__text">I used to spend Sunday evenings doing invoices. Now it takes me 2 minutes. Invairo is a game changer for my trade business.</p>
+            <footer class="testimonial__author">
+              <div class="testimonial__avatar">S</div>
+              <div>
+                <div class="testimonial__name">Sarah M.</div>
+                <div class="testimonial__role">Electrician, sole trader · NSW</div>
+              </div>
+            </footer>
+          </blockquote>
+          <blockquote class="testimonial">
+            <p class="testimonial__text">Finally an app built for contractors, not huge teams. Simple, fast, does exactly what I need. And the price is unbeatable.</p>
+            <footer class="testimonial__author">
+              <div class="testimonial__avatar">J</div>
+              <div>
+                <div class="testimonial__name">James K.</div>
+                <div class="testimonial__role">IT Contractor · VIC</div>
+              </div>
+            </footer>
+          </blockquote>
+          <blockquote class="testimonial">
+            <p class="testimonial__text">The GST invoice feature alone is worth it. My accountant is happy and my clients pay faster now that invoices look professional.</p>
+            <footer class="testimonial__author">
+              <div class="testimonial__avatar">P</div>
+              <div>
+                <div class="testimonial__name">Priya T.</div>
+                <div class="testimonial__role">Freelance Designer · QLD</div>
+              </div>
+            </footer>
+          </blockquote>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== SECURITY / STRIPE ===== -->
+    <section class="features section--alt" id="security" data-reveal>
+      <div class="container">
+        <div class="section-label">Payments &amp; Security</div>
+        <h2 class="section-title">Your payment is always safe</h2>
+        <p class="section-subtitle" style="text-align:center;margin:0 auto 48px;">We use Stripe — the same payment infrastructure trusted by Amazon, Google, and millions of businesses worldwide.</p>
+        <div class="features__grid" style="grid-template-columns:repeat(3,1fr)">
+          <article class="feature-card">
+            <div class="feature-card__icon">🔐</div>
+            <h3 class="feature-card__title">SSL encrypted</h3>
+            <p class="feature-card__body">All data is transmitted over HTTPS. Your payment information is fully encrypted end-to-end.</p>
+          </article>
+          <article class="feature-card">
+            <div class="feature-card__icon">🏦</div>
+            <h3 class="feature-card__title">No card data stored</h3>
+            <p class="feature-card__body">Your card details go directly to Stripe. We never see, touch, or store your payment information.</p>
+          </article>
+          <article class="feature-card">
+            <div class="feature-card__icon">🛡️</div>
+            <h3 class="feature-card__title">PCI DSS compliant</h3>
+            <p class="feature-card__body">Stripe is certified to PCI Level 1 — the highest global standard for payment security.</p>
+          </article>
+        </div>
+        <div class="stripe-badge">
+          <span>Payments secured by</span>
+          <span class="stripe-badge__logo">stripe</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== PRICING ===== -->
+    <section class="pricing" id="pricing" data-reveal>
+      <div class="container">
+        <div class="section-label">Pricing</div>
+        <h2 class="section-title">Simple, honest pricing</h2>
+        <p class="section-subtitle">30-day full trial, no card required. Time tracking is free forever.</p>
+        <div class="pricing__grid">
+
+          <div class="pricing-card">
+            <div class="pricing-card__name">Free Trial</div>
+            <div class="pricing-card__price">
+              <span class="pricing-card__amount">$0</span>
+              <span class="pricing-card__period"> / 30 days</span>
+            </div>
+            <ul class="pricing-card__features">
+              <li>✓ Unlimited shifts (always free)</li>
+              <li>✓ 1 client</li>
+              <li>✓ 1 product</li>
+              <li>✓ Invoice generation</li>
+              <li>✓ PDF export</li>
+            </ul>
+            <a href="/register" class="btn btn--outline btn--full">Start free trial</a>
+            <p class="pricing-card__note">After 30 days: time tracking stays free. Upgrade for invoices.</p>
+          </div>
+
+          <div class="pricing-card pricing-card--featured">
+            <div class="pricing-card__badge">Most popular</div>
+            <div class="pricing-card__name">Solo</div>
+            <div class="pricing-card__price">
+              <span class="pricing-card__amount">$5</span>
+              <span class="pricing-card__period"> AUD / month</span>
+            </div>
+            <p class="pricing-card__gst">incl. GST</p>
+            <ul class="pricing-card__features">
+              <li>✓ 1 client / contractor</li>
+              <li>✓ 1 product</li>
+              <li>✓ Unlimited shifts</li>
+              <li>✓ Invoice generation</li>
+              <li>✓ PDF export</li>
+            </ul>
+            <a href="/register" class="btn btn--primary btn--full">Get Solo →</a>
+            <p class="pricing-card__note">Renews automatically. Cancel anytime.</p>
+          </div>
+
+          <div class="pricing-card">
+            <div class="pricing-card__name">Pro</div>
+            <div class="pricing-card__price">
+              <span class="pricing-card__amount">$10</span>
+              <span class="pricing-card__period"> AUD / month</span>
+            </div>
+            <p class="pricing-card__gst">incl. GST</p>
+            <ul class="pricing-card__features">
+              <li>✓ Unlimited clients</li>
+              <li>✓ Unlimited products</li>
+              <li>✓ Unlimited shifts</li>
+              <li>✓ Invoice generation</li>
+              <li>✓ PDF export</li>
+              <li>✓ Priority support</li>
+            </ul>
+            <a href="/register" class="btn btn--outline btn--full">Get Pro</a>
+            <p class="pricing-card__note">Renews automatically. Cancel anytime.</p>
+          </div>
+
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== FAQ ===== -->
+    <section class="faq section--alt" id="faq" data-reveal>
+      <div class="container">
+        <div class="section-label">FAQ</div>
+        <h2 class="section-title">Common questions</h2>
+        <div class="faq__list">
+
+          <details class="faq__item">
+            <summary class="faq__question">Is Invairo designed for sole traders in Australia?</summary>
+            <div class="faq__answer">
+              <p>Yes. Invairo is built specifically for Australian sole traders, freelancers, and independent contractors. Your invoices include your ABN, GST, and are formatted to meet ATO requirements.</p>
+            </div>
+          </details>
+
+          <details class="faq__item">
+            <summary class="faq__question">Can I generate GST invoices with Invairo?</summary>
+            <div class="faq__answer">
+              <p>Absolutely. Invairo generates compliant Australian tax invoices including GST, your business name, ABN, and client details. Export as PDF and send directly to your client.</p>
+            </div>
+          </details>
+
+          <details class="faq__item">
+            <summary class="faq__question">Is there a free plan?</summary>
+            <div class="faq__answer">
+              <p>Yes — you get a full 30-day free trial with no credit card required. After that, time tracking stays free forever. Upgrade to Solo ($5 AUD/month) or Pro ($10 AUD/month) to continue invoicing.</p>
+            </div>
+          </details>
+
+          <details class="faq__item">
+            <summary class="faq__question">Does it work on iPhone and Android?</summary>
+            <div class="faq__answer">
+              <p>Yes. Invairo works on any smartphone browser — iPhone, Android, or desktop. No app download required.</p>
+            </div>
+          </details>
+
+          <details class="faq__item">
+            <summary class="faq__question">Can I track time for multiple clients?</summary>
+            <div class="faq__answer">
+              <p>Yes. The Pro plan supports unlimited clients and products. The Solo plan supports 1 client. You can upgrade at any time as your workload grows.</p>
+            </div>
+          </details>
+
+          <details class="faq__item">
+            <summary class="faq__question">How is Invairo different from Harvest or TSheets?</summary>
+            <div class="faq__answer">
+              <p>Harvest and TSheets are built for teams and agencies with complex per-seat pricing. Invairo is built for solo workers — simpler, faster, and just $5–10&nbsp;AUD/month with no per-seat fees.</p>
+            </div>
+          </details>
+
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== FINAL CTA ===== -->
+    <section class="cta-section" data-reveal>
+      <div class="cta-section__blob" aria-hidden="true"></div>
+      <div class="container cta-section__inner">
+        <h2 class="cta-section__title">Ready to get paid on time?</h2>
+        <p class="cta-section__subtitle">Join contractors who use Invairo to stay organised and invoice like a pro.</p>
+        <a href="/register" class="btn btn--primary btn--lg">Create free account →</a>
+        <p class="cta-section__hint">Free time tracking forever · 30-day trial for invoices · No credit card</p>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ===== FOOTER ===== -->
+  <footer class="footer">
+    <div class="container footer__inner">
+      <a href="/" class="footer__logo" aria-label="Invairo home">
+        <img src="/invairo_logo_h_white.png" alt="Invairo" height="24">
+      </a>
+      <nav class="footer__nav" aria-label="Footer navigation">
+        <a href="/login" class="footer__link">Log in</a>
+        <a href="/register" class="footer__link">Sign up</a>
+        <a href="/terms" class="footer__link">Terms</a>
+        <a href="/privacy" class="footer__link">Privacy</a>
+        <a href="/refund" class="footer__link">Refund Policy</a>
+      </nav>
+      <p class="footer__copy">© <span id="year"></span> Invairo. All rights reserved.</p>
+    </div>
+  </footer>
+
+  <script>
+    document.getElementById('year').textContent = new Date().getFullYear();
+
+    // Mobile nav toggle
+    const burger = document.getElementById('navBurger');
+    const navLinks = document.getElementById('navLinks');
+    burger.addEventListener('click', () => {
+      const open = navLinks.classList.toggle('nav__links--open');
+      burger.setAttribute('aria-expanded', String(open));
+    });
+    // Close nav on link click
+    navLinks.querySelectorAll('a').forEach(a => {
+      a.addEventListener('click', () => {
+        navLinks.classList.remove('nav__links--open');
+        burger.setAttribute('aria-expanded', 'false');
+      });
+    });
+
+    // Nav scroll shadow
+    window.addEventListener('scroll', () => {
+      document.getElementById('nav').classList.toggle('nav--scrolled', window.scrollY > 20);
+    }, { passive: true });
+
+    // Scroll-reveal
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(e => {
+        if (e.isIntersecting) {
+          e.target.classList.add('revealed');
+          observer.unobserve(e.target);
+        }
+      });
+    }, { threshold: 0.08 });
+    document.querySelectorAll('[data-reveal]').forEach(el => observer.observe(el));
+  </script>
+
+</body>
+</html>

@@ -1,107 +1,64 @@
-# React + TypeScript + Vite
+# Invairo
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
-
-Currently, two official plugins are available:
-
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
-
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
-
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
-
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
-# Time Work Tracker
-
-Одностраничное приложение на React/Vite для учёта смен, расчёта оплаты и просмотра итогов за неделю/месяц. Данные сохраняются локально в IndexedDB (Dexie) и в `localStorage` (тема/меню).
+Full-stack SaaS для учёта рабочих смен, расчёта оплаты и выставления счетов.
 
 ## Возможности
-- Добавление/редактирование смен: дата, время начала/окончания, обед, комментарий, ставка.
-- Расчёт длительности и оплаты; поддержка смен, переходящих через полночь.
-- Фильтр итогов по неделе или месяцу, выбор дня начала недели.
-- Сохранение настроек (ставка, период), темы (light/dark) и состояния меню.
-- Светлая/тёмная тема, адаптация под мобильные размеры.
 
-## Требования
-- Node.js 20+
-- npm
+- Добавление/редактирование смен: дата, время начала/окончания, обед, комментарий, клиент
+- Расчёт длительности и оплаты; поддержка смен, переходящих через полночь
+- Фильтр итогов по неделе или месяцу
+- Управление клиентами и продуктами
+- Генерация PDF-инвойсов на стороне клиента
+- Светлая тема, адаптация под мобильные устройства (PWA)
+
+## Стек
+
+**Frontend:** React 19 + TypeScript + Vite, IndexedDB (Dexie) как локальный кэш
+
+**Backend:** Node.js + Express 5 + PostgreSQL (Neon.tech)
+
+**Деплой:** Hostinger (lsnode/LiteSpeed), автодеплой через GitHub Actions
 
 ## Установка и запуск
+
 ```bash
-npm install
-npm run dev           # дев-сервер (обычно http://localhost:5173)
-npm run build         # прод-сборка в dist
-npm run preview       # локальный просмотр собранного (после build)
-npm run lint          # ESLint
-npm run test          # Vitest (проверка расчётов/периодов)
+# Зависимости
+npm install  # также устанавливает зависимости сервера (postinstall)
+
+# Разработка (два терминала)
+npm run dev                        # Frontend на :5173 (проксирует /api → :3001)
+cd my-saas/server && npm run dev   # Backend на :3001
+
+# Сборка и деплой
+npm run build    # tsc + vite build → dist/
+npm run deploy   # build + git commit + push → GitHub Actions деплоит на Hostinger
+
+# Тесты и линтер
+npm run test     # Vitest
+npm run lint     # ESLint
 ```
 
 ## Структура
-- `src/App.tsx` — UI и логика состояний.
-- `src/lib/calculations.ts` — расчёты длительности, итогов, диапазонов.
-- `src/db.ts` — конфигурация Dexie/IndexedDB.
-- `src/types.ts` — типы смен и настроек.
-- `src/App.css`, `src/index.css` — стили, темы.
 
-## Деплой
-- GitHub Actions (`pages.yml`) собирает `npm run build` и публикует на GitHub Pages с базовым путём `/timetracker/` (см. `vite.config.ts`).
+```
+src/                        # Frontend
+  App.tsx                   # Главный компонент — все вьюхи, стейт, модалки
+  api.ts                    # REST-клиент с ротацией JWT-токенов
+  db.ts                     # Dexie/IndexedDB — локальный кэш
+  types.ts                  # Доменные типы
+  lib/calculations.ts       # Расчёты периодов, оплаты, группировки смен
+  lib/invoice.ts            # Генерация PDF через pdf-lib
+
+my-saas/server/src/         # Backend
+  app.js                    # Express entry point
+  routes/                   # auth, shifts, settings, clients, products, billing
+  middleware/auth.js         # JWT-верификация
+  db/migrate-*.js           # Миграции PostgreSQL (запускать вручную)
+```
+
+## Деплой (Hostinger)
+
+- `git push` → GitHub Actions → SSH на Hostinger → `git reset --hard` + `touch tmp/restart.txt`
+- Конфиг окружения: `~/domains/invairo.com.au/public_html/.builds/config/.env`
+- SSH: `ssh -i ~/.ssh/hostinger_deploy -p 65002 u673267555@153.92.9.238`
+- `dist/` коммитится в репозиторий — сервер не может пересобрать проект

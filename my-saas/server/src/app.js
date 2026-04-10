@@ -47,6 +47,12 @@ app.use(express.static(distPath, {
     }
   },
 }))
+// Serve static landing page for root (SEO-friendly, no React required)
+app.get('/', (_req, res) => {
+  res.set('Cache-Control', 'no-store')
+  res.sendFile(path.join(distPath, 'landing.html'))
+})
+
 app.get('/{*path}', (_req, res) => {
   res.set('Cache-Control', 'no-store')
   res.sendFile(path.join(distPath, 'index.html'))

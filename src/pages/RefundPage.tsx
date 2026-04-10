@@ -8,7 +8,8 @@ export function RefundPage() {
 
         <div className="legal-body">
           <p>
-            This Refund Policy applies to all paid subscriptions for INVAIRO ("Service").
+            This Refund Policy applies to all paid subscriptions for Invairo ("Service"),
+            operated by Oleg Efendiyev (ABN 32&nbsp;217&nbsp;139&nbsp;589), trading as Invairo.
             Your rights under the <em>Australian Consumer Law</em> (ACL) are not affected by this policy.
           </p>
 

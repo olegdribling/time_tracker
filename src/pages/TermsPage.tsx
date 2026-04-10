@@ -8,9 +8,9 @@ export function TermsPage() {
 
         <div className="legal-body">
           <p>
-            These Terms of Service ("Terms") govern your use of the INVAIRO service ("Service"),
-            operated by INVAIRO ("we", "us", "our"). By creating an account you agree to these Terms.
-            If you do not agree, do not use the Service.
+            These Terms of Service ("Terms") govern your use of the Invairo service ("Service"),
+            operated by Oleg Efendiyev (ABN 32&nbsp;217&nbsp;139&nbsp;589), trading as Invairo ("we", "us", "our").
+            By creating an account you agree to these Terms. If you do not agree, do not use the Service.
           </p>
 
           <h2>1. Eligibility</h2>
@@ -93,8 +93,8 @@ export function TermsPage() {
 
           <h2>10. Governing Law</h2>
           <p>
-            These Terms are governed by the laws of Queensland, Australia. Disputes will be subject
-            to the exclusive jurisdiction of the courts of Queensland.
+            These Terms are governed by the laws of New South Wales, Australia. Disputes will be subject
+            to the exclusive jurisdiction of the courts of New South Wales.
           </p>
 
           <h2>11. Changes to Terms</h2>

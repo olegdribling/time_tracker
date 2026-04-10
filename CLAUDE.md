@@ -15,6 +15,7 @@ npm run deploy                       # build + git commit + push (GitHub Actions
 
 # Test & lint
 npm run test                         # Vitest (src/lib/calculations.test.ts)
+npx vitest run src/lib/calculations.test.ts  # Run single test file
 npm run lint                         # ESLint
 ```
 
@@ -72,6 +73,10 @@ Full-stack SaaS for work shift tracking, pay calculation, and invoice generation
 **Overnight shifts** (end < start) are handled in `minutesBetween()` by adding 24h.
 
 **After login/register** use `window.location.href = '/app'` (not `navigate('/app')`) to force a full page reload and clear stale React state from a previous session.
+
+**Stripe webhook route** (`/api/billing/webhook`) must be registered before `express.json()` in `app.js` — it needs a raw `Buffer` body, not parsed JSON.
+
+**PWA service worker** uses `navigateFallback: null` in `vite.config.ts` — this prevents the SW from intercepting `/api/*` requests and serving `index.html` instead.
 
 ## Deployment (Hostinger)
 

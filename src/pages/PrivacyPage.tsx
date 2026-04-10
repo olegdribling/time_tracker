@@ -8,8 +8,9 @@ export function PrivacyPage() {
 
         <div className="legal-body">
           <p>
-            INVAIRO ("we", "us", "our") is committed to protecting your personal information in
-            accordance with the <em>Privacy Act 1988</em> (Cth) and the Australian Privacy Principles (APPs).
+            Oleg Efendiyev (ABN 32&nbsp;217&nbsp;139&nbsp;589), trading as Invairo ("we", "us", "our"),
+            is committed to protecting your personal information in accordance with the{' '}
+            <em>Privacy Act 1988</em> (Cth) and the Australian Privacy Principles (APPs).
             This Privacy Policy explains what information we collect, how we use it, and your rights.
           </p>
 
