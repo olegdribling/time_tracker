@@ -337,101 +337,16 @@ ul  { list-style: none; }
   width: 80px; height: 22px;
   background: #080d1a;
   border-radius: 0 0 16px 16px;
-  margin: 0 auto 14px;
+  margin: 0 auto 0;
+  position: relative;
+  z-index: 1;
 }
 
-.phone__screen { padding: 2px 2px 4px; }
-
-.phone__header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 10px;
-}
-.phone__day        { font-size: 10px; color: var(--text-muted); }
-.phone__label-text { font-size: 10px; font-weight: 700; color: var(--text); }
-
-.phone__total {
-  background: linear-gradient(135deg, rgba(106,90,249,0.18), rgba(182,107,255,0.09));
-  border: 1px solid rgba(106, 90, 249, 0.22);
-  border-radius: 12px;
-  padding: 14px 15px;
-  margin-bottom: 14px;
-}
-.phone__total-label {
-  font-size: 10px;
-  color: var(--text-muted);
+.phone__screenshot {
+  width: 100%;
   display: block;
-  margin-bottom: 3px;
-}
-.phone__total-amount {
-  font-size: 26px;
-  font-weight: 800;
-  background: linear-gradient(135deg, #6a5af9, #b66bff);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  line-height: 1;
-}
-
-.phone__shifts {
-  display: flex;
-  flex-direction: column;
-  gap: 7px;
-  margin-bottom: 12px;
-}
-
-.phone__shift {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid var(--border);
-  border-radius: 9px;
-  padding: 10px 12px;
-}
-.phone__shift--live { border-color: rgba(106, 90, 249, 0.28); }
-
-.phone__shift-client { font-size: 11px; font-weight: 600; color: var(--text); }
-.phone__shift-time   { font-size: 9px;  color: var(--text-muted); margin-top: 1px; }
-.phone__shift-pay    { font-size: 12px; font-weight: 700; color: var(--green); }
-
-.phone__pay--live {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  font-size: 11px;
-  font-weight: 700;
-  color: #a99fff;
-}
-
-.live-dot {
-  width: 6px; height: 6px;
-  border-radius: 50%;
-  background: var(--primary);
-  animation: livePulse 1.6s ease-in-out infinite;
-  flex-shrink: 0;
-}
-@keyframes livePulse {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50%       { opacity: 0.35; transform: scale(0.6); }
-}
-
-.phone__invoice {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  background: rgba(163, 230, 184, 0.07);
-  border: 1px solid rgba(163, 230, 184, 0.14);
-  border-radius: 9px;
-  padding: 7px 10px;
-  font-size: 9px;
-  color: var(--text-muted);
-}
-.phone__invoice-btn {
-  font-size: 9px;
-  font-weight: 700;
-  color: var(--green);
+  border-radius: 0 0 30px 30px;
+  object-fit: cover;
 }
 
 /* ============================================================
