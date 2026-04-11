@@ -1796,3 +1796,25 @@
   cursor: pointer;
   accent-color: var(--primary, #2563eb);
 }
+
+/* ── Desktop layout (≥ 768px) ───────────────────────────── */
+@media (min-width: 768px) {
+  .app-shell {
+    max-width: min(66vw, 860px);
+  }
+
+  .top-bar {
+    max-width: min(66vw, 860px);
+  }
+
+  /* FAB и fab-menu прижимаем к правому краю app-shell */
+  .floating-btn,
+  .fab-menu {
+    right: calc(50% - min(33vw, 430px) + 24px);
+  }
+
+  /* Меню-панель открывается у правого края app-shell */
+  .menu-panel {
+    right: calc(50% - min(33vw, 430px));
+  }
+}
