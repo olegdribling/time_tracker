@@ -170,7 +170,13 @@
         <div class="hero__phone" aria-hidden="true">
           <div class="phone">
             <div class="phone__notch"></div>
-            <img src="/app-screenshot.jpg" alt="Invairo app" class="phone__screenshot">
+            <div class="phone__screen-wrap">
+              <img src="/app-screenshot.jpg" alt="Invairo app" class="phone__screenshot">
+              <div class="phone__header-overlay">
+                <span class="phone__overlay-time" id="phoneTime"></span>
+                <span class="phone__overlay-date" id="phoneDate"></span>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -493,6 +499,17 @@
 
   <script>
     document.getElementById('year').textContent = new Date().getFullYear();
+
+    // Live time & date on phone mockup
+    function updatePhoneClock() {
+      const now = new Date();
+      const time = now.toLocaleTimeString('en-AU', { hour: '2-digit', minute: '2-digit', hour12: false });
+      const date = now.toLocaleDateString('en-AU', { day: 'numeric', month: 'long', year: 'numeric' });
+      document.getElementById('phoneTime').textContent = time;
+      document.getElementById('phoneDate').textContent = date;
+    }
+    updatePhoneClock();
+    setInterval(updatePhoneClock, 60000);
 
     // Mobile nav toggle
     const burger = document.getElementById('navBurger');

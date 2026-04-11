@@ -342,11 +342,45 @@ ul  { list-style: none; }
   z-index: 1;
 }
 
+.phone__screen-wrap {
+  position: relative;
+}
+
 .phone__screenshot {
   width: 100%;
   display: block;
   border-radius: 0 0 30px 30px;
   object-fit: cover;
+}
+
+.phone__header-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 50px;
+  background: #1a2b42;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 0 16px;
+  pointer-events: none;
+}
+
+.phone__overlay-time {
+  font-size: 12px;
+  font-weight: 700;
+  color: #e8eaf6;
+  line-height: 1.1;
+  font-family: var(--font);
+}
+
+.phone__overlay-date {
+  font-size: 16px;
+  font-weight: 600;
+  color: #8c94b8;
+  margin-top: 1px;
+  font-family: var(--font);
 }
 
 /* ============================================================
