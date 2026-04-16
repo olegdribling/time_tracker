@@ -1,0 +1,10 @@
+[{
+  "relation": ["delegate_permission/common.handle_all_urls"],
+  "target": {
+    "namespace": "android_app",
+    "package_name": "au.com.invairo.app",
+    "sha256_cert_fingerprints": [
+      "D6:00:7F:EF:FB:49:5A:2B:DD:15:C6:CC:04:04:8F:FA:4E:7F:0D:02:0D:B0:28:E4:A7:D7:BF:90:80:BC:04:3D"
+    ]
+  }
+}]
