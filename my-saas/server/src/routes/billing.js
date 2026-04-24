@@ -98,15 +98,39 @@ router.post('/checkout', authMiddleware, async (req, res) => {
       ? `${process.env.APP_URL}/app/billing?cancelled=1`
       : 'http://localhost:5173/app/billing?cancelled=1'
 
-    const session = await stripe.checkout.sessions.create({
-      customer: customerId,
-      payment_method_types: ['card'],
-      line_items: [{ price: PLANS[plan].priceId, quantity: 1 }],
-      mode: 'subscription',
-      success_url: successUrl,
-      cancel_url: cancelUrl,
-      metadata: { user_id: String(req.userId), plan },
-    })
+    let session
+    try {
+      session = await stripe.checkout.sessions.create({
+        customer: customerId,
+        payment_method_types: ['card'],
+        line_items: [{ price: PLANS[plan].priceId, quantity: 1 }],
+        mode: 'subscription',
+        success_url: successUrl,
+        cancel_url: cancelUrl,
+        metadata: { user_id: String(req.userId), plan },
+      })
+    } catch (stripeErr) {
+      // Customer exists in DB but not in Stripe (e.g. created in test mode) — recreate
+      if (stripeErr.code === 'resource_missing' && stripeErr.message?.includes('customer')) {
+        const newCustomer = await stripe.customers.create({ email, metadata: { user_id: String(req.userId) } })
+        customerId = newCustomer.id
+        await pool.query(
+          `UPDATE subscriptions SET stripe_customer_id = $1, updated_at = NOW() WHERE user_id = $2`,
+          [customerId, req.userId]
+        )
+        session = await stripe.checkout.sessions.create({
+          customer: customerId,
+          payment_method_types: ['card'],
+          line_items: [{ price: PLANS[plan].priceId, quantity: 1 }],
+          mode: 'subscription',
+          success_url: successUrl,
+          cancel_url: cancelUrl,
+          metadata: { user_id: String(req.userId), plan },
+        })
+      } else {
+        throw stripeErr
+      }
+    }
 
     res.json({ url: session.url })
   } catch (err) {
