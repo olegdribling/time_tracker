@@ -568,7 +568,8 @@
   flex: 1;
 }
 
-.modal--fullscreen .modal-header-dark {
+.modal--fullscreen .modal-header-dark,
+.modal--fullscreen .inv-header {
   padding-top: calc(16px + env(safe-area-inset-top, 0px));
 }
 

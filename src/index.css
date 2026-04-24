@@ -54,6 +54,9 @@ body {
   margin: 0;
   min-height: 100vh;
   background: var(--app-bg);
+}
+
+#root {
   overflow-x: hidden;
 }
 
@@ -222,7 +225,7 @@ label {
 }
 
 .billing-topbar {
-  padding: 16px 24px;
+  padding: calc(16px + env(safe-area-inset-top, 0px)) 24px 16px;
   border-bottom: 1px solid var(--border);
   background: var(--surface);
 }
