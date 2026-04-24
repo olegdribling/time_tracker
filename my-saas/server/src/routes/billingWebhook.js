@@ -40,7 +40,7 @@ module.exports = async (req, res) => {
       let customerId = session.customer
       let subscriptionId = session.subscription
 
-      if (!userId || !plan) {
+      if (!userId || !plan || !subscriptionId) {
         console.log('[Webhook] Metadata missing — retrieving full session from Stripe')
         const fullSession = await stripe.checkout.sessions.retrieve(session.id, {
           expand: ['subscription'],
