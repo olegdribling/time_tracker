@@ -12,6 +12,7 @@ import { BillingPage } from "./pages/BillingPage"
 import { TermsPage } from "./pages/TermsPage"
 import { PrivacyPage } from "./pages/PrivacyPage"
 import { RefundPage } from "./pages/RefundPage"
+import { DeleteAccountPage } from "./pages/DeleteAccountPage"
 import { ProtectedRoute } from "./auth/ProtectedRoute"
 
 
@@ -26,6 +27,7 @@ createRoot(document.getElementById("root")!).render(
         <Route path="/terms" element={<TermsPage />} />
         <Route path="/privacy" element={<PrivacyPage />} />
         <Route path="/refund" element={<RefundPage />} />
+        <Route path="/delete-account" element={<DeleteAccountPage />} />
 
         <Route
           path="/app/billing"
