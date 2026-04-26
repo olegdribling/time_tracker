@@ -4,7 +4,7 @@ export function PrivacyPage() {
       <div className="legal-container">
         <a href="/" className="legal-back">← Back to home</a>
         <h1 className="legal-title">Privacy Policy</h1>
-        <p className="legal-meta">Last updated: 21 February 2026</p>
+        <p className="legal-meta">Last updated: 26 April 2026</p>
 
         <div className="legal-body">
           <p>
@@ -74,7 +74,10 @@ export function PrivacyPage() {
           <ul>
             <li><strong>Access</strong> — request a copy of the personal information we hold about you</li>
             <li><strong>Correction</strong> — ask us to correct inaccurate or out-of-date information</li>
-            <li><strong>Deletion</strong> — request deletion of your account and associated data</li>
+            <li>
+              <strong>Deletion</strong> — request deletion of your account and associated data via our{' '}
+              <a href="/delete-account">Account Deletion page</a>
+            </li>
           </ul>
           <p>
             To exercise these rights, email us at{' '}
