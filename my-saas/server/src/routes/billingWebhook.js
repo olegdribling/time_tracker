@@ -99,6 +99,37 @@ module.exports = async (req, res) => {
       )
     }
 
+    // Fallback: subscription.created fires when checkout completes even if
+    // checkout.session.completed is missing. Look up user by stripe_customer_id.
+    if (event.type === 'customer.subscription.created') {
+      const stripeSub = event.data.object
+      const priceId = stripeSub.items.data[0]?.price?.id
+      let plan = null
+      if (priceId === process.env.STRIPE_PRICE_SOLO) plan = 'solo'
+      else if (priceId === process.env.STRIPE_PRICE_PRO) plan = 'pro'
+
+      if (plan && stripeSub.customer) {
+        const { rows } = await pool.query(
+          'SELECT user_id FROM subscriptions WHERE stripe_customer_id = $1',
+          [stripeSub.customer]
+        )
+        if (rows.length > 0) {
+          const userId = rows[0].user_id
+          const periodEnd = toDate(stripeSub.current_period_end)
+          await pool.query(
+            `UPDATE subscriptions SET plan = $1, stripe_subscription_id = $2, current_period_end = $3, updated_at = NOW()
+             WHERE user_id = $4`,
+            [plan, stripeSub.id, periodEnd, userId]
+          )
+          console.log('[Webhook] subscription.created: user', userId, '->', plan)
+        } else {
+          console.warn('[Webhook] subscription.created: no user found for customer', stripeSub.customer)
+        }
+      } else {
+        console.warn('[Webhook] subscription.created: unknown plan or no customer', priceId, stripeSub.customer)
+      }
+    }
+
     if (event.type === 'customer.subscription.deleted') {
       const stripeSub = event.data.object
       console.log('[Webhook] subscription.deleted:', stripeSub.id)
