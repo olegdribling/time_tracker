@@ -1,6 +1,92 @@
 import { ChevronLeft, ChevronRight, FileText, X } from 'lucide-react'
-import type { Client, InvoiceLineItem, InvoiceProfile } from '../types'
+import { useEffect, useRef, useState } from 'react'
+import type { Client, InvoiceLineItem, InvoiceProfile, Product } from '../types'
 import { formatDate, money } from '../lib/format'
+
+function ClientDropdown({ clientId, clients, onChange }: {
+  clientId: number | null
+  clients: Client[]
+  onChange: (id: number | null) => void
+}) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+
+  const selected = clients.find(c => c.id === clientId)
+  const placeholder = clients.length === 0 ? 'No clients yet' : 'Select Client'
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+    }
+    if (open) document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [open])
+
+  return (
+    <div ref={ref} style={{ position: 'relative' }}>
+      <button
+        type="button"
+        className="client-dropdown-btn"
+        onClick={() => clients.length > 0 && setOpen(p => !p)}
+        disabled={clients.length === 0}
+      >
+        <span style={{ color: selected ? 'var(--text-primary)' : 'var(--text-secondary, #888)' }}>
+          {selected ? selected.name : placeholder}
+        </span>
+      </button>
+      {open && (
+        <div className="product-combobox-dropdown">
+          {clients.map(c => (
+            <button key={c.id} type="button" onMouseDown={() => { onChange(c.id); setOpen(false) }}>
+              {c.name}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function ProductCombobox({ value, products, onChange }: {
+  value: string
+  products: Product[]
+  onChange: (name: string, price?: number) => void
+}) {
+  const [open, setOpen] = useState(false)
+  const blurTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const handleBlur = () => {
+    blurTimer.current = setTimeout(() => setOpen(false), 150)
+  }
+  const handleOptionClick = (p: Product) => {
+    if (blurTimer.current) clearTimeout(blurTimer.current)
+    onChange(p.name, p.price)
+    setOpen(false)
+  }
+
+  return (
+    <div style={{ position: 'relative' }}>
+      <input
+        type="text"
+        className="product-combobox-input"
+        value={value}
+        onChange={e => { setOpen(false); onChange(e.target.value) }}
+        onFocus={() => setOpen(true)}
+        onBlur={handleBlur}
+      />
+      {open && products.length > 0 && (
+        <div className="product-combobox-dropdown">
+          {products.map(p => (
+            <button key={p.id} type="button" onMouseDown={() => handleOptionClick(p)}>
+              <span>{p.name}</span>
+              <span className="product-combobox-price">${p.price.toFixed(2)}</span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
 
 
 export function calcLineItemAmount(item: InvoiceLineItem): number {
@@ -12,21 +98,40 @@ export function calcLineItemAmount(item: InvoiceLineItem): number {
   return (parseFloat(item.quantity) || 0) * (parseFloat(item.unitPrice) || 0)
 }
 
-function InvoiceLineItemCard({ item, idx, onChange, onRemove }: {
+const TYPE_LABEL: Record<InvoiceLineItem['type'], string> = {
+  time: 'TIME',
+  service: 'SERVICE',
+  product: 'PRODUCT/SERVICE',
+}
+
+function InvoiceLineItemCard({ item, idx, onChange, onRemove, products }: {
   item: InvoiceLineItem
   idx: number
   onChange: (updated: InvoiceLineItem) => void
   onRemove: () => void
+  products: Product[]
 }) {
   return (
     <div className="inv-line-item-card">
       <div className="inv-item-title-row">
-        <div className="inv-item-title">Item {idx + 1} <span style={{ fontSize: 11, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>{item.type}</span></div>
+        <div className="inv-item-title">Item {idx + 1} <span style={{ fontSize: 11, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>{TYPE_LABEL[item.type] ?? item.type}</span></div>
         <button type="button" className="inv-remove-item-btn" onClick={onRemove}><X size={14} /></button>
       </div>
       <div className="field">
         <span className="label">Description</span>
-        <input type="text" value={item.description} onChange={e => onChange({ ...item, description: e.target.value })} />
+        {item.type === 'product' ? (
+          <ProductCombobox
+            value={item.description}
+            products={products}
+            onChange={(name, price) => onChange({
+              ...item,
+              description: name,
+              ...(price !== undefined ? { unitPrice: String(price) } : {}),
+            })}
+          />
+        ) : (
+          <input type="text" value={item.description} onChange={e => onChange({ ...item, description: e.target.value })} />
+        )}
       </div>
       {item.type === 'time' && (
         <>
@@ -107,6 +212,7 @@ type Props = {
   addMenuOpen: boolean
   setAddMenuOpen: React.Dispatch<React.SetStateAction<boolean>>
   clients: Client[]
+  products: Product[]
   invoiceProfile: InvoiceProfile
   todayIso: string
   calendarWeekLabels: string[]
@@ -127,6 +233,7 @@ export function CreateInvoiceModal({
   calendarCells, calendarLabel,
   addMenuOpen, setAddMenuOpen,
   clients,
+  products,
   invoiceProfile,
   todayIso,
   calendarWeekLabels,
@@ -222,14 +329,11 @@ export function CreateInvoiceModal({
                       <span className="label">Client</span>
                       <button type="button" className="add-action-btn" onClick={onAddClient}>+ Add Client</button>
                     </div>
-                    <select
-                      value={form.clientId ?? ''}
-                      onChange={e => setForm(prev => ({ ...prev, clientId: e.target.value ? Number(e.target.value) : null }))}
-                    >
-                      {clients.length === 0 && <option value="" disabled>Add new Client</option>}
-                      {clients.length > 1 && <option value="">Select Client</option>}
-                      {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                    </select>
+                    <ClientDropdown
+                      clientId={form.clientId}
+                      clients={clients}
+                      onChange={id => setForm(prev => ({ ...prev, clientId: id }))}
+                    />
                   </div>
                 </div>
               </div>
@@ -248,8 +352,7 @@ export function CreateInvoiceModal({
                     {addMenuOpen && (
                       <div className="inv-add-menu">
                         <button onClick={() => onAddItem('time')}>+ Add Time</button>
-                        <button onClick={() => onAddItem('service')}>+ Add Service</button>
-                        <button onClick={() => onAddItem('product')}>+ Add Product</button>
+                        <button onClick={() => onAddItem('product')}>+ Add Product/Service</button>
                       </div>
                     )}
                   </div>
@@ -260,6 +363,7 @@ export function CreateInvoiceModal({
                       key={item.id}
                       item={item}
                       idx={idx}
+                      products={products}
                       onChange={updated => setLineItems(prev => prev.map(i => i.id === item.id ? updated : i))}
                       onRemove={() => setLineItems(prev => prev.filter(i => i.id !== item.id))}
                     />

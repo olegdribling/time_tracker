@@ -1,4 +1,4 @@
-import type { Client, ClientDraft, InvoiceProfile, Product, ProductDraft, Settings, Shift } from './types'
+import type { ArchivedInvoice, Client, ClientDraft, InvoiceProfile, Product, ProductDraft, Settings, Shift } from './types'
 
 const API_URL = import.meta.env.VITE_API_URL || ''
 
@@ -233,6 +233,35 @@ export const api = {
       method: 'DELETE',
     })
     if (!res.ok) throw new Error(`Failed to delete product: ${res.status}`)
+  },
+
+  // Invoices archive
+  async getInvoices(): Promise<ArchivedInvoice[]> {
+    const res = await fetchAuth(`${API_URL}/api/invoices`)
+    if (!res.ok) throw new Error('Failed to load invoices')
+    return res.json()
+  },
+
+  async createInvoiceRecord(data: Omit<ArchivedInvoice, 'id' | 'status' | 'created_at'>): Promise<{ id: string }> {
+    const res = await fetchAuth(`${API_URL}/api/invoices`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+    if (!res.ok) throw new Error('Failed to save invoice')
+    return res.json()
+  },
+
+  async updateInvoiceStatus(id: string, status: ArchivedInvoice['status']): Promise<void> {
+    const res = await fetchAuth(`${API_URL}/api/invoices/${id}/status`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status }),
+    })
+    if (!res.ok) throw new Error('Failed to update status')
+  },
+
+  async deleteInvoice(id: string): Promise<void> {
+    const res = await fetchAuth(`${API_URL}/api/invoices/${id}`, { method: 'DELETE' })
+    if (!res.ok) throw new Error('Failed to delete invoice')
   },
 
   // Billing

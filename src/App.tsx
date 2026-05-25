@@ -11,13 +11,15 @@ import {
   ChevronRight,
   Clock,       // иконка для смен
   Coffee,      // иконка для перерыва на обед
+  ClockFading, // иконка для Pay Period
+  DollarSign,  // иконка для ставок/тарифов
+  FileCog,     // иконка для настроек бизнес-профиля
   FileText,    // иконка для инвойса
   Home,        // иконка "домой"
   LogOut,      // иконка выхода
   MoreVertical,// иконка "три точки" (контекстное меню)
   Package,     // иконка продуктов
   Plus,        // иконка добавления (FAB-кнопка)
-  Settings as SettingsIcon,
   Timer,
   User,
   Users,       // иконка клиентов
@@ -25,6 +27,7 @@ import {
 } from 'lucide-react'
 import { api } from './api'                                                       // REST-клиент (все запросы к серверу)
 import { CreateInvoiceModal, calcLineItemAmount } from './components/CreateInvoiceModal' // модалка создания инвойса
+import { InvoicesView } from './components/InvoicesView'
 import type { InvBTForm, InvSuccessData } from './components/CreateInvoiceModal'
 import { useProducts } from './hooks/useProducts'                                  // хук управления продуктами
 import { useSettings } from './hooks/useSettings'                                  // хук управления настройками
@@ -32,7 +35,7 @@ import { calculateTotals, getPeriodByOffset, getPeriodRange, minutesBetween } fr
 import { DEFAULT_INVOICE_PROFILE, DEFAULT_SETTINGS } from './lib/defaults'         // дефолтные значения
 import { formatDate, money } from './lib/format'                                   // форматирование дат и денег
 import { generateInvoicePdf } from './lib/invoice'                                 // генерация PDF инвойса
-import type { Client, ClientDraft, InvoiceLineItem, InvoiceProfile, Settings, Shift, ShiftForm } from './types' // все TypeScript-типы
+import type { ArchivedInvoice, Client, ClientDraft, InvoiceLineItem, InvoiceProfile, Settings, Shift, ShiftForm } from './types' // все TypeScript-типы
 
 // ─────────────────────────────────────────────────────────────────────────────
 // КОНСТАНТЫ
@@ -287,6 +290,7 @@ function App() {
 
   // ── Invoice Details (профиль для инвойсов) ─────────────────────────────────
   const [isInvoiceModalOpen, setIsInvoiceModalOpen] = useState(false)
+  const [isRateModalOpen, setIsRateModalOpen] = useState(false)
   const [invoiceProfile, setInvoiceProfile] = useState<InvoiceProfile>(DEFAULT_INVOICE_PROFILE) // сохранённые данные
   const [invoiceDraft, setInvoiceDraft] = useState<InvoiceProfile>(DEFAULT_INVOICE_PROFILE)     // черновик в форме (до Save)
   // Строковые инпуты для числовых полей (чтобы пользователь мог вводить "." без сброса)
@@ -303,7 +307,10 @@ function App() {
   const [editingId, setEditingId] = useState<string | null>(null) // id смены при редактировании (null = новая)
 
   // ── Навигация между экранами ──────────────────────────────────────────────
-  const [activeView, setActiveView] = useState<'home' | 'reports' | 'calendar' | 'clients' | 'products'>('home')
+  const [activeView, setActiveView] = useState<'home' | 'reports' | 'calendar' | 'clients' | 'products' | 'invoices'>('home')
+
+  // ── Архив инвойсов ────────────────────────────────────────────────────────
+  const [archivedInvoices, setArchivedInvoices] = useState<ArchivedInvoice[]>([])
 
   // ── Клиенты ───────────────────────────────────────────────────────────────
   const [clients, setClients] = useState<Client[]>([])
@@ -824,6 +831,18 @@ function App() {
     setActiveView('products')
   }
 
+  // Переходит на экран архива инвойсов
+  const openInvoices = async () => {
+    closeOverlays()
+    setActiveView('invoices')
+    try {
+      const data = await api.getInvoices()
+      setArchivedInvoices(data)
+    } catch {
+      // ignore — пустой список
+    }
+  }
+
   // Открывает полноэкранный календарь, переходя к нужной дате
   const openCalendar = (targetDate?: string) => {
     closeOverlays()
@@ -1072,6 +1091,28 @@ function App() {
     setIsInvoiceModalOpen(false)
   }
 
+  const openRateModal = () => {
+    setInvoiceDraft(invoiceProfile)
+    setHourlyRateInput(String(invoiceProfile.hourlyRate))
+    setWeekendRateInput(String(invoiceProfile.weekendRate))
+    setIsMenuOpen(false)
+    setIsRateModalOpen(true)
+  }
+
+  const closeRateModal = () => {
+    setIsRateModalOpen(false)
+  }
+
+  const saveRateSettings = async () => {
+    setInvoiceProfile(invoiceDraft)
+    try {
+      await api.saveInvoiceProfile(invoiceDraft)
+    } catch (error) {
+      console.error('Failed to save rate settings', error)
+    }
+    closeRateModal()
+  }
+
   // Сохраняет профиль инвойса на сервер и в локальный state
   const saveInvoiceProfile = async () => {
     setInvoiceProfile(invoiceDraft)
@@ -1226,6 +1267,28 @@ function App() {
       setInvoiceProfile(updated)
       setInvoiceDraft(updated)
       await api.saveInvoiceProfile(updated)
+
+      // Сохранить в архив (fire-and-forget)
+      api.createInvoiceRecord({
+        invoice_number: form.number,
+        client_id: selectedClient.id,
+        client_snapshot: {
+          name: selectedClient.name,
+          address: selectedClient.address,
+          abn: selectedClient.abn,
+        },
+        line_items: invLineItems,
+        subtotal,
+        gst,
+        total,
+        gst_mode: gstMode,
+        issued_date: form.date,
+        comments: form.comments || null,
+        period_start: typeof period.start === 'string' ? period.start : (period.start as Date).toISOString().slice(0, 10),
+        period_end: typeof period.end === 'string' ? period.end : (period.end as Date).toISOString().slice(0, 10),
+        profile_snapshot: invoiceProfile,
+      }).catch(err => console.error('[Invoice archive] Failed to save:', err))
+
       closeModal()
       setInvBTSuccessData({
         clientEmail: selectedClient.email ?? '',
@@ -1288,10 +1351,12 @@ function App() {
               <button className="menu-panel-close" onClick={() => setIsMenuOpen(false)}><X size={18} /></button>
             </div>
             <div className="menu-panel-items">
+              <button className="menu-panel-item" onClick={openInvoiceModal}><FileCog size={18} />Business details</button>
+              <button className="menu-panel-item" onClick={openRateModal}><DollarSign size={18} />Rate and GST settings</button>
+              <button className="menu-panel-item" onClick={openSettings}><ClockFading size={18} />Pay period</button>
               <button className="menu-panel-item" onClick={openClients}><Users size={18} />Clients</button>
-              <button className="menu-panel-item" onClick={openProducts}><Package size={18} />Products</button>
-              <button className="menu-panel-item" onClick={openSettings}><SettingsIcon size={18} />Settings</button>
-              <button className="menu-panel-item" onClick={openInvoiceModal}><FileText size={18} />Invoice details</button>
+              <button className="menu-panel-item" onClick={openProducts}><Package size={18} />Products/Services</button>
+              <button className="menu-panel-item" onClick={openInvoices}><FileText size={18} />Invoices</button>
 
               <button className="menu-panel-item" onClick={() => { setIsMenuOpen(false); navigate('/app/billing') }}><Banknote size={18} />Subscription</button>
               <hr className="menu-panel-divider" />
@@ -1317,6 +1382,7 @@ function App() {
         addMenuOpen={invAddMenuOpen}
         setAddMenuOpen={setInvAddMenuOpen}
         clients={clients}
+        products={products}
         invoiceProfile={invoiceProfile}
         todayIso={todayIso}
         calendarWeekLabels={calendarWeekLabels}
@@ -1514,6 +1580,14 @@ function App() {
                 })}
             </div>
           </section>
+        ) : activeView === 'invoices' ? (
+          <InvoicesView
+            invoices={archivedInvoices}
+            onStatusChange={(id, status) =>
+              setArchivedInvoices(prev => prev.map(inv => inv.id === id ? { ...inv, status } : inv))
+            }
+            onDelete={id => setArchivedInvoices(prev => prev.filter(inv => inv.id !== id))}
+          />
         ) : activeView === 'clients' ? (
           <section className="clients-section">
             <div className="modal-header" style={{ marginBottom: '12px' }}>
@@ -1552,8 +1626,8 @@ function App() {
         ) : activeView === 'products' ? (
           <section className="clients-section">
             <div className="modal-header" style={{ marginBottom: '12px' }}>
-              <div className="modal-title">Products</div>
-              <button className="add-action-btn" onClick={openAddProduct}>+ Add Product</button>
+              <div className="modal-title">Products/Services</div>
+              <button className="add-action-btn" onClick={openAddProduct}>+ Add</button>
             </div>
             {products.length === 0 ? (
               <div className="report-row empty">No products yet. Add your first product.</div>
@@ -1677,7 +1751,7 @@ function App() {
       {/* FAB — плавающая кнопка (круглая, снизу справа).
           На не-home экранах показываем иконку "Home" для возврата.
           На главном экране раскрывается в меню: Invoice / New Shift / Reports */}
-      {activeView === 'reports' || activeView === 'calendar' || activeView === 'clients' || activeView === 'products' ? (
+      {activeView === 'reports' || activeView === 'calendar' || activeView === 'clients' || activeView === 'products' || activeView === 'invoices' ? (
         <button className="floating-btn" onClick={goHome}>
           <Home size={24} />
         </button>
@@ -1963,12 +2037,12 @@ function App() {
         <div className="modal-backdrop" onClick={closeProductModal}>
           <div className="modal" onClick={e => e.stopPropagation()}>
             <div className="modal-header-dark">
-              <div className="modal-title-dark">{editingProductId !== null ? 'Edit Product' : 'Add Product'}</div>
+              <div className="modal-title-dark">{editingProductId !== null ? 'Edit Product/Service' : 'Add Product/Service'}</div>
               <button className="modal-close-btn" onClick={closeProductModal}><X size={18} /></button>
             </div>
             <div className="form-grid" style={{ marginTop: '12px' }}>
               <label className="field">
-                <span className="label">Product Name</span>
+                <span className="label">Name</span>
                 <input
                   className="input"
                   type="text"
@@ -2052,8 +2126,8 @@ function App() {
           <div className="modal modal--fullscreen" onClick={(e) => e.stopPropagation()}>
             <div className="inv-header">
               <div className="inv-header-left">
-                <SettingsIcon size={20} />
-                <span className="inv-header-title">Settings</span>
+                <ClockFading size={20} />
+                <span className="inv-header-title">Pay Period</span>
               </div>
               <button className="inv-close-btn" onClick={closeSettings}><X size={18} /></button>
             </div>
@@ -2226,8 +2300,8 @@ function App() {
           <div className="modal modal--fullscreen" onClick={(e) => e.stopPropagation()}>
             <div className="inv-header">
               <div className="inv-header-left">
-                <FileText size={20} />
-                <span className="inv-header-title">My Invoice Details</span>
+                <FileCog size={20} />
+                <span className="inv-header-title">Business Details</span>
               </div>
               <button className="inv-close-btn" onClick={closeInvoiceModal}><X size={18} /></button>
             </div>
@@ -2323,6 +2397,29 @@ function App() {
                 />
               </label>
 
+            </div>
+
+            <div className="inv-footer">
+              <button className="ghost-button" onClick={closeInvoiceModal}>Cancel</button>
+              <button className="primary-btn" style={{ flex: 1 }} onClick={saveInvoiceProfile}>Save</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* МОДАЛКА "RATE AND GST SETTINGS" */}
+      {isRateModalOpen && (
+        <div className="modal-backdrop" onClick={closeRateModal}>
+          <div className="modal modal--fullscreen" onClick={(e) => e.stopPropagation()}>
+            <div className="inv-header">
+              <div className="inv-header-left">
+                <DollarSign size={20} />
+                <span className="inv-header-title">Rate and GST Settings</span>
+              </div>
+              <button className="inv-close-btn" onClick={closeRateModal}><X size={18} /></button>
+            </div>
+
+            <div className="form-grid">
               <label className="field">
                 <span className="label">Weekday rate (AUD/hr)</span>
                 <input
@@ -2390,19 +2487,19 @@ function App() {
                 <span className="label">GST</span>
                 <div className="radio-group">
                   <label className="radio-option">
-                    <input type="radio" name="gstMode" value="none"
+                    <input type="radio" name="gstModeRate" value="none"
                       checked={invoiceDraft.gstMode === 'none'}
                       onChange={() => setInvoiceDraft(p => ({ ...p, gstMode: 'none' }))} />
                     No GST
                   </label>
                   <label className="radio-option">
-                    <input type="radio" name="gstMode" value="exclusive"
+                    <input type="radio" name="gstModeRate" value="exclusive"
                       checked={invoiceDraft.gstMode === 'exclusive'}
                       onChange={() => setInvoiceDraft(p => ({ ...p, gstMode: 'exclusive' }))} />
                     Add GST on top (10%)
                   </label>
                   <label className="radio-option">
-                    <input type="radio" name="gstMode" value="inclusive"
+                    <input type="radio" name="gstModeRate" value="inclusive"
                       checked={invoiceDraft.gstMode === 'inclusive'}
                       onChange={() => setInvoiceDraft(p => ({ ...p, gstMode: 'inclusive' }))} />
                     GST included in rate
@@ -2412,8 +2509,8 @@ function App() {
             </div>
 
             <div className="inv-footer">
-              <button className="ghost-button" onClick={closeInvoiceModal}>Cancel</button>
-              <button className="primary-btn" style={{ flex: 1 }} onClick={saveInvoiceProfile}>Save</button>
+              <button className="ghost-button" onClick={closeRateModal}>Cancel</button>
+              <button className="primary-btn" style={{ flex: 1 }} onClick={saveRateSettings}>Save</button>
             </div>
           </div>
         </div>

@@ -46,6 +46,25 @@ export type InvoiceLineItem =
   | { id: number; type: 'service'; description: string; amount: string }
   | { id: number; type: 'product'; description: string; quantity: string; unitPrice: string }
 
+export type ArchivedInvoice = {
+  id: string
+  invoice_number: string
+  client_id: number | null
+  client_snapshot: { name: string; address?: string; abn?: string }
+  line_items: InvoiceLineItem[]
+  subtotal: number
+  gst: number
+  total: number
+  gst_mode: 'none' | 'exclusive' | 'inclusive'
+  status: 'sent' | 'paid' | 'cancelled'
+  issued_date: string
+  comments?: string | null
+  period_start?: string | null
+  period_end?: string | null
+  profile_snapshot: InvoiceProfile
+  created_at: string
+}
+
 export type InvoiceProfile = {
   fullName: string
   address: string

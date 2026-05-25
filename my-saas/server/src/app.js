@@ -32,6 +32,7 @@ app.use('/api/invoice-profile', require('./routes/invoiceProfile'))
 app.use('/api/billing', require('./routes/billing'))
 app.use('/api/clients', require('./routes/clients'))
 app.use('/api/products', require('./routes/products'))
+app.use('/api/invoices', require('./routes/invoices'))
 
 app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok' })
