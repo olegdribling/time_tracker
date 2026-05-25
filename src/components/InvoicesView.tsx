@@ -143,8 +143,8 @@ export function InvoicesView({ invoices, onStatusChange, onDelete }: Props) {
   }, [invoices, filterClient, filterStatus, filterPeriod])
 
   const summary = useMemo(() => {
-    const total = filtered.reduce((s, inv) => s + (inv.status === 'cancelled' ? -Number(inv.total) : Number(inv.total)), 0)
-    const gst = filtered.reduce((s, inv) => s + (inv.status === 'cancelled' ? -Number(inv.gst) : Number(inv.gst)), 0)
+    const total = filtered.filter(inv => inv.status !== 'cancelled').reduce((s, inv) => s + Number(inv.total), 0)
+    const gst = filtered.filter(inv => inv.status !== 'cancelled').reduce((s, inv) => s + Number(inv.gst), 0)
     const paid = filtered.filter(inv => inv.status === 'paid').reduce((s, inv) => s + Number(inv.total), 0)
     const unpaid = filtered.filter(inv => inv.status === 'sent').reduce((s, inv) => s + Number(inv.total), 0)
     return { total, gst, paid, unpaid }
@@ -233,11 +233,15 @@ export function InvoicesView({ invoices, onStatusChange, onDelete }: Props) {
       <div className="inv-scroll-body">
       {/* Summary card */}
       <div className="overview inv-summary-overview">
-        <div className="overview-label">All Invoices</div>
-        <div className="overview-value">${money(summary.total)}</div>
-        {summary.gst > 0 && (
-          <div className="overview-sub">GST ${money(summary.gst)}</div>
-        )}
+        <div className="inv-summary-overview-layout">
+          <div className="overview-label">All Invoices</div>
+          <div className="inv-summary-overview-right">
+            <div className="overview-value">${money(summary.total)}</div>
+            {summary.gst > 0 && (
+              <div className="overview-sub">GST ${money(summary.gst)}</div>
+            )}
+          </div>
+        </div>
         <div className="inv-summary-overview-rows">
           <div className="inv-summary-overview-row">
             <span className="inv-summary-dot paid" />

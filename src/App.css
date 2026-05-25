@@ -1445,11 +1445,23 @@
   margin-bottom: 14px;
 }
 
+.inv-summary-overview-layout {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.inv-summary-overview-right {
+  text-align: right;
+  flex-shrink: 0;
+}
+
 .inv-summary-overview-rows {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  margin-top: 10px;
   padding-top: 10px;
   border-top: 1px solid var(--border);
 }
