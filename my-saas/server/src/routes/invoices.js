@@ -32,6 +32,7 @@ router.post('/', async (req, res) => {
     subtotal, gst, total, gst_mode, issued_date,
     comments, period_start, period_end, profile_snapshot,
   } = req.body
+  console.log('[Invoice] POST from user', req.userId, '| invoice_number:', invoice_number, '| client_id:', client_id, '| subtotal:', subtotal)
   try {
     const result = await pool.query(
       `INSERT INTO invoices
