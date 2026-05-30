@@ -23,12 +23,12 @@ app.use('/api', (_req, res, next) => {
 // Webhook MUST be registered before express.json() to get raw Buffer body
 app.post('/api/billing/webhook', express.raw({ type: 'application/json' }), require('./routes/billingWebhook'))
 
-app.use(express.json())
-
 app.use('/api/invoices', (req, res, next) => {
-  console.log(`[Invoice middleware] ${req.method} | auth: ${req.headers.authorization ? 'present' : 'MISSING'}`)
+  console.log(`[Invoice PRE-JSON] ${req.method} | auth: ${req.headers.authorization ? 'present' : 'MISSING'} | content-type: ${req.headers['content-type']}`)
   next()
 })
+
+app.use(express.json())
 
 app.use('/api/auth', require('./routes/auth'))
 app.use('/api/shifts', require('./routes/shifts'))
