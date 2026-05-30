@@ -25,6 +25,11 @@ app.post('/api/billing/webhook', express.raw({ type: 'application/json' }), requ
 
 app.use(express.json())
 
+app.use('/api/invoices', (req, res, next) => {
+  console.log(`[Invoice middleware] ${req.method} | auth: ${req.headers.authorization ? 'present' : 'MISSING'}`)
+  next()
+})
+
 app.use('/api/auth', require('./routes/auth'))
 app.use('/api/shifts', require('./routes/shifts'))
 app.use('/api/settings', require('./routes/settings'))
