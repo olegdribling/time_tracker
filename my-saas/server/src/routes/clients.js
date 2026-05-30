@@ -34,7 +34,7 @@ router.post('/', async (req, res) => {
       [req.userId]
     )
     const sub = subRes.rows[0]
-    const isProActive = sub?.plan === 'pro' && sub?.current_period_end && new Date(sub.current_period_end) > new Date()
+    const isProActive = sub?.plan === 'pro' && (!sub.current_period_end || new Date(sub.current_period_end) > new Date())
     if (!isProActive) {
       const countRes = await pool.query('SELECT COUNT(*) FROM clients WHERE user_id=$1', [req.userId])
       if (parseInt(countRes.rows[0].count) >= 1) {
