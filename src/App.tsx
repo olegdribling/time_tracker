@@ -32,6 +32,7 @@ import { CreateInvoiceModal, calcLineItemAmount } from './components/CreateInvoi
 import { InvoicesView } from './components/InvoicesView'
 import { ExpensesView } from './components/ExpensesView'
 import { BottomNav } from './components/BottomNav'
+import { WhatsNewModal } from './components/WhatsNewModal'
 import { GlobalFab } from './components/GlobalFab'
 import { CameraCapture } from './components/CameraCapture'
 import type { InvBTForm, InvSuccessData } from './components/CreateInvoiceModal'
@@ -2543,6 +2544,7 @@ function App() {
         />
       )}
 
+      <WhatsNewModal />
       <BottomNav
         activeView={activeView}
         onNavigate={(view) => {

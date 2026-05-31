@@ -2861,3 +2861,33 @@
 .bottom-nav__tab--active {
   color: var(--header-bg, #1a2b42);
 }
+
+/* ── What's New modal ───────────────────────────────────── */
+.whats-new-feature {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+}
+
+.whats-new-feature__icon {
+  width: 42px;
+  height: 42px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.whats-new-feature__title {
+  font-weight: 600;
+  font-size: 14px;
+  margin-bottom: 3px;
+  color: var(--text-primary);
+}
+
+.whats-new-feature__desc {
+  font-size: 13px;
+  color: var(--text-secondary, #666);
+  line-height: 1.4;
+}
