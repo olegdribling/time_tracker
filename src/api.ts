@@ -1,4 +1,4 @@
-import type { ArchivedInvoice, Client, ClientDraft, InvoiceProfile, Product, ProductDraft, Settings, Shift } from './types'
+import type { ArchivedInvoice, Client, ClientDraft, Expense, ExpenseDraft, InvoiceProfile, Product, ProductDraft, Settings, Shift } from './types'
 
 const API_URL = import.meta.env.VITE_API_URL || ''
 
@@ -63,6 +63,26 @@ async function fetchAuth(url: string, options: RequestInit = {}): Promise<Respon
   if (!newToken) return res
 
   return fetch(url, { ...options, headers: makeHeaders(newToken) })
+}
+
+function compressImage(file: File, maxPx: number, quality: number): Promise<File> {
+  return new Promise(resolve => {
+    const img = new Image()
+    const url = URL.createObjectURL(file)
+    img.onload = () => {
+      URL.revokeObjectURL(url)
+      const scale = Math.min(1, maxPx / Math.max(img.width, img.height))
+      const canvas = document.createElement('canvas')
+      canvas.width = Math.round(img.width * scale)
+      canvas.height = Math.round(img.height * scale)
+      canvas.getContext('2d')!.drawImage(img, 0, 0, canvas.width, canvas.height)
+      canvas.toBlob(blob => {
+        resolve(blob ? new File([blob], file.name, { type: 'image/jpeg' }) : file)
+      }, 'image/jpeg', quality)
+    }
+    img.onerror = () => { URL.revokeObjectURL(url); resolve(file) }
+    img.src = url
+  })
 }
 
 export const api = {
@@ -283,5 +303,50 @@ export const api = {
       method: 'POST',
     })
     return res.json()
+  },
+
+  // Expenses
+  async getExpenses(): Promise<Expense[]> {
+    const res = await fetchAuth(`${API_URL}/api/expenses`)
+    if (!res.ok) throw new Error('Failed to load expenses')
+    return res.json()
+  },
+
+  async scanReceipt(file: File): Promise<Partial<ExpenseDraft>> {
+    // Compress image to max 1800px and <2MB before uploading
+    const compressed = file.type === 'application/pdf' ? file : await compressImage(file, 1800, 0.85)
+    const formData = new FormData()
+    formData.append('receipt', compressed)
+    const token = localStorage.getItem('tt_token') || ''
+    const res = await fetch(`${API_URL}/api/expenses/scan`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+      body: formData,
+    })
+    if (res.status === 422) throw new Error('not_a_receipt')
+    if (!res.ok) throw new Error('Failed to scan receipt')
+    return res.json()
+  },
+
+  async createExpense(draft: ExpenseDraft): Promise<{ id: number }> {
+    const res = await fetchAuth(`${API_URL}/api/expenses`, {
+      method: 'POST',
+      body: JSON.stringify(draft),
+    })
+    if (!res.ok) throw new Error('Failed to save expense')
+    return res.json()
+  },
+
+  async updateExpense(id: number, draft: ExpenseDraft): Promise<void> {
+    const res = await fetchAuth(`${API_URL}/api/expenses/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(draft),
+    })
+    if (!res.ok) throw new Error('Failed to update expense')
+  },
+
+  async deleteExpense(id: number): Promise<void> {
+    const res = await fetchAuth(`${API_URL}/api/expenses/${id}`, { method: 'DELETE' })
+    if (!res.ok) throw new Error('Failed to delete expense')
   },
 }

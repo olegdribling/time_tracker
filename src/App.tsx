@@ -5,32 +5,42 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import './App.css'
 import {
-  Banknote,    // иконка для биллинга/подписки
-  BarChart2,   // иконка для отчётов
+  Banknote,
+  BarChart2,
+  Camera,
   ChevronLeft,
   ChevronRight,
-  Clock,       // иконка для смен
-  Coffee,      // иконка для перерыва на обед
-  ClockFading, // иконка для Pay Period
-  DollarSign,  // иконка для ставок/тарифов
-  FileCog,     // иконка для настроек бизнес-профиля
-  FileText,    // иконка для инвойса
-  Home,        // иконка "домой"
-  LogOut,      // иконка выхода
-  MoreVertical,// иконка "три точки" (контекстное меню)
-  Package,     // иконка продуктов
-  Plus,        // иконка добавления (FAB-кнопка)
+  Clock,
+  Coffee,
+  ClockFading,
+  DollarSign,
+  FileCog,
+  FilePlus,
+  FileText,
+  Home,
+  LogOut,
+  MoreVertical,
+  Package,
+  PenLine,
+  Plus,
+  Receipt,
   Timer,
+  Upload,
   User,
-  Users,       // иконка клиентов
-  X,           // иконка закрытия
+  Users,
+  X,
 } from 'lucide-react'
 import { api } from './api'                                                       // REST-клиент (все запросы к серверу)
 import { CreateInvoiceModal, calcLineItemAmount } from './components/CreateInvoiceModal' // модалка создания инвойса
 import { InvoicesView } from './components/InvoicesView'
+import { ExpensesView } from './components/ExpensesView'
+import { BottomNav } from './components/BottomNav'
+import { GlobalFab } from './components/GlobalFab'
+import { CameraCapture } from './components/CameraCapture'
 import type { InvBTForm, InvSuccessData } from './components/CreateInvoiceModal'
 import { useProducts } from './hooks/useProducts'                                  // хук управления продуктами
 import { useSettings } from './hooks/useSettings'                                  // хук управления настройками
+import { useExpenses } from './hooks/useExpenses'
 import { calculateTotals, getPeriodByOffset, getPeriodRange, minutesBetween } from './lib/calculations' // расчёты периодов и итогов
 import { DEFAULT_INVOICE_PROFILE, DEFAULT_SETTINGS } from './lib/defaults'         // дефолтные значения
 import { formatDate, money } from './lib/format'                                   // форматирование дат и денег
@@ -307,7 +317,9 @@ function App() {
   const [editingId, setEditingId] = useState<string | null>(null) // id смены при редактировании (null = новая)
 
   // ── Навигация между экранами ──────────────────────────────────────────────
-  const [activeView, setActiveView] = useState<'home' | 'reports' | 'calendar' | 'clients' | 'products' | 'invoices'>('home')
+  const [activeView, setActiveView] = useState<'home' | 'reports' | 'calendar' | 'clients' | 'products' | 'invoices' | 'expenses'>(
+    () => (sessionStorage.getItem('tt_active_view') as any) || 'home'
+  )
 
   // ── Архив инвойсов ────────────────────────────────────────────────────────
   const [archivedInvoices, setArchivedInvoices] = useState<ArchivedInvoice[]>([])
@@ -354,6 +366,9 @@ function App() {
     openAddProduct, openEditProduct, closeProductModal, saveProduct, handleDeleteProduct,
   } = useProducts({ isMutatingRef, requireActive, billingPlan, setIsUpgradeModalOpen })
 
+  // ── Расходы ────────────────────────────────────────────────────────────────
+  const expensesHook = useExpenses({ isMutatingRef })
+
   // ── Главный экран: сколько групп недель показывать (кнопка "Load more") ────
   const [weeksVisible, setWeeksVisible] = useState(2)
 
@@ -375,7 +390,6 @@ function App() {
   const setOpenMenuClientId  = (id: number | null) => setOpenMenu(id ? { type: 'client',  id } : null)
 
   // ── FAB-кнопка (плавающая + кнопка) ──────────────────────────────────────
-  const [isFabOpen, setIsFabOpen] = useState(false) // открыто ли FAB-меню
 
   // ── Модалка "Create Invoice" ──────────────────────────────────────────────
   const [isInvoiceByTimeOpen, setIsInvoiceByTimeOpen] = useState(false)
@@ -474,6 +488,7 @@ function App() {
           if (billingRow.plan) setBillingPlan(billingRow.plan)
           setBillingActive(billingRow.active)
         }
+        expensesHook.loadExpenses()
       } catch (error) {
         console.error('Failed to load data', error)
       }
@@ -814,7 +829,7 @@ function App() {
   const openReports = () => {
     closeOverlays()
     setCustomReportRange(null)
-    setActiveView('reports')
+    setView('reports')
     setPeriodOffset(0)
     setReportClientId(soloClientId)
   }
@@ -822,19 +837,19 @@ function App() {
   // Переходит на экран клиентов
   const openClients = () => {
     closeOverlays()
-    setActiveView('clients')
+    setView('clients')
   }
 
   // Переходит на экран продуктов
   const openProducts = () => {
     closeOverlays()
-    setActiveView('products')
+    setView('products')
   }
 
   // Переходит на экран архива инвойсов
   const openInvoices = async () => {
     closeOverlays()
-    setActiveView('invoices')
+    setView('invoices')
     try {
       const data = await api.getInvoices()
       setArchivedInvoices(data)
@@ -843,13 +858,19 @@ function App() {
     }
   }
 
+  const openExpenses = async () => {
+    closeOverlays()
+    setView('expenses')
+    await expensesHook.loadExpenses()
+  }
+
   // Открывает полноэкранный календарь, переходя к нужной дате
   const openCalendar = (targetDate?: string) => {
     closeOverlays()
     const nextDate = targetDate ?? calendarSelectedDate ?? toLocalDateKey(new Date())
     setCalendarSelectedDate(nextDate)
     setCalendarMonth(nextDate.slice(0, 7))
-    setActiveView('calendar')
+    setView('calendar')
   }
 
   // Тоггл кнопки-даты в хедере: если уже на календаре — возвращает домой, иначе открывает
@@ -871,10 +892,29 @@ function App() {
     setCalendarMonth((prev) => shiftMonthKey(prev, 1))
   }
 
+  const setView = (view: typeof activeView) => {
+    sessionStorage.setItem('tt_active_view', view)
+    if (view !== 'home') {
+      window.history.pushState({ appView: view }, '')
+    }
+    setActiveView(view)
+  }
+
+  useEffect(() => {
+    const handlePopState = () => {
+      sessionStorage.setItem('tt_active_view', 'home')
+      setActiveView('home')
+      // Push a new state so the next back press doesn't leave the app
+      window.history.pushState(null, '')
+    }
+    window.addEventListener('popstate', handlePopState)
+    return () => window.removeEventListener('popstate', handlePopState)
+  }, [])
+
   // Возвращает на главный экран (home)
   const goHome = () => {
     closeOverlays()
-    setActiveView('home')
+    setView('home')
   }
 
   // ── Действия: клиенты ─────────────────────────────────────────────────────
@@ -1176,7 +1216,6 @@ function App() {
     setInvBTCalendarMonth(currentMonthKey)
     setInvBTCalendarOpen(false)
     setInvBTSuccessData(null)
-    setIsFabOpen(false)
     setIsInvoiceByTimeOpen(true)
   }
 
@@ -1208,7 +1247,6 @@ function App() {
     setInvBTCalendarMonth(toMonthKey(new Date()))
     setInvBTCalendarOpen(false)
     setInvBTSuccessData(null)
-    setIsFabOpen(false)
     setIsInvoiceByTimeOpen(true)
   }
 
@@ -1356,7 +1394,6 @@ function App() {
               <button className="menu-panel-item" onClick={openSettings}><ClockFading size={18} />Pay period</button>
               <button className="menu-panel-item" onClick={openClients}><Users size={18} />Clients</button>
               <button className="menu-panel-item" onClick={openProducts}><Package size={18} />Products/Services</button>
-              <button className="menu-panel-item" onClick={openInvoices}><FileText size={18} />Invoices</button>
 
               <button className="menu-panel-item" onClick={() => { setIsMenuOpen(false); navigate('/app/billing') }}><Banknote size={18} />Subscription</button>
               <hr className="menu-panel-divider" />
@@ -1588,6 +1625,8 @@ function App() {
             }
             onDelete={id => setArchivedInvoices(prev => prev.filter(inv => inv.id !== id))}
           />
+        ) : activeView === 'expenses' ? (
+          <ExpensesView {...expensesHook} />
         ) : activeView === 'clients' ? (
           <section className="clients-section">
             <div className="modal-header" style={{ marginBottom: '12px' }}>
@@ -1748,37 +1787,21 @@ function App() {
         )}
       </main>
 
-      {/* FAB — плавающая кнопка (круглая, снизу справа).
-          На не-home экранах показываем иконку "Home" для возврата.
-          На главном экране раскрывается в меню: Invoice / New Shift / Reports */}
-      {activeView === 'reports' || activeView === 'calendar' || activeView === 'clients' || activeView === 'products' || activeView === 'invoices' ? (
-        <button className="floating-btn" onClick={goHome}>
-          <Home size={24} />
-        </button>
-      ) : activeView === 'home' && (
-        <>
-          {isFabOpen && <div className="fab-backdrop" onClick={() => setIsFabOpen(false)} />}
-          {isFabOpen && (
-            <div className="fab-menu">
-              <button className="fab-menu-item" onClick={openCreateInvoice}>
-                <FileText size={20} />
-                Create Invoice
-              </button>
-              <button className="fab-menu-item" onClick={() => { setIsFabOpen(false); openCreate() }}>
-                <Clock size={20} />
-                New Shift
-              </button>
-              <button className="fab-menu-item" onClick={() => { setIsFabOpen(false); openReports() }}>
-                <BarChart2 size={20} />
-                Reports
-              </button>
-            </div>
-          )}
-          <button className="floating-btn" onClick={() => setIsFabOpen(prev => !prev)}>
-            {isFabOpen ? <X size={24} /> : <Plus size={24} />}
-          </button>
-        </>
-      )}
+      {/* Global FAB */}
+      {(() => {
+        const { handleReceiptFile, openAddExpense } = expensesHook
+        const fabItems: import('./components/GlobalFab').FabItem[] = activeView === 'home' ? [
+          { kind: 'action', icon: Clock,    label: 'New Shift', onClick: () => openCreate() },
+          { kind: 'action', icon: BarChart2, label: 'Reports',   onClick: () => openReports() },
+        ] : activeView === 'invoices' ? [
+          { kind: 'action', icon: FilePlus, label: 'Create Invoice', onClick: openCreateInvoice },
+        ] : activeView === 'expenses' ? [
+          { kind: 'action', icon: Camera,   label: 'Scan Receipt',   onClick: expensesHook.openCamera },
+          { kind: 'file',   icon: Upload,   label: 'Upload Receipt', accept: 'image/*,application/pdf', onFile: handleReceiptFile },
+          { kind: 'action', icon: PenLine,  label: 'Enter Manually', onClick: openAddExpense },
+        ] : []
+        return <GlobalFab items={fabItems} />
+      })()}
 
       {/* МОДАЛКА ДОБАВЛЕНИЯ / РЕДАКТИРОВАНИЯ СМЕНЫ
           Полноэкранная. Содержит: дата (встроенный календарь), клиент (select),
@@ -2280,7 +2303,7 @@ function App() {
                   }
                   setCustomReportRange({ start: customReportFrom, end: customReportTo })
                   closeSettings()
-                  setActiveView('reports')
+                  setView('reports')
                   setReportClientId(soloClientId)
                 }}>Report</button>
               ) : (
@@ -2515,6 +2538,23 @@ function App() {
           </div>
         </div>
       )}
+
+      {expensesHook.isCameraOpen && (
+        <CameraCapture
+          onCapture={file => { expensesHook.closeCamera(); expensesHook.handleReceiptFile(file) }}
+          onClose={expensesHook.closeCamera}
+        />
+      )}
+
+      <BottomNav
+        activeView={activeView}
+        onNavigate={(view) => {
+          if (view === 'home') goHome()
+          else if (view === 'invoices') openInvoices()
+          else if (view === 'expenses') { closeOverlays(); setView('expenses'); expensesHook.loadExpenses() }
+          else if (view === 'reports') { closeOverlays(); setView('reports') }
+        }}
+      />
     </div>
   )
 }

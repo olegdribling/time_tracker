@@ -34,17 +34,49 @@ Full-stack SaaS for work shift tracking, pay calculation, and invoice generation
 ## Key Files
 
 | File | Purpose |
-|------|---------|
-| `src/App.tsx` | Main component (~1900 lines) — all views, state, modals, forms |
+| --- | --- |
+| `src/App.tsx` | Main component (~2500 lines) — all views, state, modals, forms |
 | `src/App.css` | All component styles (dark navy design system) |
 | `src/index.css` | CSS variables, WheelPicker styles, auth page styles |
-| `src/types.ts` | Domain types: `Shift`, `ShiftForm`, `Settings`, `Client`, `Product`, `InvoiceProfile` |
+| `src/types.ts` | Domain types: `Shift`, `ShiftForm`, `Settings`, `Client`, `Product`, `InvoiceProfile`, `ArchivedInvoice` |
 | `src/api.ts` | REST client with JWT refresh token rotation |
 | `src/lib/calculations.ts` | Period ranges, pay totals, shift grouping logic |
+| `src/lib/defaults.ts` | Default values for `Settings` and `InvoiceProfile` |
+| `src/lib/format.ts` | `formatDate()`, `money()` helpers |
 | `src/lib/invoice.ts` | Client-side PDF generation via pdf-lib |
+| `src/components/CreateInvoiceModal.tsx` | Invoice builder modal + `calcLineItemAmount` |
+| `src/components/InvoicesView.tsx` | Invoice archive list view |
+| `src/components/ExpensesView.tsx` | Expenses list + add/edit form + receipt scan confirm flow |
+| `src/components/BottomNav.tsx` | Bottom navigation bar (home / invoices / expenses / reports) |
+| `src/components/GlobalFab.tsx` | Reusable FAB — supports `'action'` items and `'file'` picker items |
+| `src/components/CameraCapture.tsx` | In-browser camera for capturing receipt photos |
+| `src/hooks/useSettings.ts` | Settings modal state + save logic |
+| `src/hooks/useProducts.ts` | Products CRUD state + plan-gating logic |
+| `src/hooks/useExpenses.ts` | Expenses CRUD + receipt-scan state machine (`idle→scanning→confirming→saving`) |
+| `src/pages/AppPage.tsx` | Thin wrapper that renders `<App>` behind `ProtectedRoute` |
+| `src/pages/BillingPage.tsx` | Subscription management page |
+| `src/auth/ProtectedRoute.tsx` | Redirects unauthenticated users to `/login` |
 | `my-saas/server/src/app.js` | Express entry — middleware, route mounting, SPA fallback |
-| `my-saas/server/src/routes/` | Auth, shifts, settings, clients, products, invoice-profile, billing |
+| `my-saas/server/src/routes/` | Auth, shifts, settings, clients, products, invoice-profile, billing, invoices |
 | `my-saas/server/src/middleware/auth.js` | JWT verification, sets `req.userId` |
+
+## Routing
+
+`src/main.tsx` defines all routes via React Router. Public routes: `/login`, `/register`, `/forgot-password`, `/reset-password`, `/terms`, `/privacy`, `/refund`, `/delete-account`. Protected routes (wrapped in `ProtectedRoute`): `/app/*` → `AppPage` (renders `App`), `/app/billing` → `BillingPage`. Root `/` redirects to `/login`.
+
+## App Views (activeView state)
+
+`App.tsx` uses a single `activeView` state (`'home' | 'reports' | 'calendar' | 'clients' | 'products' | 'invoices' | 'expenses'`) to switch between views — there is no client-side routing for these. `InvoicesView` and `ExpensesView` are separate components; all other views render inline in `App.tsx`. Navigation between the four main tabs (home / invoices / expenses / reports) is via `BottomNav`.
+
+## Billing / Subscription Plans
+
+Plans: `'trial'` | `'solo'` | `'pro'`. Retrieved from `/api/billing/status` on load, stored as `billingPlan` state. Free-plan limits enforced client-side (e.g. max 1 client on trial/solo). `requireActive()` checks if the subscription is still valid before any mutation. Stripe price IDs come from `STRIPE_PRICE_SOLO` and `STRIPE_PRICE_PRO` env vars on the server.
+
+## Key Patterns in App.tsx
+
+- **`isMutatingRef`** — `useRef(false)` set to `true` during any CRUD operation; `syncData()` (background refresh) skips if `true` to avoid overwriting optimistic state.
+- **`closeOverlays()`** — must be called before opening any modal/view to reset all open menus and overlays to a clean state.
+- **`openMenu` state** — unified `{ type: 'shift' | 'product' | 'client', id }` replaces per-item `openMenuXxxId` pattern for context menus.
 
 ## Design System
 
@@ -87,13 +119,20 @@ Full-stack SaaS for work shift tracking, pay calculation, and invoice generation
 - **Env config** lives at `~/domains/invairo.com.au/public_html/.builds/config/.env` — not in the git repo.
 - If GitHub Actions SSH times out (i/o timeout) — it's Hostinger being temporarily unreachable; re-run the workflow or deploy manually via SSH.
 
+## Expenses Feature
+
+**Receipt scanning** — `POST /api/expenses/scan` (multipart, `receipt` field) sends the image/PDF to Claude claude-sonnet-4-6 via the Anthropic SDK (`ANTHROPIC_API_KEY` env var) and returns `{ vendor, amount, gst, category, expense_date }`. The client-side state machine lives in `useExpenses.ts` (`ScanState`: `idle → scanning → confirming → saving`). Duplicate detection runs client-side by comparing vendor + amount + date against existing expenses.
+
+**FAB wiring** — `GlobalFab` receives `FabItem[]`. File-picker items (`kind: 'file'`) render hidden `<input type="file">` elements; the FAB manages click forwarding so no file input appears in the DOM hierarchy of the form.
+
 ## Environment Variables
 
 | Variable | Where | Notes |
-|----------|-------|-------|
+| --- | --- | --- |
 | `DATABASE_URL` | Server | Neon.tech PostgreSQL connection string |
 | `JWT_SECRET` | Server | Access + refresh token signing key |
 | `RESEND_API_KEY` | Server | Transactional email |
 | `STRIPE_SECRET_KEY` | Server | Optional — server starts without it |
+| `ANTHROPIC_API_KEY` | Server | Required for receipt scanning (`/api/expenses/scan`) |
 | `APP_URL` | Server | `https://invairo.com.au` in production |
 | `VITE_API_URL` | Frontend build | Must be empty string |

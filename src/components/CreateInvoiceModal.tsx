@@ -341,14 +341,14 @@ export function CreateInvoiceModal({
               <div style={{ position: 'relative' }}>
                 {addMenuOpen && (
                   <div
-                    style={{ position: 'absolute', inset: 0, zIndex: 98, backdropFilter: 'blur(2px)', borderRadius: 'inherit' }}
+                    className="fab-backdrop"
                     onClick={() => setAddMenuOpen(false)}
                   />
                 )}
                 <div className="inv-section-title-row">
                   <div className="inv-section-title">LINE ITEMS</div>
                   <div style={{ position: 'relative', zIndex: addMenuOpen ? 99 : 'auto' }}>
-                    <button type="button" className="add-action-btn" onClick={() => setAddMenuOpen(p => !p)}>+ Add Item</button>
+                    <button type="button" className="add-action-btn add-action-btn--primary" onClick={() => setAddMenuOpen(p => !p)}>+ Add Item</button>
                     {addMenuOpen && (
                       <div className="inv-add-menu">
                         <button onClick={() => onAddItem('time')}>+ Add Time</button>

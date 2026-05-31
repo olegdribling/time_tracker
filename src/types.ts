@@ -65,6 +65,44 @@ export type ArchivedInvoice = {
   created_at: string
 }
 
+export type ExpenseCategory =
+  | 'Vehicle & travel'
+  | 'Home office'
+  | 'Equipment'
+  | 'Software & subscriptions'
+  | 'Marketing'
+  | 'Professional services'
+  | 'Training & education'
+  | 'Insurance'
+  | 'Bank fees'
+  | 'Subcontractors'
+
+export const EXPENSE_CATEGORIES: ExpenseCategory[] = [
+  'Vehicle & travel', 'Home office', 'Equipment', 'Software & subscriptions',
+  'Marketing', 'Professional services', 'Training & education',
+  'Insurance', 'Bank fees', 'Subcontractors',
+]
+
+export type Expense = {
+  id: number
+  vendor: string
+  amount: number
+  gst: number
+  category: ExpenseCategory
+  expense_date: string
+  description?: string | null
+  created_at: string
+}
+
+export type ExpenseDraft = {
+  vendor: string
+  amount: number
+  gst: number
+  category: ExpenseCategory
+  expense_date: string
+  description?: string
+}
+
 export type InvoiceProfile = {
   fullName: string
   address: string
