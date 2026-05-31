@@ -1,8 +1,8 @@
 import { useState } from 'react'
-import { X, Receipt, Sparkles, LayoutGrid } from 'lucide-react'
+import { X, Receipt, Sparkles, LayoutGrid, FileCheck } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 
-const KEY = 'tt_whats_new_v1'
+const KEY = 'tt_whats_new_v2'
 
 function Feature({ icon: Icon, color, title, description }: {
   icon: LucideIcon
@@ -41,6 +41,12 @@ export function WhatsNewModal() {
           <button className="modal-close-btn" onClick={close}><X size={18} /></button>
         </div>
         <div className="modal-body" style={{ gap: 16 }}>
+          <Feature
+            icon={FileCheck}
+            color="#f0eef8"
+            title="Invoice History"
+            description="Invoices are now saved automatically. Track their status — mark as Paid or Cancelled, and reopen any invoice as a PDF."
+          />
           <Feature
             icon={Receipt}
             color="#e8f8ee"
