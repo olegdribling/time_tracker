@@ -17,13 +17,10 @@ import {
   FileCog,
   FilePlus,
   FileText,
-  Home,
   LogOut,
   MoreVertical,
   Package,
   PenLine,
-  Plus,
-  Receipt,
   Timer,
   Upload,
   User,
@@ -2551,7 +2548,7 @@ function App() {
         onNavigate={(view) => {
           if (view === 'home') goHome()
           else if (view === 'invoices') openInvoices()
-          else if (view === 'expenses') { closeOverlays(); setView('expenses'); expensesHook.loadExpenses() }
+          else if (view === 'expenses') { openExpenses() }
           else if (view === 'reports') { closeOverlays(); setView('reports') }
         }}
       />

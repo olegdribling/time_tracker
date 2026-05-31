@@ -17,8 +17,6 @@ interface Props {
   setDraft: (draft: ExpenseDraft) => void
   editingId: number | null
   isFormOpen: boolean
-  handleReceiptFile: (file: File) => void
-  openAddExpense: () => void
   openEditExpense: (expense: Expense) => void
   closeForm: () => void
   saveExpense: () => void
@@ -94,8 +92,6 @@ export function ExpensesView({
   setDraft,
   editingId,
   isFormOpen,
-  handleReceiptFile,
-  openAddExpense,
   openEditExpense,
   closeForm,
   saveExpense,
